@@ -402,14 +402,34 @@ function agentWriteTool(tool) {
   return tool === 'github.write_file' || tool === 'github.apply_patch' || tool === 'github.create_pull_request';
 }
 
-function agentRepairPrompt(rawText) {
+function agentRepairPrompt(rawText, requestContext) {
   return `Your previous response did not follow the ON TracK Agent contract. Convert it now and return exactly one JSON object, with no Markdown and no narration.
 If you need repository information, return a plan with github.read_file or github.list_files.
 If you want to change an existing file, return github.apply_patch with a small unified diff.
 If no tool is needed, return {"kind":"answer","reply":"...","actions":[]}.
 Do not say that you will read or change something; request the tool in actions instead.
+Current user request:
+${String(requestContext || '').slice(0, 8000)}
 Previous response:
 ${String(rawText || '').slice(0, 8000)}`;
+}
+
+function inferAgentReadPlan(plan, repoContext) {
+  if (!plan || plan.kind !== 'answer' || !repoContext?.paths?.length) return plan;
+  const text = String(plan.reply || '');
+  if (!/(צריך|אקרא|לקרוא|לבדוק|להבין|read|inspect|review|look at)/i.test(text)) return plan;
+  const mentioned = [...text.matchAll(/[A-Za-z0-9_.-]+\.(?:html|js|css|json|md|ts|tsx|jsx)/gi)].map(match => match[0].toLowerCase());
+  const paths = [];
+  for (const name of mentioned) {
+    const path = repoContext.paths.find(item => item.toLowerCase() === name || item.toLowerCase().endsWith('/' + name));
+    if (path && !paths.includes(path)) paths.push(path);
+  }
+  if (!paths.length) return plan;
+  return {
+    kind: 'plan',
+    reply: 'אבדוק את הקבצים שצוינו לפני שאציע שינוי.',
+    actions: paths.slice(0, 4).map(path => ({ tool: 'github.read_file', path }))
+  };
 }
 
 function normalizeAgentPlan(rawText) {
@@ -428,7 +448,7 @@ function validateAgentPlan(plan, githubConnected) {
   if (!plan || plan.kind === 'answer') return null;
   if (!githubConnected) return 'GitHub is not connected.';
   if (!Array.isArray(plan.actions) || !plan.actions.length) return 'The model returned an empty action plan.';
-  const allowed = new Set(['github.list_files', 'github.read_file', 'github.write_file', 'github.create_pull_request']);
+  const allowed = new Set(['github.list_files', 'github.read_file', 'github.write_file', 'github.apply_patch', 'github.create_pull_request']);
   let hasWrite = false;
   for (const action of plan.actions) {
     if (!allowed.has(action.tool)) return `Unsupported agent tool: ${action.tool}`;
@@ -543,8 +563,8 @@ async function executeAgentReadActions(config, actions, defaultBranch) {
   return results;
 }
 
-function agentToolResultsPrompt(results) {
-  return `ON executed these read-only GitHub tools. Use only these results; do not claim other access. Return the final JSON plan now.\n${JSON.stringify(results).slice(0, 70000)}`;
+function agentToolResultsPrompt(results, requestContext) {
+  return `ON executed these read-only GitHub tools. Use only these results; do not claim other access. Keep the original request in mind and return the final JSON plan now.\nOriginal user request:\n${String(requestContext || '').slice(0, 8000)}\nRead results:\n${JSON.stringify(results).slice(0, 70000)}`;
 }
 
 async function executeAgentWritePlan(config, plan, planId) {
@@ -1211,10 +1231,10 @@ async function handleChat(request, env, uid) {
     const githubReady = !!(consentMatchesModel && hasGithubFields && repoContext);
     const systemPrompt = agentSystemPrompt(githubReady, repoContext, consentMatchesModel);
     let rawReply = await callModel(m, prompt, 1800, imagePart, systemPrompt);
-    let plan = normalizeAgentPlan(rawReply);
+    let plan = inferAgentReadPlan(normalizeAgentPlan(rawReply), repoContext);
     if (!plan) {
-      const repairedReply = await callModel(m, agentRepairPrompt(rawReply), 1200, null, systemPrompt);
-      plan = normalizeAgentPlan(repairedReply);
+      const repairedReply = await callModel(m, agentRepairPrompt(rawReply, prompt), 1200, null, systemPrompt);
+      plan = inferAgentReadPlan(normalizeAgentPlan(repairedReply), repoContext);
       if (plan) rawReply = repairedReply;
     }
     if (!plan) {
@@ -1226,11 +1246,11 @@ async function handleChat(request, env, uid) {
       const readActions = plan.actions.filter(action => action.tool === 'github.list_files' || action.tool === 'github.read_file');
       if (readActions.length && repoContext) {
         readResults = await executeAgentReadActions(github, readActions, repoContext.defaultBranch);
-        let followReply = await callModel(m, agentToolResultsPrompt(readResults), 3200, null, systemPrompt);
-        let followPlan = normalizeAgentPlan(followReply);
+        let followReply = await callModel(m, agentToolResultsPrompt(readResults, prompt), 3200, null, systemPrompt);
+        let followPlan = inferAgentReadPlan(normalizeAgentPlan(followReply), repoContext);
         if (!followPlan) {
-          const repairedFollowReply = await callModel(m, agentRepairPrompt(followReply), 1200, null, systemPrompt);
-          followPlan = normalizeAgentPlan(repairedFollowReply);
+          const repairedFollowReply = await callModel(m, agentRepairPrompt(followReply, prompt), 1200, null, systemPrompt);
+          followPlan = inferAgentReadPlan(normalizeAgentPlan(repairedFollowReply), repoContext);
           if (followPlan) followReply = repairedFollowReply;
         }
         if (followPlan) {
