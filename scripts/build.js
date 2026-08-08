@@ -5,9 +5,9 @@ const path = require('path');
 
 const root = path.join(__dirname, '..');
 const dist = path.join(root, 'dist');
-// The app is served at "/" directly — the root redirect stub the repo carries for
-// GitHub Pages is not copied, so there is no extra page load on the way in.
+// The app now lives at the repo root (index.html + server.js), so there is no
+// separate redirect stub to skip anymore — just copy the app shell straight in.
 fs.rmSync(dist, { recursive: true, force: true });
 fs.mkdirSync(dist, { recursive: true });
-fs.copyFileSync(path.join(root, 'assets/index.html'), path.join(dist, 'index.html'));
+fs.copyFileSync(path.join(root, 'index.html'), path.join(dist, 'index.html'));
 console.log('built dist/index.html');

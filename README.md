@@ -15,8 +15,8 @@ npm start
 ```
 
 ## Main files
-- `assets/index.html` - app shell and UI
-- `assets/server.js` - local web server and API
+- `index.html` - app shell and UI
+- `server.js` - local web server and API
 - `PROJECT_INFO.md` - current project status and steps
 
 ## Current focus
