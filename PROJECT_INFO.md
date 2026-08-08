@@ -1,7 +1,7 @@
 # ON TracK Project Info
 
-Version: `0.7.1`
-Status: `GitHub connection verified working end-to-end on the live site (real repo, real token, read+write scopes confirmed). Clarified the Owner/Repo fields after a real user typed an email and a full URL into them.`
+Version: `0.8.0`
+Status: `Model connection now works on the deployed site too — same Worker/KV treatment as GitHub, reusing the same KV namespace. Fixed the same "modal doesn't load on real button" bug for models. Added the RL logo as the visible sidebar brand mark, not just the tab favicon. Removed leftover QA-tool copy from the model modal.`
 
 ## Goal
 Build a web-first workspace where a chosen model can understand a project, connect to repositories, and perform approved actions in a controlled flow.
@@ -24,11 +24,14 @@ Build a web-first workspace where a chosen model can understand a project, conne
 - Fixed two related bugs found while building the above: (1) `updateConnDots()` called a `fetchJsonSafe` helper that only existed inside a different section's closure — the resulting `ReferenceError` was silently caught and read as "not connected," so the GitHub header LED showed red even when actually connected. Moved `fetchJsonSafe` to the top of the script so every section can reach it. (2) The visible "connect GitHub" button (top-bar icon, and the Settings shortcut) only opened the modal — it never loaded the saved owner/repo/enabled state into the form, so after a page refresh the fields always looked empty even though the config was safely persisted. Added a shared `openGithubModal()` that loads the saved config and refreshes the live status every time the modal opens, and wired every entry point to it.
 - Created and bound the `GH_CONFIG` KV namespace in Cloudflare, then verified the whole GitHub connection end-to-end on the live site with a real repo (`RLsite/ON`) and a real Personal Access Token — connected status, read+write scope detection, and the header LED all confirmed correct in production, not just locally.
 - A real test run caught a UX gap immediately: a real user typed an email into the Owner field and a full URL into the Repo field, which produced a confusing "Not Found" with no clue why. Reworded both labels to rule out the mistake explicitly, replaced the generic placeholders with this project's own real values (`RLsite` / `ON`), and added a hint line beneath the fields spelling out the breakdown from a full GitHub URL.
+- Extended `worker.js` to also handle `/api/models/*` (list, select, add, update, delete, test) — same reasoning as GitHub: this only existed in `server.js` before, so it 404'd on the deployed site. Reuses the existing `GH_CONFIG` KV namespace under a different key (`models_config`), so no second namespace had to be created. Found and fixed the identical bug class as GitHub's: the real "Connect Model" entry points (top-bar icon, Settings shortcut, hero "Connect model" button) only opened the modal without loading/rendering the saved model list — only the dead legacy `#modelBtn` had that logic. Added `openModelModal()` and wired every entry point to it. Verified end-to-end with `wrangler dev --local`: add/select/test/delete all persist correctly through KV, and a full page reload correctly restores the previously-selected model.
+- Added the RL logo as the visible sidebar brand mark (replacing the generic "O"), reusing the favicon's own data URI via JS rather than embedding the image twice.
+- Removed a paragraph of leftover QA-tool copy from the model modal ("המודל שנבחר כאן הוא המודל שמבצע את בדיקות ה-QA...") — this app isn't the QA dashboard it was forked from.
 
 ## In progress
 1. Make the home screen fully product-like
 2. Build real project and library data
-3. Give the model connection the same Worker-backend treatment as GitHub — `/api/models/*` currently only exists in `server.js`, so it 404s on the deployed site exactly like GitHub did before this round
+3. A quick one-click "reconnect" for an already-configured model, so re-testing doesn't require reopening the full form
 
 ## Next
 1. Add a project picker

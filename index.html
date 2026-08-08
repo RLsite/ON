@@ -27,7 +27,8 @@
   .appShell{min-height:100vh;display:grid;grid-template-columns:260px minmax(0,1fr)}
   .sideRail{background:linear-gradient(180deg,rgba(255,255,255,.78),rgba(255,244,234,.92));border-inline-end:1px solid var(--line);padding:18px 14px;display:flex;flex-direction:column;gap:20px;position:sticky;top:0;height:100vh;overflow:auto}
   .railBrand{display:flex;align-items:center;gap:12px;padding:8px 6px 4px}
-  .brandMark{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--viz-2));color:#fff;display:grid;place-items:center;font-weight:800;box-shadow:var(--shadow-sm)}
+  .brandMark{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--viz-2));color:#fff;display:grid;place-items:center;font-weight:800;box-shadow:var(--shadow-sm);overflow:hidden}
+  .brandMark img{width:100%;height:100%;object-fit:cover}
   .brandName{font-weight:800;font-size:18px;line-height:1.1}
   .brandSub{font-size:12px;color:var(--muted)}
   .railSection{display:flex;flex-direction:column;gap:8px}
@@ -339,7 +340,7 @@
 <div class="newShell">
   <aside class="newSidebar">
     <div class="railBrand">
-      <div class="brandMark">O</div>
+      <div class="brandMark"><img id="brandLogo" alt="ON TracK"></div>
       <div>
         <div class="brandName">ON TracK</div>
         <div class="brandSub" data-i18n="subtitle">מרחב עבודה לפרויקטים מבוססי מודל</div>
@@ -382,7 +383,7 @@
       <section class="docPanel">
         <div class="docHeader">
           <div class="docTitle" data-i18n="docTitle">מידע פרויקט</div>
-          <span class="hint" id="docVersion">v0.7.1</span>
+          <span class="hint" id="docVersion">v0.8.0</span>
         </div>
         <div class="docBody" id="docBody">
           <ul>
@@ -407,7 +408,7 @@
       <aside class="sideCard">
         <h3 data-i18n="quickStats">מצב מהיר</h3>
         <div class="heroStatRow"><span data-i18n="statusLabel">סטטוס</span><b id="miniStatus" data-i18n="miniStatusDefault">התחלה חדשה</b></div>
-        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">0.7.1 ↻</button></div>
+        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">0.8.0 ↻</button></div>
         <div class="heroStatRow"><span data-i18n="langLabel">שפה</span><b id="langValue">עברית</b></div>
       </aside>
     </div>
@@ -457,7 +458,7 @@
         <div class="settingsGrid">
           <div class="settingCard">
             <b data-i18n="settingsCardVersion">גרסת פרויקט</b>
-            <div class="hint" id="settingsVersion">0.7.1</div>
+            <div class="hint" id="settingsVersion">0.8.0</div>
           </div>
           <div class="settingCard">
             <b data-i18n="settingsCardStatus">מצב נוכחי</b>
@@ -510,7 +511,7 @@
         <b data-i18n="helpTitle">❓ עזרה וסטטוס פרויקט</b>
         <button class="icon" id="helpClose">✕</button>
       </div>
-      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">0.7.1</b></div>
+      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">0.8.0</b></div>
       <p class="hint" style="line-height:1.7;margin-top:0" data-i18n="helpIntro">
         זהו כלי בדיקות (QA) מקומי שנבנה כדי להפוך לעבודה מסודרת מול מודל שתבחר.
         המטרה היא לעבוד בשלבים: לבחור מודל, לחבר פרויקט מקומי, להגדיר תכנית, ואז לעבור לביצוע מבוקר.
@@ -550,7 +551,6 @@
         <b data-i18n="modelModalTitle">🤖 בחירת מודל</b>
         <button class="icon" id="modelClose">✕</button>
       </div>
-      <p class="hint" data-i18n-html="modelIntro">המודל שנבחר כאן הוא המודל שמבצע את בדיקות ה-QA. שמו משויך אוטומטית (שדה <code>agent</code>) לכל בדיקה חדשה שנשלחת מ"➕ בקשה חדשה", כדי שיתועד איזה מודל טיפל בה. אפשר לבחור מודל מובנה (Claude) או להוסיף מודל חיצוני (Gemini / OpenAI / OpenRouter / NVIDIA וכל API תואם).</p>
       <label data-i18n="currentModelLabel">המודל הנוכחי</label>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap">
         <div id="modelCurrentLabel" class="hint" style="color:#3a9c75;font-weight:700">—</div>
@@ -802,6 +802,14 @@
 
 <script>
 
+  // Reuse the favicon's own data URI for the visible sidebar brand mark, instead of
+  // duplicating the image bytes a second time in the page source.
+  (function(){
+    const iconLink = document.querySelector('link[rel="icon"]');
+    const logo = document.getElementById('brandLogo');
+    if (iconLink && logo) logo.src = iconLink.href;
+  })();
+
   // ---------- Language (he/en) ----------
   // One dictionary, one loop. data-i18n sets textContent; data-i18n-html sets innerHTML
   // (for strings with inline <b>/<code>/<span> markup); data-i18n-title / data-i18n-placeholder
@@ -854,7 +862,6 @@
       phScreen:'למשל: טאב \'דיירים ודירות\' · /residents · חלון עריכת דייר',
       phSteps:'1. נכנסים לטאב דיירים\n2. לוחצים ✏️ על דייר קיים\n3. משנים שם ולוחצים שמור',
       phExpected:'השם המעודכן נשמר, מוצגת הודעת הצלחה, והשינוי נשאר גם אחרי רענון',
-      modelIntro:'המודל שנבחר כאן הוא המודל שמבצע את בדיקות ה-QA. שמו משויך אוטומטית (שדה <code>agent</code>) לכל בדיקה חדשה שנשלחת מ"➕ בקשה חדשה", כדי שיתועד איזה מודל טיפל בה. אפשר לבחור מודל מובנה (Claude) או להוסיף מודל חיצוני (Gemini / OpenAI / OpenRouter / NVIDIA וכל API תואם).',
       agentRunHint:'<b>אם הוגדר דפדפן מקומי (🖥️ Preview) + כתובת אתר:</b> לוחץ ומבצע <b>בדיקה חיה עם לחיצות</b> על הבדיקה הפתוחה הראשונה — המודל מנווט, לוחץ, ממלא, ומכריע PASS/FAIL, ורואים את זה חי בשרשור. <b>בלי דפדפן מקומי:</b> נסוג לניתוח מהיר (בלי לחיצות). אפשר גם ▶️ על כל בדיקה ספציפית.',
       modelHowItWorks:'<b style="color:var(--txt)">איך המודל מתחיל / נעצר לעבוד?</b><br>\n        המודל לא "מופעל" מהחלון הזה — הדשבורד הוא <b>תור העבודה</b>, והמודל <b>מושך</b> ממנו:<br>\n        • <b>מודל מובנה (Claude):</b> סשן Claude Code מושך את התור. הטריגר להתחיל = לומר לו בצ\'אט "עבוד על תור ה-QA" (או <code>/loop 5m</code> לריצה מתמשכת). לעצור = כפתור <b>🚩 עצור לולאה</b>, או עצירת הסשן.<br>\n        • <b>מודל חיצוני:</b> "בדוק חיבור" מוודא שהמפתח וה-API תקינים. הרצה בפועל על התור נעשית ע"י סקריפט/סוכן שמושך את ה-API (ראה ℹ️ API) — הדגל 🚩 עוצר גם אותו.<br>\n        בקיצור: בחירת מודל = <b>מי</b> יעבוד ובאיזה שיוך; התור + הדגל 🚩 = <b>מתי</b> להתחיל ולעצור.',
       localFolderHint:'נתיב לתיקיית הקוד של הפרויקט על הדיסק (למשל של אלון). כשמוגדר, הרצת המודל החיצוני תכלול את מבנה הקבצים ותוכן קבצים רלוונטיים — כדי שיבצע <b>ניתוח קוד אמיתי</b>, לא רק ניחוש. מהיר יותר מ-GitHub ותמיד עדכני.',
@@ -930,7 +937,6 @@
       phScreen:'e.g. "Tenants & Units" tab · /residents · tenant edit dialog',
       phSteps:'1. Open the Tenants tab\n2. Click ✏️ on an existing tenant\n3. Change the name and click Save',
       phExpected:'The updated name is saved, a success message appears, and the change survives a refresh',
-      modelIntro:'The model chosen here is the model that performs the QA checks. Its name is attached automatically (the <code>agent</code> field) to every new check sent from "➕ New Request", so it\'s recorded which model handled it. You can pick a built-in model (Claude) or add an external one (Gemini / OpenAI / OpenRouter / NVIDIA or any compatible API).',
       agentRunHint:'<b>If a local browser (🖥️ Preview) + site URL are set:</b> clicking runs a <b>live test with clicks</b> on the first open check — the model navigates, clicks, fills fields, and decides PASS/FAIL, visible live in the thread. <b>Without a local browser:</b> it falls back to a quick analysis (no clicks). You can also use ▶️ on any specific check.',
       modelHowItWorks:'<b style="color:var(--txt)">How does the model start / stop working?</b><br>\n        The model isn\'t "turned on" from this window — the dashboard is the <b>work queue</b>, and the model <b>pulls</b> from it:<br>\n        • <b>Built-in model (Claude):</b> a Claude Code session pulls the queue. Trigger to start = tell it in chat "work the QA queue" (or <code>/loop 5m</code> to run continuously). To stop = the <b>🚩 Stop loop</b> button, or stop the session.<br>\n        • <b>External model:</b> "Test connection" verifies the key and API are valid. Actually running the queue is done by a script/agent that pulls the API (see ℹ️ API) — the 🚩 flag stops that too.<br>\n        In short: choosing a model = <b>who</b> works and how it\'s attributed; the queue + 🚩 flag = <b>when</b> to start and stop.',
       localFolderHint:'Path to the project\'s code folder on disk (e.g. Alon\'s). When set, running the external model includes the file structure and relevant file contents — so it can do <b>real code analysis</b>, not just guessing. Faster than GitHub and always up to date.',
@@ -1300,7 +1306,17 @@ function refreshModelModal(){
   renderModelList();
 }
 const modelModal=$('#modelModal');
-$('#modelBtn').onclick=async()=>{ modelModal.classList.add('on'); await loadModels(); refreshModelModal(); $('#modelTestStatus').textContent=''; };
+// Same fix as openGithubModal(): the modal must reload+re-render every time it opens, not
+// just once at page load, or a model added/edited elsewhere never shows up. Exposed on window
+// because the real top-bar button and the Settings shortcut live in a different section.
+async function openModelModal(){
+  modelModal.classList.add('on');
+  await loadModels();
+  refreshModelModal();
+  $('#modelTestStatus').textContent='';
+}
+window.openModelModal = openModelModal;
+$('#modelBtn').onclick=openModelModal;
 $('#modelClose').onclick=()=>modelModal.classList.remove('on');
 modelModal.onclick=e=>{ if(e.target===modelModal) modelModal.classList.remove('on'); };
 $('#modelTest').onclick=async()=>{
@@ -1742,18 +1758,18 @@ if(next) await fetch(B+"/api/update",{method:"POST",
   if($('#settingsClose')) $('#settingsClose').onclick=closeSettings;
   if(settingsModal) settingsModal.onclick=e=>{ if(e.target===settingsModal) closeSettings(); };
   if($('#settingsHelpOpen')) $('#settingsHelpOpen').onclick=()=>{ closeSettings(); modal.classList.add('on'); };
-  if($('#settingsModelOpen')) $('#settingsModelOpen').onclick=()=>{ closeSettings(); $('#modelModal').classList.add('on'); };
+  if($('#settingsModelOpen')) $('#settingsModelOpen').onclick=()=>{ closeSettings(); window.openModelModal(); };
   if($('#settingsGithubOpen')) $('#settingsGithubOpen').onclick=()=>{ closeSettings(); window.openGithubModal(); };
   if($('#settingsApiOpen')) $('#settingsApiOpen').onclick=()=>{ closeSettings(); $('#apiModal').classList.add('on'); };
   if($('#githubDockBtn')) $('#githubDockBtn').onclick=()=>window.openGithubModal();
-  if($('#modelDockBtn')) $('#modelDockBtn').onclick=()=>$('#modelModal').classList.add('on');
+  if($('#modelDockBtn')) $('#modelDockBtn').onclick=()=>window.openModelModal();
   if(newSettingsBtn) newSettingsBtn.onclick=()=>openSettings();
   if(newHelpBtn) newHelpBtn.onclick=()=>modal.classList.add('on');
   if(newGithubBtn) newGithubBtn.onclick=()=>window.openGithubModal();
-  if(newModelBtn) newModelBtn.onclick=()=>$('#modelModal').classList.add('on');
+  if(newModelBtn) newModelBtn.onclick=()=>window.openModelModal();
   if(heroStart) heroStart.onclick=()=>openSettings();
   if(heroDocs) heroDocs.onclick=()=>modal.classList.add('on');
-  if(heroConnect) heroConnect.onclick=()=>$('#modelModal').classList.add('on');
+  if(heroConnect) heroConnect.onclick=()=>window.openModelModal();
   if(apiBtn && apiBtn.parentElement && !$('#helpBtn')){
     const b=document.createElement('button');
     b.className='flagbtn compact';
@@ -1761,7 +1777,7 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     b.textContent='❓ עזרה';
     apiBtn.parentElement.insertBefore(b, apiBtn);
   }
-  const appVersion='0.7.1';
+  const appVersion='0.8.0';
   $('#appVersion').textContent=appVersion;
   if($('#docVersion')) $('#docVersion').textContent='v'+appVersion;
   // Seeded here too: without a local server /api/state never answers, and this would

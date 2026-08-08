@@ -147,10 +147,154 @@ async function handleApi(request, env, path) {
   return json({ error: 'not found' }, 404);
 }
 
+// ---------------------------------------------------------------------------
+// Model connection — same treatment as GitHub above, reusing the same GH_CONFIG
+// KV namespace under a different key (no second namespace to create/bind).
+// ---------------------------------------------------------------------------
+
+const MODELS_KEY = 'models_config';
+const BUILTIN_MODELS = [
+  { id: 'claude-sonnet', label: 'Claude Sonnet', builtin: true },
+  { id: 'claude-opus', label: 'Claude Opus', builtin: true },
+  { id: 'claude-haiku', label: 'Claude Haiku', builtin: true }
+];
+
+async function loadModelsConfig(env) {
+  const raw = await env.GH_CONFIG.get(MODELS_KEY);
+  let cfg = null;
+  if (raw) { try { cfg = JSON.parse(raw); } catch {} }
+  if (!cfg || !Array.isArray(cfg.models)) cfg = { models: BUILTIN_MODELS.map(m => ({ ...m })), selectedId: 'claude-sonnet' };
+  // Guarantee the built-ins always exist, same as server.js, so the list can't end up empty.
+  BUILTIN_MODELS.forEach(b => { if (!cfg.models.some(m => m.id === b.id)) cfg.models.unshift({ ...b }); });
+  if (!cfg.models.some(m => m.id === cfg.selectedId)) cfg.selectedId = cfg.models[0].id;
+  return cfg;
+}
+
+async function saveModelsConfig(env, cfg) {
+  await env.GH_CONFIG.put(MODELS_KEY, JSON.stringify(cfg));
+}
+
+// Never leak raw API keys to the browser.
+function publicModels(cfg) {
+  return {
+    selectedId: cfg.selectedId,
+    models: cfg.models.map(m => ({
+      id: m.id, label: m.label, builtin: !!m.builtin,
+      provider: m.provider || null, baseUrl: m.baseUrl || null, model: m.model || null,
+      hasKey: !!m.apiKey
+    }))
+  };
+}
+
+// Real minimal ping to the provider so "connected" means the key actually works, not just
+// that a value is present — mirrors server.js's /api/models/test.
+async function testModel(m) {
+  if (m.builtin) {
+    return { ok: true, builtin: true,
+      message: 'מודל מובנה (Claude) — רץ דרך סשן Claude Code שמושך את התור, לא דרך מפתח API. "מחובר" = יש סשן פעיל שעובד על התור.' };
+  }
+  if (!m.apiKey) return { error: 'לא הוגדר מפתח API למודל הזה.', status: 400 };
+  try {
+    if (m.provider === 'openai') {
+      const r = await fetch(`${m.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${m.apiKey}` },
+        body: JSON.stringify({ model: m.model, messages: [{ role: 'user', content: 'ping' }], max_tokens: 1 })
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
+    } else {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${m.model}:generateContent?key=${encodeURIComponent(m.apiKey)}`;
+      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: 'ping' }] }] }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
+    }
+    return { ok: true, message: 'המודל הגיב בהצלחה — החיבור תקין.' };
+  } catch (e) {
+    return { error: e.message, status: 502 };
+  }
+}
+
+async function handleModelsApi(request, env, path) {
+  const method = request.method;
+
+  if (path === '/api/models' && method === 'GET') {
+    return json(publicModels(await loadModelsConfig(env)));
+  }
+
+  if (path === '/api/models/select' && method === 'POST') {
+    const cfg = await loadModelsConfig(env);
+    const b = await request.json().catch(() => ({}));
+    if (!cfg.models.some(m => m.id === b.id)) return new Response('no such model', { status: 404 });
+    cfg.selectedId = b.id;
+    await saveModelsConfig(env, cfg);
+    return json({ ok: true, selectedId: cfg.selectedId });
+  }
+
+  if (path === '/api/models/add' && method === 'POST') {
+    const cfg = await loadModelsConfig(env);
+    const b = await request.json().catch(() => ({}));
+    const label = (b.label || '').trim();
+    if (!label) return new Response('missing label', { status: 400 });
+    const m = {
+      id: 'ext-' + Date.now(), builtin: false, label,
+      provider: b.provider === 'openai' ? 'openai' : 'gemini',
+      baseUrl: (b.baseUrl || 'https://api.openai.com/v1').trim().replace(/\/+$/, ''),
+      model: (b.model || '').trim(),
+      apiKey: (b.apiKey || '').trim() || null
+    };
+    cfg.models.push(m);
+    if (b.select) cfg.selectedId = m.id;
+    await saveModelsConfig(env, cfg);
+    return json({ ok: true, id: m.id });
+  }
+
+  if (path === '/api/models/update' && method === 'POST') {
+    const cfg = await loadModelsConfig(env);
+    const b = await request.json().catch(() => ({}));
+    const m = cfg.models.find(x => x.id === b.id);
+    if (!m) return new Response('no such model', { status: 404 });
+    if (m.builtin) return new Response('cannot edit a built-in model', { status: 400 });
+    if (typeof b.label === 'string' && b.label.trim()) m.label = b.label.trim();
+    if (b.provider === 'openai' || b.provider === 'gemini') m.provider = b.provider;
+    if (typeof b.baseUrl === 'string' && b.baseUrl.trim()) m.baseUrl = b.baseUrl.trim().replace(/\/+$/, '');
+    if (typeof b.model === 'string') m.model = b.model.trim();
+    if (typeof b.apiKey === 'string' && b.apiKey.trim()) m.apiKey = b.apiKey.trim();
+    if (b.apiKey === null) m.apiKey = null;
+    await saveModelsConfig(env, cfg);
+    return json({ ok: true });
+  }
+
+  if (path === '/api/models/delete' && method === 'POST') {
+    const cfg = await loadModelsConfig(env);
+    const b = await request.json().catch(() => ({}));
+    const m = cfg.models.find(x => x.id === b.id);
+    if (!m) return new Response('no such model', { status: 404 });
+    if (m.builtin) return new Response('cannot delete a built-in model', { status: 400 });
+    cfg.models = cfg.models.filter(x => x.id !== b.id);
+    if (cfg.selectedId === b.id) cfg.selectedId = cfg.models[0].id;
+    await saveModelsConfig(env, cfg);
+    return json({ ok: true, selectedId: cfg.selectedId });
+  }
+
+  if (path === '/api/models/test' && method === 'POST') {
+    const cfg = await loadModelsConfig(env);
+    const b = await request.json().catch(() => ({}));
+    const m = cfg.models.find(x => x.id === (b.id || cfg.selectedId));
+    if (!m) return new Response('no such model', { status: 404 });
+    const { status, ...result } = await testModel(m);
+    return json(result, status || 200);
+  }
+
+  return json({ error: 'not found' }, 404);
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname.startsWith('/api/github/')) return handleApi(request, env, url.pathname);
+    if (url.pathname.startsWith('/api/models')) return handleModelsApi(request, env, url.pathname);
     return env.ASSETS.fetch(request);
   }
 };
