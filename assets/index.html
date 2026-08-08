@@ -210,7 +210,7 @@
   .ghIssue{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
   .ghIssue a{color:var(--accent);font-weight:600}
   hr.sep{border:none;border-top:1px solid var(--line);margin:18px 0}
-  /* model list rows â€” laid out in a row, name+meta on one side, actions on the other */
+  /* model list rows — laid out in a row, name+meta on one side, actions on the other */
   .modelRow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;
     border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:var(--panel);transition:.15s}
   .modelRow.sel{border-color:var(--accent);background:var(--accent-tint)}
@@ -252,7 +252,7 @@
   .donutWrap{display:flex;gap:20px;align-items:center;flex-wrap:wrap;justify-content:center}
   .emptyReport{color:var(--muted);font-size:13px;text-align:center;padding:20px 0}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-  /* live browser view â€” inline inside the check's thread (the messages area) */
+  /* live browser view — inline inside the check's thread (the messages area) */
   .liveInline{margin-top:8px;border:1px solid #28466e;background:var(--accent-tint);border-radius:12px;padding:10px}
   .liveInline .lpHead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
   .liveInline .lpHead b{font-size:13px}
@@ -311,9 +311,9 @@
     </div>
     <div class="sideCard">
       <h3 data-i18n="sidebarProjects">Projects</h3>
-      <button class="sideLink on"><span>ON TracK</span><span>â—</span></button>
-      <button class="sideLink"><span>Sandbox</span><span>â—‹</span></button>
-      <button class="sideLink"><span>Research</span><span>â—‹</span></button>
+      <button class="sideLink on"><span>ON TracK</span><span>●</span></button>
+      <button class="sideLink"><span>Sandbox</span><span>○</span></button>
+      <button class="sideLink"><span>Research</span><span>○</span></button>
     </div>
     <div class="sideCard">
       <h3 data-i18n="sidebarLibraries">Libraries</h3>
@@ -326,11 +326,11 @@
     <div class="newTop">
       <div class="title" data-i18n="topTitle">Workspace</div>
       <div class="actions">
-        <button class="miniBtn" id="newLangBtn">×¢×‘×¨×™×ª / EN</button>
-        <button class="miniBtn" id="newSettingsBtn" data-i18n="settingsBtn">×”×’×“×¨×•×ª</button>
-        <button class="miniBtn" id="newHelpBtn" data-i18n="helpBtn">×¢×–×¨×”</button>
-        <button class="miniBtn" id="newGithubBtn" data-i18n="githubDockBtn">×—×™×‘×•×¨ ×œ GitHub</button>
-        <button class="miniBtn" id="newModelBtn" data-i18n="modelDockBtn">×—×™×‘×•×¨ ×œ×ž×•×“×œ</button>
+        <button class="miniBtn" id="newLangBtn">עברית / EN</button>
+        <button class="miniBtn" id="newSettingsBtn" data-i18n="settingsBtn">הגדרות</button>
+        <button class="miniBtn" id="newHelpBtn" data-i18n="helpBtn">עזרה</button>
+        <button class="miniBtn" id="newGithubBtn" data-i18n="githubDockBtn">חיבור ל GitHub</button>
+        <button class="miniBtn" id="newModelBtn" data-i18n="modelDockBtn">חיבור למודל</button>
       </div>
     </div>
     <div class="newContent">
@@ -365,7 +365,7 @@
         <div class="composerBar">
           <button class="miniBtn">+</button>
           <input type="text" id="mainPrompt" placeholder="Write what you want the model to do..." />
-          <button class="roundBtn">â†‘</button>
+          <button class="roundBtn">↑</button>
         </div>
       </section>
       <aside class="sideCard">
@@ -404,42 +404,42 @@
     <div class="topDock">
       <div class="dockTitle">User workspace</div>
       <div class="dockActions">
-        <button class="dockBtn langToggle" id="langBtn">×¢×‘×¨×™×ª / EN</button>
-        <button class="dockBtn" id="settingsBtn">×”×’×“×¨×•×ª</button>
-        <button class="dockBtn" id="helpBtn">×¢×–×¨×”</button>
-        <button class="dockBtn" id="githubDockBtn">×—×™×‘×•×¨ ×œ GITHUB</button>
-        <button class="dockBtn primary" id="modelDockBtn">×—×™×‘×•×¨ ×œ×ž×•×“×œ</button>
+        <button class="dockBtn langToggle" id="langBtn">עברית / EN</button>
+        <button class="dockBtn" id="settingsBtn">הגדרות</button>
+        <button class="dockBtn" id="helpBtn">עזרה</button>
+        <button class="dockBtn" id="githubDockBtn">חיבור ל GITHUB</button>
+        <button class="dockBtn primary" id="modelDockBtn">חיבור למודל</button>
       </div>
     </div>
     <div class="modal" id="settingsModal">
       <div class="modal-card">
         <div class="modal-head">
-          <b>âš™ï¸ ×”×’×“×¨×•×ª ×¤×¨×•×™×§×˜</b>
-          <button class="icon" id="settingsClose">âœ•</button>
+          <b>⚙️ הגדרות פרויקט</b>
+          <button class="icon" id="settingsClose">✕</button>
         </div>
-        <p class="hint">×ž×¡×š ×‘×§×¨×” ×ž×”×™×¨ ×œÖ¾ON TracK. ×ž×›××Ÿ ×¢×•×‘×¨×™× ×œ×ž×¡×š ×”×ž×•×“×œ, ×”×—×™×‘×•×¨ ×œÖ¾GitHub, ××• ×œ×ª×™×¢×•×“ ×”×¤×¨×•×™×§×˜.</p>
+        <p class="hint">מסך בקרה מהיר ל־ON TracK. מכאן עוברים למסך המודל, החיבור ל־GitHub, או לתיעוד הפרויקט.</p>
         <div class="settingsGrid">
           <div class="settingCard">
-            <b>×’×¨×¡×ª ×¤×¨×•×™×§×˜</b>
+            <b>גרסת פרויקט</b>
             <div class="hint" id="settingsVersion">0.1.0</div>
           </div>
           <div class="settingCard">
-            <b>×ž×¦×‘ × ×•×›×—×™</b>
-            <div class="hint" id="settingsStatus">×ž×ž×ª×™×Ÿ</div>
+            <b>מצב נוכחי</b>
+            <div class="hint" id="settingsStatus">ממתין</div>
           </div>
           <div class="settingCard">
-            <b>×ž×˜×¨×ª ×¢×‘×•×“×”</b>
-            <div class="hint" id="settingsGoal">â€”</div>
+            <b>מטרת עבודה</b>
+            <div class="hint" id="settingsGoal">—</div>
           </div>
           <div class="settingCard">
-            <b>×§×™×¦×•×¨ ×“×¨×š</b>
-            <div class="hint">×¤×ª×— ×¢×–×¨×”, ×ž×•×“×œ, GitHub ××• API ×œ×¤×™ ×”×¦×•×¨×š.</div>
+            <b>קיצור דרך</b>
+            <div class="hint">פתח עזרה, מודל, GitHub או API לפי הצורך.</div>
           </div>
         </div>
         <div class="heroActions">
-          <button class="act" id="settingsHelpOpen">×¢×–×¨×”</button>
-          <button class="act" id="settingsModelOpen">×—×™×‘×•×¨ ×œ×ž×•×“×œ</button>
-          <button class="act" id="settingsGithubOpen">×—×™×‘×•×¨ ×œ GITHUB</button>
+          <button class="act" id="settingsHelpOpen">עזרה</button>
+          <button class="act" id="settingsModelOpen">חיבור למודל</button>
+          <button class="act" id="settingsGithubOpen">חיבור ל GITHUB</button>
           <button class="act" id="settingsApiOpen">API</button>
         </div>
       </div>
@@ -447,114 +447,114 @@
 <div class="wrap">
   <header>
     <div class="head-top">
-      <h1>ðŸ§ª ×“×©×‘×•×¨×“ ×‘×“×™×§×•×ª QA</h1>
+      <h1>🧪 דשבורד בדיקות QA</h1>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="add head-btn-primary" id="agentRunTop" style="display:none;background:var(--done);border-color:var(--done)">ðŸš€ ×‘×“×™×§×” ×—×™×”</button>
-        <button class="add head-btn-primary" id="newCheckBtn">âž• ×‘×§×©×” ×—×“×©×”</button>
+        <button class="add head-btn-primary" id="agentRunTop" style="display:none;background:var(--done);border-color:var(--done)">🚀 בדיקה חיה</button>
+        <button class="add head-btn-primary" id="newCheckBtn">➕ בקשה חדשה</button>
       </div>
     </div>
     <div class="head-bar">
       <div class="segmented">
-        <button class="seg" id="viewDash">ðŸ“Š ×“×©×‘×•×¨×“</button>
-        <button class="seg" id="viewList">ðŸ“‹ ×¨×©×™×ž×”</button>
+        <button class="seg" id="viewDash">📊 דשבורד</button>
+        <button class="seg" id="viewList">📋 רשימה</button>
       </div>
       <span class="badge counts-inline" id="counts"></span>
       <span class="grow"></span>
-      <button class="flagbtn compact" id="modelBtn">ðŸ¤– ×‘×—×™×¨×ª ×ž×•×“×œ</button>
-      <button class="flagbtn compact" id="lsHeaderBtn" title="×”×¤×¢×œ/×¢×¦×•×¨ ×©×¨×ª ×ž×§×•×ž×™ ×œ×‘×“×™×§×”">ðŸŸ¢ ×”×¤×¢×œ ×©×¨×ª</button>
-      <button class="flagbtn compact" id="previewBtn">ðŸ–¥ï¸ Preview</button>
-      <button class="flagbtn compact" id="githubBtn">ðŸ”— GitHub</button>
-      <button class="flagbtn compact" id="apiBtn">â„¹ï¸ API</button>
-      <button class="flagbtn compact" id="flag">ðŸš© ×¢×¦×•×¨ ×œ×•×œ××”</button>
+      <button class="flagbtn compact" id="modelBtn">🤖 בחירת מודל</button>
+      <button class="flagbtn compact" id="lsHeaderBtn" title="הפעל/עצור שרת מקומי לבדיקה">🟢 הפעל שרת</button>
+      <button class="flagbtn compact" id="previewBtn">🖥️ Preview</button>
+      <button class="flagbtn compact" id="githubBtn">🔗 GitHub</button>
+      <button class="flagbtn compact" id="apiBtn">ℹ️ API</button>
+      <button class="flagbtn compact" id="flag">🚩 עצור לולאה</button>
     </div>
   </header>
   <div class="modal" id="helpModal">
     <div class="modal-card">
       <div class="modal-head">
-        <b>â“ ×¢×–×¨×” ×•×¡×˜×˜×•×¡ ×¤×¨×•×™×§×˜</b>
-        <button class="icon" id="helpClose">âœ•</button>
+        <b>❓ עזרה וסטטוס פרויקט</b>
+        <button class="icon" id="helpClose">✕</button>
       </div>
-      <div class="hint" style="margin-bottom:12px">×’×¨×¡×”: <b id="appVersion">0.1.0</b></div>
+      <div class="hint" style="margin-bottom:12px">גרסה: <b id="appVersion">0.1.0</b></div>
       <p class="hint" style="line-height:1.7;margin-top:0">
-        ×–×”×• QA dashboard ×ž×§×•×ž×™ ×©× ×‘× ×” ×›×“×™ ×œ×”×¤×•×š ×œ×¢×‘×•×“×” ×ž×¡×•×“×¨×ª ×ž×•×œ ×ž×•×“×œ ×©×ª×‘×—×¨.
-        ×”×ž×˜×¨×” ×”×™× ×œ×¢×‘×•×“ ×‘×©×œ×‘×™×: ×œ×‘×—×•×¨ ×ž×•×“×œ, ×œ×—×‘×¨ ×¤×¨×•×™×§×˜ ×ž×§×•×ž×™, ×œ×”×’×“×™×¨ ×ª×›× ×™×ª, ×•××– ×œ×¢×‘×•×¨ ×œ×‘×™×¦×•×¢ ×ž×‘×•×§×¨.
+        זהו QA dashboard מקומי שנבנה כדי להפוך לעבודה מסודרת מול מודל שתבחר.
+        המטרה היא לעבוד בשלבים: לבחור מודל, לחבר פרויקט מקומי, להגדיר תכנית, ואז לעבור לביצוע מבוקר.
       </p>
-      <label>×ž×” ×‘×•×¦×¢</label>
+      <label>מה בוצע</label>
       <pre id="helpDone"></pre>
-      <label>×ž×” × ×©××¨</label>
+      <label>מה נשאר</label>
       <pre id="helpTodo"></pre>
-      <label>××™×š ×¢×•×‘×“×™× ×¢×›×©×™×•</label>
+      <label>איך עובדים עכשיו</label>
       <pre id="helpFlow"></pre>
-      <label>×§×•×‘×¥ ×ž×™×“×¢</label>
+      <label>קובץ מידע</label>
       <pre id="helpPath"></pre>
-      <label>×ž×¦×‘ ×¤×¨×•×™×§×˜</label>
-      <input type="text" id="projectTitle" class="fieldInput" placeholder="×©× ×”×¤×¨×•×™×§×˜">
-      <input type="text" id="projectStatus" class="fieldInput" placeholder="×¡×˜×˜×•×¡ ×”×¤×¨×•×™×§×˜" style="margin-top:8px">
-      <textarea id="projectGoal" class="fieldSmall" placeholder="×ž×˜×¨×ª ×”×¤×¨×•×™×§×˜" style="margin-top:8px"></textarea>
+      <label>מצב פרויקט</label>
+      <input type="text" id="projectTitle" class="fieldInput" placeholder="שם הפרויקט">
+      <input type="text" id="projectStatus" class="fieldInput" placeholder="סטטוס הפרויקט" style="margin-top:8px">
+      <textarea id="projectGoal" class="fieldSmall" placeholder="מטרת הפרויקט" style="margin-top:8px"></textarea>
       <div class="editrow" style="margin-top:10px">
-        <button class="add" id="projectSave">×©×ž×•×¨ ×ž×¦×‘</button>
+        <button class="add" id="projectSave">שמור מצב</button>
         <span class="hint" id="projectSaveStatus"></span>
       </div>
       <div class="editrow" style="margin-top:14px">
-        <a class="act" href="/PROJECT_INFO.md" target="_blank" style="text-decoration:none;display:inline-flex;align-items:center">ðŸ“„ ×§×•×‘×¥ ×ž×™×“×¢</a>
+        <a class="act" href="/PROJECT_INFO.md" target="_blank" style="text-decoration:none;display:inline-flex;align-items:center">📄 קובץ מידע</a>
       </div>
     </div>
   </div>
   <div class="mvpBanner" id="mvpBanner">
-    <span class="mvpTitle">×ž×•×›× ×•×ª MVP</span>
-    <span class="mvpChip off" id="mvpModel"><span class="dot"></span><span>×ž×•×“×œ</span></span>
+    <span class="mvpTitle">מוכנות MVP</span>
+    <span class="mvpChip off" id="mvpModel"><span class="dot"></span><span>מודל</span></span>
     <span class="mvpChip off" id="mvpPreview"><span class="dot"></span><span>Preview</span></span>
     <span class="mvpChip off" id="mvpGithub"><span class="dot"></span><span>GitHub</span></span>
-    <span class="mvpChip off" id="mvpQueue"><span class="dot"></span><span>×ª×•×¨ ×‘×“×™×§×•×ª</span></span>
+    <span class="mvpChip off" id="mvpQueue"><span class="dot"></span><span>תור בדיקות</span></span>
   </div>
 
   <div class="modal" id="modelModal">
     <div class="modal-card">
       <div class="modal-head">
-        <b>ðŸ¤– ×‘×—×™×¨×ª ×ž×•×“×œ</b>
-        <button class="icon" id="modelClose">âœ•</button>
+        <b>🤖 בחירת מודל</b>
+        <button class="icon" id="modelClose">✕</button>
       </div>
-      <p class="hint">×”×ž×•×“×œ ×©× ×‘×—×¨ ×›××Ÿ ×”×•× ×”×ž×•×“×œ ×©×ž×‘×¦×¢ ××ª ×‘×“×™×§×•×ª ×”-QA. ×©×ž×• ×ž×©×•×™×š ××•×˜×•×ž×˜×™×ª (×©×“×” <code>agent</code>) ×œ×›×œ ×‘×“×™×§×” ×—×“×©×” ×©× ×©×œ×—×ª ×ž"âž• ×‘×§×©×” ×—×“×©×”", ×›×“×™ ×©×™×ª×•×¢×“ ××™×–×” ×ž×•×“×œ ×˜×™×¤×œ ×‘×”. ××¤×©×¨ ×œ×‘×—×•×¨ ×ž×•×“×œ ×ž×•×‘× ×” (Claude) ××• ×œ×”×•×¡×™×£ ×ž×•×“×œ ×—×™×¦×•× ×™ (Gemini / OpenAI / OpenRouter / NVIDIA ×•×›×œ API ×ª×•××).</p>
-      <label>×”×ž×•×“×œ ×”× ×•×›×—×™</label>
+      <p class="hint">המודל שנבחר כאן הוא המודל שמבצע את בדיקות ה-QA. שמו משויך אוטומטית (שדה <code>agent</code>) לכל בדיקה חדשה שנשלחת מ"➕ בקשה חדשה", כדי שיתועד איזה מודל טיפל בה. אפשר לבחור מודל מובנה (Claude) או להוסיף מודל חיצוני (Gemini / OpenAI / OpenRouter / NVIDIA וכל API תואם).</p>
+      <label>המודל הנוכחי</label>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap">
-        <div id="modelCurrentLabel" class="hint" style="color:#3a9c75;font-weight:700">â€”</div>
-        <button class="act" id="modelTest">ðŸ”Œ ×‘×“×•×§ ×—×™×‘×•×¨</button>
-        <button class="add" id="agentRun" style="display:none">ðŸš€ ×‘×“×™×§×” ×—×™×”</button>
+        <div id="modelCurrentLabel" class="hint" style="color:#3a9c75;font-weight:700">—</div>
+        <button class="act" id="modelTest">🔌 בדוק חיבור</button>
+        <button class="add" id="agentRun" style="display:none">🚀 בדיקה חיה</button>
         <span class="hint" id="modelTestStatus"></span>
       </div>
-      <div class="hint" id="agentRunHint" style="display:none;margin-bottom:8px"><b>×× ×”×•×’×“×¨ ×“×¤×“×¤×Ÿ ×ž×§×•×ž×™ (ðŸ–¥ï¸ Preview) + ×›×ª×•×‘×ª ××ª×¨:</b> ×œ×•×—×¥ ×•×ž×‘×¦×¢ <b>×‘×“×™×§×” ×—×™×” ×¢× ×œ×—×™×¦×•×ª</b> ×¢×œ ×”×‘×“×™×§×” ×”×¤×ª×•×—×” ×”×¨××©×•× ×” â€” ×”×ž×•×“×œ ×ž× ×•×•×˜, ×œ×•×—×¥, ×ž×ž×œ×, ×•×ž×›×¨×™×¢ PASS/FAIL, ×•×¨×•××™× ××ª ×–×” ×—×™ ×‘×©×¨×©×•×¨. <b>×‘×œ×™ ×“×¤×“×¤×Ÿ ×ž×§×•×ž×™:</b> × ×¡×•×’ ×œ× ×™×ª×•×— ×ž×”×™×¨ (×‘×œ×™ ×œ×—×™×¦×•×ª). ××¤×©×¨ ×’× â–¶ï¸ ×¢×œ ×›×œ ×‘×“×™×§×” ×¡×¤×¦×™×¤×™×ª.</div>
-      <label>×ž×•×“×œ×™× ×–×ž×™× ×™×</label>
+      <div class="hint" id="agentRunHint" style="display:none;margin-bottom:8px"><b>אם הוגדר דפדפן מקומי (🖥️ Preview) + כתובת אתר:</b> לוחץ ומבצע <b>בדיקה חיה עם לחיצות</b> על הבדיקה הפתוחה הראשונה — המודל מנווט, לוחץ, ממלא, ומכריע PASS/FAIL, ורואים את זה חי בשרשור. <b>בלי דפדפן מקומי:</b> נסוג לניתוח מהיר (בלי לחיצות). אפשר גם ▶️ על כל בדיקה ספציפית.</div>
+      <label>מודלים זמינים</label>
       <div id="modelList"></div>
       <hr class="sep">
-      <label>âž• ×”×•×¡×£ ×ž×•×“×œ ×—×™×¦×•× ×™</label>
-      <label>×©× ×ª×¦×•×’×”</label>
-      <input type="text" id="mNewLabel" placeholder="×œ×“×•×’×ž×”: Gemini 2.0 Flash">
-      <label>×¡×¤×§ API</label>
+      <label>➕ הוסף מודל חיצוני</label>
+      <label>שם תצוגה</label>
+      <input type="text" id="mNewLabel" placeholder="לדוגמה: Gemini 2.0 Flash">
+      <label>ספק API</label>
       <select id="mNewProvider" style="width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--txt);padding:9px 11px;font-size:14px;direction:ltr;text-align:left;font-family:inherit">
         <option value="gemini">Google Gemini (AI Studio)</option>
-        <option value="openai">OpenAI-compatible (OpenAI / OpenRouter / NVIDIA NIM / ××—×¨)</option>
+        <option value="openai">OpenAI-compatible (OpenAI / OpenRouter / NVIDIA NIM / אחר)</option>
       </select>
       <div id="mNewBaseUrlWrap" style="display:none">
-        <label>×›×ª×•×‘×ª ×‘×¡×™×¡ (Base URL)</label>
+        <label>כתובת בסיס (Base URL)</label>
         <input type="text" id="mNewBaseUrl" placeholder="https://integrate.api.nvidia.com/v1" style="direction:ltr;text-align:left">
-        <div class="hint" style="margin-top:4px">×“×•×’×ž××•×ª: <code>https://api.openai.com/v1</code> Â· <code>https://openrouter.ai/api/v1</code> Â· <code>https://integrate.api.nvidia.com/v1</code></div>
+        <div class="hint" style="margin-top:4px">דוגמאות: <code>https://api.openai.com/v1</code> · <code>https://openrouter.ai/api/v1</code> · <code>https://integrate.api.nvidia.com/v1</code></div>
       </div>
-      <label>×ž×•×“×œ</label>
+      <label>מודל</label>
       <select id="mNewModelSelect" style="width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--txt);padding:9px 11px;font-size:14px;direction:ltr;text-align:left;font-family:inherit"></select>
-      <input type="text" id="mNewModel" placeholder="×”×–×Ÿ ×ž×–×”×” ×ž×•×“×œâ€¦" style="display:none;margin-top:6px;direction:ltr;text-align:left">
-      <label>×ž×¤×ª×— API</label>
-      <input type="password" id="mNewKey" placeholder="×”×“×‘×§ ×ž×¤×ª×—â€¦">
+      <input type="text" id="mNewModel" placeholder="הזן מזהה מודל…" style="display:none;margin-top:6px;direction:ltr;text-align:left">
+      <label>מפתח API</label>
+      <input type="password" id="mNewKey" placeholder="הדבק מפתח…">
       <div class="editrow" style="margin-top:14px">
-        <button class="add" id="mAdd">×”×•×¡×£ ×•×‘×—×¨</button>
+        <button class="add" id="mAdd">הוסף ובחר</button>
         <span class="hint" id="mAddStatus"></span>
       </div>
       <hr class="sep">
       <div class="hint" style="line-height:1.7">
-        <b style="color:var(--txt)">××™×š ×”×ž×•×“×œ ×ž×ª×—×™×œ / × ×¢×¦×¨ ×œ×¢×‘×•×“?</b><br>
-        ×”×ž×•×“×œ ×œ× "×ž×•×¤×¢×œ" ×ž×”×—×œ×•×Ÿ ×”×–×” â€” ×”×“×©×‘×•×¨×“ ×”×•× <b>×ª×•×¨ ×”×¢×‘×•×“×”</b>, ×•×”×ž×•×“×œ <b>×ž×•×©×š</b> ×ž×ž× ×•:<br>
-        â€¢ <b>×ž×•×“×œ ×ž×•×‘× ×” (Claude):</b> ×¡×©×Ÿ Claude Code ×ž×•×©×š ××ª ×”×ª×•×¨. ×”×˜×¨×™×’×¨ ×œ×”×ª×—×™×œ = ×œ×•×ž×¨ ×œ×• ×‘×¦'××˜ "×¢×‘×•×“ ×¢×œ ×ª×•×¨ ×”-QA" (××• <code>/loop 5m</code> ×œ×¨×™×¦×” ×ž×ª×ž×©×›×ª). ×œ×¢×¦×•×¨ = ×›×¤×ª×•×¨ <b>ðŸš© ×¢×¦×•×¨ ×œ×•×œ××”</b>, ××• ×¢×¦×™×¨×ª ×”×¡×©×Ÿ.<br>
-        â€¢ <b>×ž×•×“×œ ×—×™×¦×•× ×™:</b> "×‘×“×•×§ ×—×™×‘×•×¨" ×ž×•×•×“× ×©×”×ž×¤×ª×— ×•×”-API ×ª×§×™× ×™×. ×”×¨×¦×” ×‘×¤×•×¢×œ ×¢×œ ×”×ª×•×¨ × ×¢×©×™×ª ×¢"×™ ×¡×§×¨×™×¤×˜/×¡×•×›×Ÿ ×©×ž×•×©×š ××ª ×”-API (×¨××” â„¹ï¸ API) â€” ×”×“×’×œ ðŸš© ×¢×•×¦×¨ ×’× ××•×ª×•.<br>
-        ×‘×§×™×¦×•×¨: ×‘×—×™×¨×ª ×ž×•×“×œ = <b>×ž×™</b> ×™×¢×‘×•×“ ×•×‘××™×–×” ×©×™×•×š; ×”×ª×•×¨ + ×”×“×’×œ ðŸš© = <b>×ž×ª×™</b> ×œ×”×ª×—×™×œ ×•×œ×¢×¦×•×¨.
+        <b style="color:var(--txt)">איך המודל מתחיל / נעצר לעבוד?</b><br>
+        המודל לא "מופעל" מהחלון הזה — הדשבורד הוא <b>תור העבודה</b>, והמודל <b>מושך</b> ממנו:<br>
+        • <b>מודל מובנה (Claude):</b> סשן Claude Code מושך את התור. הטריגר להתחיל = לומר לו בצ'אט "עבוד על תור ה-QA" (או <code>/loop 5m</code> לריצה מתמשכת). לעצור = כפתור <b>🚩 עצור לולאה</b>, או עצירת הסשן.<br>
+        • <b>מודל חיצוני:</b> "בדוק חיבור" מוודא שהמפתח וה-API תקינים. הרצה בפועל על התור נעשית ע"י סקריפט/סוכן שמושך את ה-API (ראה ℹ️ API) — הדגל 🚩 עוצר גם אותו.<br>
+        בקיצור: בחירת מודל = <b>מי</b> יעבוד ובאיזה שיוך; התור + הדגל 🚩 = <b>מתי</b> להתחיל ולעצור.
       </div>
     </div>
   </div>
@@ -562,57 +562,57 @@
   <div class="modal" id="githubModal">
     <div class="modal-card">
       <div class="modal-head">
-        <b>ðŸ”— ×—×™×‘×•×¨ GitHub</b>
-        <button class="icon" id="githubClose">âœ•</button>
+        <b>🔗 חיבור GitHub</b>
+        <button class="icon" id="githubClose">✕</button>
       </div>
-      <p class="hint">×—×™×‘×•×¨ ×œ×¨×™×¤×• GitHub â€” ×œ×¦×¤×™×™×” ×‘-issues ×¤×ª×•×—×™× ×”×§×©×•×¨×™× ×œ×‘×“×™×§×•×ª, ×•×œ×™×¦×™×¨×ª issue ×™×©×™×¨×•×ª ×ž×‘×“×™×§×” ×©× ×›×©×œ×” (FAIL).</p>
+      <p class="hint">חיבור לריפו GitHub — לצפייה ב-issues פתוחים הקשורים לבדיקות, וליצירת issue ישירות מבדיקה שנכשלה (FAIL).</p>
       <label style="display:flex;align-items:center;gap:8px;margin-top:14px">
         <input type="checkbox" id="ghEnabled" style="width:16px;height:16px">
-        ×—×™×‘×•×¨ GitHub ×¤×¢×™×œ
+        חיבור GitHub פעיל
       </label>
-      <label>Owner (×ž×©×ª×ž×©/××¨×’×•×Ÿ)</label>
-      <input type="text" id="ghOwner" placeholder="×œ×“×•×’×ž×”: harel" style="direction:ltr;text-align:left">
-      <label>×©× ×”×¨×™×¤×•</label>
-      <input type="text" id="ghRepo" placeholder="×œ×“×•×’×ž×”: my-project" style="direction:ltr;text-align:left">
+      <label>Owner (משתמש/ארגון)</label>
+      <input type="text" id="ghOwner" placeholder="לדוגמה: harel" style="direction:ltr;text-align:left">
+      <label>שם הריפו</label>
+      <input type="text" id="ghRepo" placeholder="לדוגמה: my-project" style="direction:ltr;text-align:left">
       <label>Personal Access Token</label>
-      <input type="password" id="ghToken" placeholder="ghp_â€¦">
+      <input type="password" id="ghToken" placeholder="ghp_…">
       <div class="hint" id="ghTokenStatus" style="margin-top:4px"></div>
-      <div id="ghTokenSaved" style="display:none;margin-top:6px;font-size:13px;color:#3a9c75;font-weight:700">âœ“ ×˜×•×§×Ÿ ×©×ž×•×¨ â€” ×œ× ×¦×¨×™×š ×œ×”×–×™×Ÿ ×©×•×‘</div>
+      <div id="ghTokenSaved" style="display:none;margin-top:6px;font-size:13px;color:#3a9c75;font-weight:700">✓ טוקן שמור — לא צריך להזין שוב</div>
       <div class="editrow" style="margin-top:14px">
-        <button class="add" id="ghSave">×©×ž×•×¨</button>
-        <button class="act" id="ghLoadIssues">×¨×¢× ×Ÿ issues ×¤×ª×•×—×™×</button>
+        <button class="add" id="ghSave">שמור</button>
+        <button class="act" id="ghLoadIssues">רענן issues פתוחים</button>
         <span class="hint" id="ghSaveStatus"></span>
       </div>
       <hr class="sep">
-      <label>Issues ×¤×ª×•×—×™×</label>
-      <div id="ghIssuesList" class="hint">â€”</div>
+      <label>Issues פתוחים</label>
+      <div id="ghIssuesList" class="hint">—</div>
       <hr class="sep">
-      <label>ðŸ“ ×ª×™×§×™×™×ª ×§×•×“ ×ž×§×•×ž×™×ª (×”×§×©×¨ ×œ×ž×•×“×œ)</label>
-      <p class="hint" style="margin-bottom:6px">× ×ª×™×‘ ×œ×ª×™×§×™×™×ª ×”×§×•×“ ×©×œ ×”×¤×¨×•×™×§×˜ ×¢×œ ×”×“×™×¡×§ (×œ×ž×©×œ ×©×œ ××œ×•×Ÿ). ×›×©×ž×•×’×“×¨, ×”×¨×¦×ª ×”×ž×•×“×œ ×”×—×™×¦×•× ×™ ×ª×›×œ×•×œ ××ª ×ž×‘× ×” ×”×§×‘×¦×™× ×•×ª×•×›×Ÿ ×§×‘×¦×™× ×¨×œ×•×•× ×˜×™×™× â€” ×›×“×™ ×©×™×‘×¦×¢ <b>× ×™×ª×•×— ×§×•×“ ××ž×™×ª×™</b>, ×œ× ×¨×§ × ×™×—×•×©. ×ž×”×™×¨ ×™×•×ª×¨ ×ž-GitHub ×•×ª×ž×™×“ ×¢×“×›× ×™.</p>
+      <label>📁 תיקיית קוד מקומית (הקשר למודל)</label>
+      <p class="hint" style="margin-bottom:6px">נתיב לתיקיית הקוד של הפרויקט על הדיסק (למשל של אלון). כשמוגדר, הרצת המודל החיצוני תכלול את מבנה הקבצים ותוכן קבצים רלוונטיים — כדי שיבצע <b>ניתוח קוד אמיתי</b>, לא רק ניחוש. מהיר יותר מ-GitHub ותמיד עדכני.</p>
       <input type="text" id="localPath" placeholder="C:\\harel\\...\\alon" style="direction:ltr;text-align:left">
       <div class="editrow" style="margin-top:10px">
-        <button class="add" id="localSave">×©×ž×•×¨</button>
+        <button class="add" id="localSave">שמור</button>
         <span class="hint" id="localStatus"></span>
       </div>
       <hr class="sep">
-      <label>ðŸ–¥ï¸ ×“×¤×“×¤×Ÿ ×ž×§×•×ž×™ â€” ×›×ª×•×‘×ª ×”××ª×¨ ×œ×‘×“×™×§×”</label>
-      <p class="hint" style="margin-bottom:6px">×›×ª×•×‘×ª ×”××¤×œ×™×§×¦×™×” ×œ×‘×“×™×§×” (×œ×ž×©×œ <code dir=ltr>https://alon.rlapp.net</code> ××• <code dir=ltr>http://localhost:3000</code>). ×›×©×ž×•×’×“×¨, ×”×›×œ×™ ×˜×•×¢×Ÿ ××ª ×”×“×£ ×‘-Chrome ×”×ž×§×•×ž×™ ×©×œ×• ×•×§×•×¨× DOM + ×©×’×™××•×ª ×§×•× ×¡×•×œ + ×‘×§×©×•×ª ×©× ×›×©×œ×• â€” <b>×ž×¦×‘ ×”×“×£ ×”×—×™</b> ×ž×•×–×Ÿ ×œ×ž×•×“×œ (×‘×“×™×§×” ×“×™× ×ž×™×ª, ×‘×œ×™ ×ª×œ×•×ª ×‘×¡×©×Ÿ Claude).</p>
+      <label>🖥️ דפדפן מקומי — כתובת האתר לבדיקה</label>
+      <p class="hint" style="margin-bottom:6px">כתובת האפליקציה לבדיקה (למשל <code dir=ltr>https://alon.rlapp.net</code> או <code dir=ltr>http://localhost:3000</code>). כשמוגדר, הכלי טוען את הדף ב-Chrome המקומי שלו וקורא DOM + שגיאות קונסול + בקשות שנכשלו — <b>מצב הדף החי</b> מוזן למודל (בדיקה דינמית, בלי תלות בסשן Claude).</p>
       <input type="text" id="previewBase" placeholder="https://alon.rlapp.net" style="direction:ltr;text-align:left">
       <div class="editrow" style="margin-top:10px">
-        <button class="add" id="previewSave">×©×ž×•×¨</button>
+        <button class="add" id="previewSave">שמור</button>
         <span class="hint" id="previewCfgStatus"></span>
       </div>
       <hr class="sep">
-      <label>ðŸŸ¢ ×©×¨×ª ×ž×§×•×ž×™ ×œ××¤×œ×™×§×¦×™×” (×”×›×œ×™ ×ž×¤×¢×™×œ/×¢×•×¦×¨)</label>
-      <p class="hint" style="margin-bottom:6px">×”×›×œ×™ ×™×›×•×œ ×œ×”×¤×¢×™×œ ××ª ×”××¤×œ×™×§×¦×™×” ×ž×§×•×ž×™×ª ×œ×‘×“×™×§×” â€” ×‘×œ×™ ×œ×’×¢×ª ×‘××ª×¨ ×”×—×™. ×”×–×Ÿ ×ª×™×§×™×™×” ×•×¤×•×¨×˜ (×‘×¨×™×¨×ª ×ž×—×“×œ: ××œ×•×Ÿ ×¢×œ 2500), ×œ×—×¥ ×”×¤×¢×œ, ×•×”×›×ª×•×‘×ª ×œ×‘×“×™×§×” ×ž×ª×¢×“×›× ×ª ××•×˜×•×ž×˜×™×ª. <b>×”×¢×¨×”:</b> ×©×¨×ª ×¡×˜×˜×™ â€” ×”-functions ×©×œ Cloudflare (API ×¦×“-×©×¨×ª) ×œ× ×™×¨×•×¦×•; ×”-UI ×•×”×–×¨×™×ž×•×ª ×›×Ÿ.</p>
+      <label>🟢 שרת מקומי לאפליקציה (הכלי מפעיל/עוצר)</label>
+      <p class="hint" style="margin-bottom:6px">הכלי יכול להפעיל את האפליקציה מקומית לבדיקה — בלי לגעת באתר החי. הזן תיקייה ופורט (ברירת מחדל: אלון על 2500), לחץ הפעל, והכתובת לבדיקה מתעדכנת אוטומטית. <b>הערה:</b> שרת סטטי — ה-functions של Cloudflare (API צד-שרת) לא ירוצו; ה-UI והזרימות כן.</p>
       <div class="editrow">
         <input type="text" id="lsDir" placeholder="C:\\harel\\RLAPP ON RL\\ALON" style="direction:ltr;text-align:left;flex:2">
         <input type="text" id="lsPort" placeholder="2500" style="direction:ltr;text-align:left;flex:none;width:90px">
       </div>
       <div class="editrow" style="margin-top:10px">
-        <button class="add" id="lsStart">ðŸŸ¢ ×”×¤×¢×œ ×©×¨×ª</button>
-        <button class="act" id="lsStop">ðŸ”´ ×¢×¦×•×¨</button>
-        <a id="lsOpen" class="act" href="#" target="_blank" style="display:none;text-decoration:none">â†— ×¤×ª×— ×‘×“×¤×“×¤×Ÿ</a>
+        <button class="add" id="lsStart">🟢 הפעל שרת</button>
+        <button class="act" id="lsStop">🔴 עצור</button>
+        <a id="lsOpen" class="act" href="#" target="_blank" style="display:none;text-decoration:none">↗ פתח בדפדפן</a>
         <span class="hint" id="lsStatus"></span>
       </div>
     </div>
@@ -621,12 +621,12 @@
   <div class="modal" id="previewModal">
     <div class="modal-card" style="max-width:900px">
       <div class="modal-head">
-        <b>ðŸ–¥ï¸ ×ª×¦×•×’×” ×ž×§×“×™×ž×” ×ž×§×•×ž×™×ª</b>
-        <button class="icon" id="previewClose">âœ•</button>
+        <b>🖥️ תצוגה מקדימה מקומית</b>
+        <button class="icon" id="previewClose">✕</button>
       </div>
       <div class="editrow">
-        <input type="text" id="previewUrl" placeholder="https://â€¦ (×¨×™×§ = ×›×ª×•×‘×ª ×‘×¨×™×¨×ª ×”×ž×—×“×œ)" style="direction:ltr;text-align:left">
-        <button class="add" id="previewGo">×˜×¢×Ÿ ðŸ”„</button>
+        <input type="text" id="previewUrl" placeholder="https://… (ריק = כתובת ברירת המחדל)" style="direction:ltr;text-align:left">
+        <button class="add" id="previewGo">טען 🔄</button>
       </div>
       <div id="previewMeta" class="hint" style="margin:10px 0"></div>
       <div id="previewShotWrap" style="display:none"><img id="previewShot" style="max-width:100%;border:1px solid var(--line);border-radius:12px"></div>
@@ -636,43 +636,43 @@
   <div class="modal" id="apiModal">
     <div class="modal-card">
       <div class="modal-head">
-        <b>ðŸ”Œ ×—×™×‘×•×¨ ×¡×•×›×Ÿ / API</b>
-        <button class="icon" id="apiClose">âœ•</button>
+        <b>🔌 חיבור סוכן / API</b>
+        <button class="icon" id="apiClose">✕</button>
       </div>
-      <p class="hint">×›×œ ×¡×•×›×Ÿ QA (Claude, Codex, Base44, ×¡×§×¨×™×¤×˜) ×™×›×•×œ ×œ×—×‘×¨ ×œ×ª×•×¨ ×”×‘×“×™×§×•×ª ×“×¨×š ×”-API ×”×–×”. ×”×¢×ª×§ ××ª ×”×›×ª×•×‘×ª ×•×”-endpoints:</p>
-      <label>×›×ª×•×‘×ª ×‘×¡×™×¡</label>
-      <div class="cpy"><code id="apiBase"></code><button class="act" data-cpy="apiBase">×”×¢×ª×§</button></div>
-      <label>×§×¨×™××ª ×”×ª×•×¨</label>
-      <div class="cpy"><code id="apiRead"></code><button class="act" data-cpy="apiRead">×”×¢×ª×§</button></div>
-      <label>×¢×“×›×•×Ÿ ×¡×˜×˜×•×¡/×ª×•×¦××” (×”×¡×•×›×Ÿ ×ž×¡×ž×Ÿ ×‘×•×¦×¢ + PASS/FAIL)</label>
-      <div class="cpy"><code id="apiUpd"></code><button class="act" data-cpy="apiUpd">×”×¢×ª×§</button></div>
-      <label>×œ×•×œ××ª ×¡×•×›×Ÿ ×ž×™× ×™×ž×œ×™×ª (JS)</label>
+      <p class="hint">כל סוכן QA (Claude, Codex, Base44, סקריפט) יכול לחבר לתור הבדיקות דרך ה-API הזה. העתק את הכתובת וה-endpoints:</p>
+      <label>כתובת בסיס</label>
+      <div class="cpy"><code id="apiBase"></code><button class="act" data-cpy="apiBase">העתק</button></div>
+      <label>קריאת התור</label>
+      <div class="cpy"><code id="apiRead"></code><button class="act" data-cpy="apiRead">העתק</button></div>
+      <label>עדכון סטטוס/תוצאה (הסוכן מסמן בוצע + PASS/FAIL)</label>
+      <div class="cpy"><code id="apiUpd"></code><button class="act" data-cpy="apiUpd">העתק</button></div>
+      <label>לולאת סוכן מינימלית (JS)</label>
       <pre id="apiSnippet"></pre>
-      <button class="act" data-cpy="apiSnippet">×”×¢×ª×§ ×§×•×“</button>
-      <p class="hint" style="margin-top:12px">×”×ª×™×¢×•×“ ×”×ž×œ×: <code>API.md</code> Â· ×”×•×¨××•×ª ×œ×¡×•×›×Ÿ: <code>AGENTS.md</code> (×‘×ª×™×§×™×™×ª ×”×¤×¨×•×™×§×˜).</p>
+      <button class="act" data-cpy="apiSnippet">העתק קוד</button>
+      <p class="hint" style="margin-top:12px">התיעוד המלא: <code>API.md</code> · הוראות לסוכן: <code>AGENTS.md</code> (בתיקיית הפרויקט).</p>
     </div>
   </div>
 
   <div id="reportView">
     <div class="reportGrid">
       <div class="reportFilters">
-        <div><label>×§×˜×’×•×¨×™×”</label><select id="fCategory"><option value="">×”×›×œ</option></select></div>
-        <div><label>×ž×•×“×•×œ</label><select id="fModule"><option value="">×”×›×œ</option></select></div>
-        <div><label>×“×¤×“×¤×Ÿ</label><select id="fBrowser"><option value="">×”×›×œ</option></select></div>
-        <div><label>×¨×–×•×œ×•×¦×™×”</label><select id="fRes"><option value="">×”×›×œ</option></select></div>
-        <div><label>×¡×•×›×Ÿ</label><select id="fAgent"><option value="">×”×›×œ</option></select></div>
-        <div><label>×¡×˜×˜×•×¡</label><select id="fStatus"><option value="">×”×›×œ</option></select></div>
-        <div><label>×ª×•×¦××”</label><select id="fResult"><option value="">×”×›×œ</option></select></div>
-        <div><label>×—×•×ž×¨×”</label><select id="fSeverity"><option value="">×”×›×œ</option></select></div>
+        <div><label>קטגוריה</label><select id="fCategory"><option value="">הכל</option></select></div>
+        <div><label>מודול</label><select id="fModule"><option value="">הכל</option></select></div>
+        <div><label>דפדפן</label><select id="fBrowser"><option value="">הכל</option></select></div>
+        <div><label>רזולוציה</label><select id="fRes"><option value="">הכל</option></select></div>
+        <div><label>סוכן</label><select id="fAgent"><option value="">הכל</option></select></div>
+        <div><label>סטטוס</label><select id="fStatus"><option value="">הכל</option></select></div>
+        <div><label>תוצאה</label><select id="fResult"><option value="">הכל</option></select></div>
+        <div><label>חומרה</label><select id="fSeverity"><option value="">הכל</option></select></div>
       </div>
       <div class="reportMain">
         <div class="kpiRow" id="kpiRow"></div>
         <div class="chartCard">
-          <div class="chartTitle">×‘×“×™×§×•×ª ×•×‘××’×™× ×œ×¤×™ ×§×˜×’×•×¨×™×”</div>
+          <div class="chartTitle">בדיקות ובאגים לפי קטגוריה</div>
           <div class="barChart" id="catChart"></div>
         </div>
         <div class="chartCard">
-          <div class="chartTitle">×‘×“×™×§×•×ª ×œ×¤×™ ×“×¤×“×¤×Ÿ</div>
+          <div class="chartTitle">בדיקות לפי דפדפן</div>
           <div class="donutWrap" id="browserChart"></div>
         </div>
       </div>
@@ -682,41 +682,41 @@
   <div class="modal" id="newCheckModal">
     <div class="modal-card">
       <div class="modal-head">
-        <b>âž• ×‘×§×©×” ×—×“×©×” â€” ×ž×” ×œ×‘×“×•×§</b>
-        <button class="icon" id="newCheckClose">âœ•</button>
+        <b>➕ בקשה חדשה — מה לבדוק</b>
+        <button class="icon" id="newCheckClose">✕</button>
       </div>
       <div class="composer" id="composer">
-        <label class="fieldLabel">×ž×” ×œ×‘×“×•×§ â€” ×ª×™××•×¨ ×§×¦×¨ <span class="req">*</span></label>
-        <textarea id="text" placeholder="×œ×ž×©×œ: ×›×¤×ª×•×¨ ×”×©×ž×™×¨×” ×‘×˜×•×¤×¡ ×¢×¨×™×›×ª ×“×™×™×¨ ×œ× ×©×•×ž×¨"></textarea>
-        <div class="preview" id="preview"><button class="rm" id="rmImg" title="×”×¡×¨ ×ª×ž×•× ×”">âœ•</button><img id="previewImg"></div>
-        <label class="fieldLabel">×ž×¡×š / ×¤×™×¦'×¨ / ×›×ª×•×‘×ª</label>
-        <input type="text" id="screenInput" class="fieldInput" placeholder="×œ×ž×©×œ: ×˜××‘ '×“×™×™×¨×™× ×•×“×™×¨×•×ª' Â· /residents Â· ×—×œ×•×Ÿ ×¢×¨×™×›×ª ×“×™×™×¨">
-        <label class="fieldLabel">×¦×¢×“×™× ×œ×©×—×–×•×¨ â€” ××™×š ×ž×’×™×¢×™× ×•×ž×” ×¢×•×©×™×</label>
-        <textarea id="stepsInput" class="fieldSmall" placeholder="1. × ×›× ×¡×™× ×œ×˜××‘ ×“×™×™×¨×™×&#10;2. ×œ×•×—×¦×™× âœï¸ ×¢×œ ×“×™×™×¨ ×§×™×™×&#10;3. ×ž×©× ×™× ×©× ×•×œ×•×—×¦×™× ×©×ž×•×¨"></textarea>
-        <label class="fieldLabel">×ª×•×¦××” ×¦×¤×•×™×” â€” ×ž×” × ×—×©×‘ ×”×¦×œ×—×” (PASS)</label>
-        <textarea id="expectedInput" class="fieldSmall" placeholder="×”×©× ×”×ž×¢×•×“×›×Ÿ × ×©×ž×¨, ×ž×•×¦×’×ª ×”×•×“×¢×ª ×”×¦×œ×—×”, ×•×”×©×™× ×•×™ × ×©××¨ ×’× ××—×¨×™ ×¨×¢× ×•×Ÿ"></textarea>
-        <div class="hint" style="margin:2px 0 8px">×›×›×œ ×©×ª×¤×¨×˜ ×™×•×ª×¨ â€” ×”×¡×•×›×Ÿ ×™×›×•×œ ×œ×‘×¦×¢ ×‘×ž×§×•× ×œ×—×–×•×¨ ×‘×©××œ×•×ª. ×—×•×‘×”: ×ª×™××•×¨ ×§×¦×¨; ×”×©××¨ ×ž×•×ž×œ×¥.</div>
+        <label class="fieldLabel">מה לבדוק — תיאור קצר <span class="req">*</span></label>
+        <textarea id="text" placeholder="למשל: כפתור השמירה בטופס עריכת דייר לא שומר"></textarea>
+        <div class="preview" id="preview"><button class="rm" id="rmImg" title="הסר תמונה">✕</button><img id="previewImg"></div>
+        <label class="fieldLabel">מסך / פיצ'ר / כתובת</label>
+        <input type="text" id="screenInput" class="fieldInput" placeholder="למשל: טאב 'דיירים ודירות' · /residents · חלון עריכת דייר">
+        <label class="fieldLabel">צעדים לשחזור — איך מגיעים ומה עושים</label>
+        <textarea id="stepsInput" class="fieldSmall" placeholder="1. נכנסים לטאב דיירים&#10;2. לוחצים ✏️ על דייר קיים&#10;3. משנים שם ולוחצים שמור"></textarea>
+        <label class="fieldLabel">תוצאה צפויה — מה נחשב הצלחה (PASS)</label>
+        <textarea id="expectedInput" class="fieldSmall" placeholder="השם המעודכן נשמר, מוצגת הודעת הצלחה, והשינוי נשאר גם אחרי רענון"></textarea>
+        <div class="hint" style="margin:2px 0 8px">ככל שתפרט יותר — הסוכן יכול לבצע במקום לחזור בשאלות. חובה: תיאור קצר; השאר מומלץ.</div>
         <div class="row">
           <select class="catsel" id="catSelect">
-            <option value="">×‘×—×¨ ×§×˜×’×•×¨×™×”â€¦</option>
+            <option value="">בחר קטגוריה…</option>
           </select>
           <select class="catsel" id="browserSelect">
-            <option value="">×“×¤×“×¤×Ÿâ€¦</option>
+            <option value="">דפדפן…</option>
           </select>
           <select class="catsel" id="resSelect">
-            <option value="">×¨×–×•×œ×•×¦×™×”â€¦</option>
+            <option value="">רזולוציה…</option>
           </select>
           <select class="catsel" id="moduleSelect">
-            <option value="">×ž×•×“×•×œâ€¦</option>
+            <option value="">מודול…</option>
           </select>
-          <button class="act" id="fileBtn">ðŸ“Ž ×¦×¨×£ ×§×•×‘×¥</button>
-          <button class="act" id="clearBtn">ðŸ—‘ï¸ × ×§×”</button>
-          <span class="hint">ðŸ“‹ ×”×“×‘×§ ××• ×’×¨×•×¨ ×ª×ž×•× ×”</span>
+          <button class="act" id="fileBtn">📎 צרף קובץ</button>
+          <button class="act" id="clearBtn">🗑️ נקה</button>
+          <span class="hint">📋 הדבק או גרור תמונה</span>
         </div>
         <div class="row" style="margin-top:10px">
-          <button class="act" id="holdToggle" title="×”×‘×“×™×§×” ×ª×™×¨×©× ××‘×œ ×”×¡×•×›×Ÿ ×œ× ×™×’×¢ ×‘×” ×¢×“ ×©×ª×¡×™×¨ ××ª ×”×“×’×œ">ðŸ›‘ ×”×©×”×” â€” ××œ ×ª×‘×¦×¢ ×¢×“×™×™×Ÿ</button>
+          <button class="act" id="holdToggle" title="הבדיקה תירשם אבל הסוכן לא יגע בה עד שתסיר את הדגל">🛑 השהה — אל תבצע עדיין</button>
           <span class="grow"></span>
-          <button class="add" id="addBtn">×©×œ×— ×œ×‘×“×™×§×” âž•</button>
+          <button class="add" id="addBtn">שלח לבדיקה ➕</button>
         </div>
         <input type="file" id="file" accept="image/*" hidden>
       </div>
@@ -731,18 +731,18 @@
 
 <script>
 const ST = {
-  open:      {icon:'â¬œ', label:'×œ× ×‘×•×¦×¢'},
-  in_progress:{icon:'â³', label:'×‘×¢×‘×•×“×”'},
-  partial:   {icon:'ðŸ”¶', label:'×—×œ×§×™'},
-  done:      {icon:'âœ…', label:'×‘×•×¦×¢'}
+  open:      {icon:'⬜', label:'לא בוצע'},
+  in_progress:{icon:'⏳', label:'בעבודה'},
+  partial:   {icon:'🔶', label:'חלקי'},
+  done:      {icon:'✅', label:'בוצע'}
 };
 const CAT_LABEL = {}, BROWSER_LABEL = {}, RES_LABEL = {}, MODULE_LABEL = {}, SEVERITY_LABEL = {}, PRIORITY_LABEL = {}; // filled from /api/*
 let lastState = null, reportOn = true; // dashboard is the default main screen
 let version = -1, pendingImg = null;
-let composing = false;   // true while a reply/edit box is open â€” pauses list re-render so typing isn't wiped
-let liveActive = false;  // true while a live browser run is showing inside a card â€” pauses list re-render
+let composing = false;   // true while a reply/edit box is open — pauses list re-render so typing isn't wiped
+let liveActive = false;  // true while a live browser run is showing inside a card — pauses list re-render
 let pendingRender = false; // a render arrived while composing; apply it once done
-let activeTab = '__all__'; // '__all__' or a specific agent name â€” filters the list + threads
+let activeTab = '__all__'; // '__all__' or a specific agent name — filters the list + threads
 function startCompose(){ composing = true; }
 function endCompose(){ composing = false; if(pendingRender){ pendingRender = false; refresh(); } }
 
@@ -801,7 +801,7 @@ const holdToggle=$('#holdToggle');
 holdToggle.onclick=()=>{
   composeHeld=!composeHeld;
   holdToggle.classList.toggle('on',composeHeld);
-  holdToggle.textContent = composeHeld ? 'ðŸ›‘ ×ž×•×©×”×” â€” ×”×¡×•×›×Ÿ ×œ× ×™×’×¢' : 'ðŸ›‘ ×”×©×”×” â€” ××œ ×ª×‘×¦×¢ ×¢×“×™×™×Ÿ';
+  holdToggle.textContent = composeHeld ? '🛑 מושהה — הסוכן לא יגע' : '🛑 השהה — אל תבצע עדיין';
 };
 
 // ---------- add ----------
@@ -819,9 +819,9 @@ async function add(){
       module:$('#moduleSelect').value||undefined,
       agent:currentAgent()||undefined})});
   clearCompose();
-  composeHeld=false; holdToggle.classList.remove('on'); holdToggle.textContent='ðŸ›‘ ×”×©×”×” â€” ××œ ×ª×‘×¦×¢ ×¢×“×™×™×Ÿ';
+  composeHeld=false; holdToggle.classList.remove('on'); holdToggle.textContent='🛑 השהה — אל תבצע עדיין';
   newCheckModal.classList.remove('on');
-  // Switch to the list so the check you just added is actually visible â€”
+  // Switch to the list so the check you just added is actually visible —
   // the dashboard only shows aggregates, not individual items.
   if(reportOn){ reportOn=false; applyMainView(); }
   refresh();
@@ -841,7 +841,7 @@ function selectedModelLabel(){
   const m = modelsState.models.find(x=>x.id===modelsState.selectedId);
   return m ? m.label : '';
 }
-// `currentAgent()` is kept as the name the rest of the code already calls â€” it now returns
+// `currentAgent()` is kept as the name the rest of the code already calls — it now returns
 // the selected model's label, so new checks are attributed to the model that will handle them.
 function currentAgent(){ return selectedModelLabel(); }
 // Small connection dot on the header buttons: green = ready/connected, gray = not configured.
@@ -849,15 +849,15 @@ function connDot(ok){ return `<span class="cdot" style="background:${ok?'var(--p
   async function updateConnDots(){
     const m = modelsState.models.find(x=>x.id===modelsState.selectedId);
     const modelOk = !!(m && (m.builtin || m.hasKey)); // built-in Claude is always available; external needs a key
-    $('#modelBtn').innerHTML = connDot(modelOk)+' ðŸ¤– '+esc(selectedModelLabel()||'×‘×—×™×¨×ª ×ž×•×“×œ');
+    $('#modelBtn').innerHTML = connDot(modelOk)+' 🤖 '+esc(selectedModelLabel()||'בחירת מודל');
     // The prominent header trigger only makes sense for an external model that can be woken by API.
   const runBtn=$('#agentRunTop');
   if(runBtn) runBtn.style.display = (m && !m.builtin && m.hasKey) ? '' : 'none';
     try{
       const g = await (await fetch('/api/github/config')).json();
       const ghOk = !!(g.enabled && g.hasToken && g.owner && g.repo);
-      $('#githubBtn').innerHTML = connDot(ghOk)+' ðŸ”— GitHub';
-    }catch{ $('#githubBtn').innerHTML = connDot(false)+' ðŸ”— GitHub'; }
+      $('#githubBtn').innerHTML = connDot(ghOk)+' 🔗 GitHub';
+    }catch{ $('#githubBtn').innerHTML = connDot(false)+' 🔗 GitHub'; }
   }
   function setMvpChip(id, state, label){
     const el = $(id);
@@ -874,11 +874,11 @@ function connDot(ok){ return `<span class="cdot" style="background:${ok?'var(--p
         fetch('/api/preview/config').then(r=>r.json()).catch(()=>null)
       ]);
       const m = models?.models?.find(x=>x.id===models?.selectedId);
-      setMvpChip('#mvpModel', m ? 'on' : 'off', m ? `×ž×•×“×œ: ${m.label}` : '×ž×•×“×œ');
-      setMvpChip('#mvpPreview', pv?.baseUrl ? 'on' : 'warn', pv?.baseUrl ? 'Preview ×ž×—×•×‘×¨' : 'Preview ×œ× ×ž×•×’×“×¨');
-      setMvpChip('#mvpGithub', gh?.enabled && gh?.owner && gh?.repo ? 'on' : 'warn', gh?.enabled && gh?.owner && gh?.repo ? 'GitHub ×ž×—×•×‘×¨' : 'GitHub ×œ× ×ž×•×’×“×¨');
+      setMvpChip('#mvpModel', m ? 'on' : 'off', m ? `מודל: ${m.label}` : 'מודל');
+      setMvpChip('#mvpPreview', pv?.baseUrl ? 'on' : 'warn', pv?.baseUrl ? 'Preview מחובר' : 'Preview לא מוגדר');
+      setMvpChip('#mvpGithub', gh?.enabled && gh?.owner && gh?.repo ? 'on' : 'warn', gh?.enabled && gh?.owner && gh?.repo ? 'GitHub מחובר' : 'GitHub לא מוגדר');
       const openCount = Array.isArray(state?.tasks) ? state.tasks.filter(t=>t.status==='open').length : 0;
-      setMvpChip('#mvpQueue', openCount ? 'warn' : 'on', openCount ? `${openCount} ×‘×‘×“×™×§×”` : '×ª×•×¨ × ×§×™');
+      setMvpChip('#mvpQueue', openCount ? 'warn' : 'on', openCount ? `${openCount} בבדיקה` : 'תור נקי');
     }catch{}
   }
   async function loadModels(){
@@ -887,15 +887,15 @@ function connDot(ok){ return `<span class="cdot" style="background:${ok?'var(--p
   }
 function renderModelList(){
   const box=$('#modelList');
-  if(!modelsState.models.length){ box.innerHTML='<div class="hint">××™×Ÿ ×ž×•×“×œ×™× ×–×ž×™× ×™×</div>'; return; }
+  if(!modelsState.models.length){ box.innerHTML='<div class="hint">אין מודלים זמינים</div>'; return; }
   box.innerHTML = modelsState.models.map(m=>{
     const sel = m.id===modelsState.selectedId;
-    const meta = m.builtin ? '×ž×•×‘× ×”' : (m.provider==='openai' ? ('×—×™×¦×•× ×™ Â· '+(m.model||'')) : ('Gemini Â· '+(m.model||'')));
+    const meta = m.builtin ? 'מובנה' : (m.provider==='openai' ? ('חיצוני · '+(m.model||'')) : ('Gemini · '+(m.model||'')));
     return `<div class="modelRow${sel?' sel':''}">
-      <div class="modelInfo"><div class="modelName">${sel?'âœ… ':''}${esc(m.label)}</div><div class="modelMeta">${esc(meta)}${m.hasKey?' Â· ðŸ”‘':''}</div></div>
+      <div class="modelInfo"><div class="modelName">${sel?'✅ ':''}${esc(m.label)}</div><div class="modelMeta">${esc(meta)}${m.hasKey?' · 🔑':''}</div></div>
       <div class="modelActions">
-        ${sel?'<span class="hint">× ×‘×—×¨</span>':`<button class="act" data-sel="${esc(m.id)}">×‘×—×¨</button>`}
-        ${m.builtin?'':`<button class="icon" title="×ž×—×§" data-del="${esc(m.id)}">ðŸ—‘ï¸</button>`}
+        ${sel?'<span class="hint">נבחר</span>':`<button class="act" data-sel="${esc(m.id)}">בחר</button>`}
+        ${m.builtin?'':`<button class="icon" title="מחק" data-del="${esc(m.id)}">🗑️</button>`}
       </div>
     </div>`;
   }).join('');
@@ -904,7 +904,7 @@ function renderModelList(){
     await loadModels(); refreshModelModal();
   });
   box.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
-    if(!confirm('×œ×ž×—×•×§ ××ª ×”×ž×•×“×œ?')) return;
+    if(!confirm('למחוק את המודל?')) return;
     await fetch('/api/models/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:b.dataset.del})});
     await loadModels(); refreshModelModal();
   });
@@ -914,7 +914,7 @@ function selectedModelIsExternal(){
   return !!(m && !m.builtin);
 }
 function refreshModelModal(){
-  $('#modelCurrentLabel').textContent = selectedModelLabel() || 'â€”';
+  $('#modelCurrentLabel').textContent = selectedModelLabel() || '—';
   const ext = selectedModelIsExternal();
   $('#agentRun').style.display = ext ? '' : 'none';
   $('#agentRunHint').style.display = ext ? 'block' : 'none';
@@ -925,21 +925,21 @@ $('#modelBtn').onclick=async()=>{ modelModal.classList.add('on'); await loadMode
 $('#modelClose').onclick=()=>modelModal.classList.remove('on');
 modelModal.onclick=e=>{ if(e.target===modelModal) modelModal.classList.remove('on'); };
 $('#modelTest').onclick=async()=>{
-  $('#modelTestStatus').textContent='×‘×•×“×§â€¦'; $('#modelTestStatus').style.color='var(--muted)';
+  $('#modelTestStatus').textContent='בודק…'; $('#modelTestStatus').style.color='var(--muted)';
   try{
     const r=await fetch('/api/models/test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:modelsState.selectedId})});
     const j=await r.json();
-    if(j.error){ $('#modelTestStatus').textContent='âœ— '+j.error; $('#modelTestStatus').style.color='#c15070'; }
-    else if(j.builtin){ $('#modelTestStatus').textContent='â„¹ï¸ '+j.message; $('#modelTestStatus').style.color='var(--muted)'; }
-    else { $('#modelTestStatus').textContent='âœ“ ×ž×—×•×‘×¨'; $('#modelTestStatus').style.color='#3a9c75'; }
-  }catch(e){ $('#modelTestStatus').textContent='âœ— ×©×’×™××ª ×¨×©×ª'; $('#modelTestStatus').style.color='#c15070'; }
+    if(j.error){ $('#modelTestStatus').textContent='✗ '+j.error; $('#modelTestStatus').style.color='#c15070'; }
+    else if(j.builtin){ $('#modelTestStatus').textContent='ℹ️ '+j.message; $('#modelTestStatus').style.color='var(--muted)'; }
+    else { $('#modelTestStatus').textContent='✓ מחובר'; $('#modelTestStatus').style.color='#3a9c75'; }
+  }catch(e){ $('#modelTestStatus').textContent='✗ שגיאת רשת'; $('#modelTestStatus').style.color='#c15070'; }
   updateConnDots();
 };
-// Shared "wake the external model and run it on the queue" trigger â€” used by both the
+// Shared "wake the external model and run it on the queue" trigger — used by both the
 // modal button and the prominent header button. `statusEl` is where the result is shown.
 async function runExternalAgent(statusEl){
   // If a local preview browser + base URL are configured, do the REAL interactive test
-  // (clicks/flow) on the oldest open check â€” instead of the quick page-load analysis.
+  // (clicks/flow) on the oldest open check — instead of the quick page-load analysis.
   try{
     const pv=await (await fetch('/api/preview/config')).json();
     if(pv.engineReady && pv.chromeFound && pv.baseUrl){
@@ -947,7 +947,7 @@ async function runExternalAgent(statusEl){
       const open=(st.tasks||[]).filter(t=>t.status==='open'&&!t.held).sort((a,b)=>a.id-b.id);
       if(open.length){
         if($('#modelModal')) $('#modelModal').classList.remove('on');
-        if(statusEl){ statusEl.textContent='×ž×¤×¢×™×œ ×‘×“×™×§×” ×—×™×” ×¢× ×œ×—×™×¦×•×ªâ€¦'; statusEl.style.color='var(--muted)'; }
+        if(statusEl){ statusEl.textContent='מפעיל בדיקה חיה עם לחיצות…'; statusEl.style.color='var(--muted)'; }
         startLive(open[0].id);
         return;
       }
@@ -956,20 +956,20 @@ async function runExternalAgent(statusEl){
   const btns=[$('#agentRun'),$('#agentRunTop')];
   btns.forEach(b=>{ if(b) b.disabled=true; });
   const setS=(t,c)=>{ if(statusEl){ statusEl.textContent=t; statusEl.style.color=c; } };
-  setS('×ž×¨×™×¥ × ×™×ª×•×— ×¢×œ ×”×ª×•×¨â€¦','var(--muted)');
+  setS('מריץ ניתוח על התור…','var(--muted)');
   const topLabel=$('#agentRunTop'); const topOrig=topLabel?topLabel.textContent:'';
-  if(topLabel) topLabel.textContent='â³ ×ž×¨×™×¥â€¦';
+  if(topLabel) topLabel.textContent='⏳ מריץ…';
   try{
     const r=await fetch('/api/agent/run',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
     const j=await r.json();
-    if(j.error){ setS('âœ— '+j.error,'#c15070'); if(statusEl!==$('#modelTestStatus')) alert('×©×’×™××”: '+j.error); }
+    if(j.error){ setS('✗ '+j.error,'#c15070'); if(statusEl!==$('#modelTestStatus')) alert('שגיאה: '+j.error); }
     else {
-      let msg = j.processed ? `âœ“ ×¢×•×‘×“×• ${j.processed} ×¤×¨×™×˜×™×${j.replies?` (×›×•×œ×œ ${j.replies} ×ª×’×•×‘×•×ª)`:''}` : (j.message||'××™×Ÿ ×¤×¨×™×˜×™× ×‘×ª×•×¨');
-      if(j.errors && j.errors.length) msg += ` Â· ${j.errors.length} ×©×’×™××•×ª`;
+      let msg = j.processed ? `✓ עובדו ${j.processed} פריטים${j.replies?` (כולל ${j.replies} תגובות)`:''}` : (j.message||'אין פריטים בתור');
+      if(j.errors && j.errors.length) msg += ` · ${j.errors.length} שגיאות`;
       setS(msg, j.processed?'#3a9c75':'var(--muted)');
       refresh();
     }
-  }catch(e){ setS('âœ— ×©×’×™××ª ×¨×©×ª','#c15070'); }
+  }catch(e){ setS('✗ שגיאת רשת','#c15070'); }
   if(topLabel) topLabel.textContent=topOrig;
   btns.forEach(b=>{ if(b) b.disabled=false; });
 }
@@ -978,10 +978,10 @@ $('#agentRunTop').onclick=()=>runExternalAgent($('#modelTestStatus'));
 // ---- preset model dropdown per provider, with a "custom" free-text option ----
 const MODEL_PRESETS = {
   gemini: [
-    ['gemini-2.0-flash','gemini-2.0-flash (×ž×”×™×¨, ×‘×¨×™×¨×ª ×ž×—×“×œ)'],
-    ['gemini-2.0-flash-lite','gemini-2.0-flash-lite (×”×›×™ ×–×•×œ/×ž×”×™×¨)'],
+    ['gemini-2.0-flash','gemini-2.0-flash (מהיר, ברירת מחדל)'],
+    ['gemini-2.0-flash-lite','gemini-2.0-flash-lite (הכי זול/מהיר)'],
     ['gemini-1.5-flash','gemini-1.5-flash'],
-    ['gemini-1.5-pro','gemini-1.5-pro (××™×›×•×ª ×’×‘×•×”×” ×™×•×ª×¨)']
+    ['gemini-1.5-pro','gemini-1.5-pro (איכות גבוהה יותר)']
   ],
   openai: [
     ['gpt-4o','gpt-4o (OpenAI)'],
@@ -994,7 +994,7 @@ const MODEL_PRESETS = {
 const mSel=$('#mNewModelSelect'), mCustom=$('#mNewModel');
 function fillModelPresets(kind){
   mSel.innerHTML = MODEL_PRESETS[kind].map(([v,l])=>`<option value="${v}">${l}</option>`).join('')
-    + '<option value="__custom__">×ž×•×ª×× ××™×©×™×ªâ€¦</option>';
+    + '<option value="__custom__">מותאם אישית…</option>';
   mCustom.style.display='none'; mCustom.value='';
 }
 function chosenModelId(){ return mSel.value==='__custom__' ? mCustom.value.trim() : mSel.value; }
@@ -1016,19 +1016,19 @@ applyProviderUI();
 $('#mAdd').onclick=async()=>{
   const modelId=chosenModelId();
   const label=$('#mNewLabel').value.trim() || modelId;
-  if(!label){ $('#mAddStatus').textContent='×—×¡×¨ ×©× ×ª×¦×•×’×”'; return; }
-  if(!modelId){ $('#mAddStatus').textContent='×‘×—×¨ ××• ×”×–×Ÿ ×ž×–×”×” ×ž×•×“×œ'; return; }
-  $('#mAddStatus').textContent='×©×•×ž×¨â€¦';
+  if(!label){ $('#mAddStatus').textContent='חסר שם תצוגה'; return; }
+  if(!modelId){ $('#mAddStatus').textContent='בחר או הזן מזהה מודל'; return; }
+  $('#mAddStatus').textContent='שומר…';
   const body={ label, provider:$('#mNewProvider').value, model:modelId,
     apiKey:$('#mNewKey').value.trim()||undefined, select:true };
   if($('#mNewProvider').value==='openai') body.baseUrl=$('#mNewBaseUrl').value.trim();
   const r=await fetch('/api/models/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   const j=await r.json();
-  if(j.error){ $('#mAddStatus').textContent='×©×’×™××”: '+j.error; return; }
+  if(j.error){ $('#mAddStatus').textContent='שגיאה: '+j.error; return; }
   $('#mNewLabel').value=''; mCustom.value=''; $('#mNewKey').value=''; applyProviderUI();
-  $('#mAddStatus').textContent='× ×•×¡×£ âœ“';
+  $('#mAddStatus').textContent='נוסף ✓';
   await loadModels(); refreshModelModal();
-  setTimeout(()=>{ if($('#mAddStatus').textContent==='× ×•×¡×£ âœ“') $('#mAddStatus').textContent=''; }, 2000);
+  setTimeout(()=>{ if($('#mAddStatus').textContent==='נוסף ✓') $('#mAddStatus').textContent=''; }, 2000);
 };
 loadModels();
 
@@ -1038,20 +1038,20 @@ loadModels();
 
   function showTokenStatus(hasToken){
     $('#ghTokenSaved').style.display = hasToken ? 'block' : 'none';
-    $('#ghTokenStatus').textContent = hasToken ? '' : '×œ× ×”×•×’×“×¨ ×˜×•×§×Ÿ ×¢×“×™×™×Ÿ';
-    $('#ghToken').placeholder = hasToken ? 'â€¢â€¢â€¢â€¢ ×˜×•×§×Ÿ ×©×ž×•×¨ â€” ×”×–×Ÿ ×¨×§ ×›×“×™ ×œ×”×—×œ×™×£' : 'ghp_â€¦';
+    $('#ghTokenStatus').textContent = hasToken ? '' : 'לא הוגדר טוקן עדיין';
+    $('#ghToken').placeholder = hasToken ? '•••• טוקן שמור — הזן רק כדי להחליף' : 'ghp_…';
   }
 
   async function loadIssues(){
     const list=$('#ghIssuesList');
-    list.textContent='×˜×•×¢×Ÿâ€¦';
+    list.textContent='טוען…';
     try{
       const r=await fetch('/api/github/issues');
       const j=await r.json();
-      if(!r.ok||j.error){ list.textContent='×©×’×™××”: '+(j.error||r.status); return; }
-      if(!j.issues.length){ list.textContent='××™×Ÿ issues ×¤×ª×•×—×™×.'; return; }
-      list.innerHTML=j.issues.map(i=>`<div class="ghIssue"><span>#${i.number} ${esc(i.title)}</span><a href="${i.url}" target="_blank">×¤×ª×— â†—</a></div>`).join('');
-    }catch(e){ list.textContent='×©×’×™××ª ×¨×©×ª: '+e.message; }
+      if(!r.ok||j.error){ list.textContent='שגיאה: '+(j.error||r.status); return; }
+      if(!j.issues.length){ list.textContent='אין issues פתוחים.'; return; }
+      list.innerHTML=j.issues.map(i=>`<div class="ghIssue"><span>#${i.number} ${esc(i.title)}</span><a href="${i.url}" target="_blank">פתח ↗</a></div>`).join('');
+    }catch(e){ list.textContent='שגיאת רשת: '+e.message; }
   }
 
   async function saveGh(opts={}){
@@ -1069,14 +1069,14 @@ loadModels();
     try{
       const c=await (await fetch('/api/localrepo/config')).json();
       $('#localPath').value=c.path||'';
-      $('#localStatus').textContent = c.path ? (c.exists ? `âœ“ ${c.fileCount} ×§×‘×¦×™×` : 'âœ— ×”× ×ª×™×‘ ×œ× ×§×™×™×/×œ× ×ª×™×§×™×™×”') : '';
+      $('#localStatus').textContent = c.path ? (c.exists ? `✓ ${c.fileCount} קבצים` : '✗ הנתיב לא קיים/לא תיקייה') : '';
       $('#localStatus').style.color = c.path ? (c.exists?'#3a9c75':'#c15070') : 'var(--muted)';
     }catch{}
   }
   $('#localSave').onclick=async()=>{
-    $('#localStatus').textContent='×©×•×ž×¨â€¦'; $('#localStatus').style.color='var(--muted)';
+    $('#localStatus').textContent='שומר…'; $('#localStatus').style.color='var(--muted)';
     const j=await (await fetch('/api/localrepo/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:$('#localPath').value.trim()})})).json();
-    $('#localStatus').textContent = j.path ? (j.exists ? `âœ“ × ×©×ž×¨ Â· ${j.fileCount} ×§×‘×¦×™×` : 'âœ— × ×©×ž×¨, ××š ×”× ×ª×™×‘ ×œ× ×§×™×™×/×œ× ×ª×™×§×™×™×”') : '× ×•×§×”';
+    $('#localStatus').textContent = j.path ? (j.exists ? `✓ נשמר · ${j.fileCount} קבצים` : '✗ נשמר, אך הנתיב לא קיים/לא תיקייה') : 'נוקה';
     $('#localStatus').style.color = j.path ? (j.exists?'#3a9c75':'#c15070') : 'var(--muted)';
   };
   $('#githubBtn').onclick=async()=>{
@@ -1088,7 +1088,7 @@ loadModels();
     $('#ghToken').value='';
     showTokenStatus(!!c.hasToken);
     $('#ghSaveStatus').textContent='';
-    if(c.enabled && c.owner && c.repo) loadIssues(); else $('#ghIssuesList').textContent='â€”';
+    if(c.enabled && c.owner && c.repo) loadIssues(); else $('#ghIssuesList').textContent='—';
     loadLocalRepo();
     if(window.loadPreviewCfg) window.loadPreviewCfg();
     if(window.loadLsCfg) window.loadLsCfg();
@@ -1098,15 +1098,15 @@ loadModels();
   $('#ghToken').addEventListener('blur', async()=>{
     const token=$('#ghToken').value.trim();
     if(!token) return;
-    $('#ghSaveStatus').textContent='×©×•×ž×¨ ×˜×•×§×Ÿâ€¦';
+    $('#ghSaveStatus').textContent='שומר טוקן…';
     await saveGh({ token });
-    $('#ghSaveStatus').textContent='×˜×•×§×Ÿ × ×©×ž×¨ âœ“';
-    setTimeout(()=>{ if($('#ghSaveStatus').textContent==='×˜×•×§×Ÿ × ×©×ž×¨ âœ“') $('#ghSaveStatus').textContent=''; }, 2500);
+    $('#ghSaveStatus').textContent='טוקן נשמר ✓';
+    setTimeout(()=>{ if($('#ghSaveStatus').textContent==='טוקן נשמר ✓') $('#ghSaveStatus').textContent=''; }, 2500);
   });
   $('#ghSave').onclick=async()=>{
-    $('#ghSaveStatus').textContent='×©×•×ž×¨â€¦';
+    $('#ghSaveStatus').textContent='שומר…';
     await saveGh();
-    $('#ghSaveStatus').textContent='× ×©×ž×¨ âœ“';
+    $('#ghSaveStatus').textContent='נשמר ✓';
   };
   $('#ghLoadIssues').onclick=loadIssues;
 
@@ -1120,23 +1120,23 @@ loadModels();
     try{
       const c=await (await fetch('/api/preview/config')).json();
       $('#previewBase').value=c.baseUrl||'';
-      $('#previewCfgStatus').textContent = c.engineReady ? (c.chromeFound?'âœ“ ×ž× ×•×¢ ×•×“×¤×“×¤×Ÿ ×ž×•×›× ×™×':'âœ— Chrome ×œ× × ×ž×¦×') : 'âœ— ×ž× ×•×¢ ×”×“×¤×“×¤×Ÿ ×œ× ×ž×•×ª×§×Ÿ';
+      $('#previewCfgStatus').textContent = c.engineReady ? (c.chromeFound?'✓ מנוע ודפדפן מוכנים':'✗ Chrome לא נמצא') : '✗ מנוע הדפדפן לא מותקן';
       $('#previewCfgStatus').style.color = (c.engineReady&&c.chromeFound)?'#3a9c75':'#c15070';
     }catch{}
   };
   $('#previewSave').onclick=async()=>{
-    $('#previewCfgStatus').textContent='×©×•×ž×¨â€¦'; $('#previewCfgStatus').style.color='var(--muted)';
+    $('#previewCfgStatus').textContent='שומר…'; $('#previewCfgStatus').style.color='var(--muted)';
     const c=await (await fetch('/api/preview/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({baseUrl:$('#previewBase').value.trim()})})).json();
-    $('#previewCfgStatus').textContent = c.engineReady ? (c.chromeFound?'âœ“ × ×©×ž×¨ Â· ×ž×•×›×Ÿ':'âœ— Chrome ×œ× × ×ž×¦×') : 'âœ— ×ž× ×•×¢ ×œ× ×ž×•×ª×§×Ÿ';
+    $('#previewCfgStatus').textContent = c.engineReady ? (c.chromeFound?'✓ נשמר · מוכן':'✗ Chrome לא נמצא') : '✗ מנוע לא מותקן';
     $('#previewCfgStatus').style.color = (c.engineReady&&c.chromeFound)?'#3a9c75':'#c15070';
   };
 
-  // ----- local dev server (start/stop the app under test) â€” driven from BOTH the
+  // ----- local dev server (start/stop the app under test) — driven from BOTH the
   //       header button (#lsHeaderBtn, primary) and the sources-modal controls -----
   function lsRenderModal(c){
     if(!$('#lsStart')) return;                       // modal markup not present
     const running = !!(c && c.running);
-    $('#lsStatus').textContent = running ? ('ðŸŸ¢ ×¤×•×¢×œ Â· '+(c.url||'')) : (c && c.log && c.log.length ? 'âšª ×¢×¦×•×¨ Â· '+c.log[c.log.length-1] : 'âšª ×¢×¦×•×¨');
+    $('#lsStatus').textContent = running ? ('🟢 פועל · '+(c.url||'')) : (c && c.log && c.log.length ? '⚪ עצור · '+c.log[c.log.length-1] : '⚪ עצור');
     $('#lsStatus').style.color = running ? '#3a9c75' : 'var(--muted)';
     const openA = $('#lsOpen');
     if(openA){ if(running && c.url){ openA.style.display=''; openA.href=c.url; } else { openA.style.display='none'; } }
@@ -1150,9 +1150,9 @@ loadModels();
     const hb=$('#lsHeaderBtn');
     if(hb){
       hb.dataset.running = c.running ? '1' : '0';
-      hb.innerHTML = c.running ? ('ðŸŸ¢ ×¤×•×¢×œ Â· '+c.port+' Â· ×¢×¦×•×¨') : 'ðŸŸ¢ ×”×¤×¢×œ ×©×¨×ª';
+      hb.innerHTML = c.running ? ('🟢 פועל · '+c.port+' · עצור') : '🟢 הפעל שרת';
       hb.classList.toggle('on', !!c.running);
-      hb.title = c.running ? ('×”×©×¨×ª ×¤×•×¢×œ ×¢×œ '+(c.url||'')+' â€” ×œ×—×¥ ×œ×¢×¦×™×¨×”') : ('×”×¤×¢×œ ×©×¨×ª ×ž×§×•×ž×™ ×œ×‘×“×™×§×” ×¢×œ ×¤×•×¨×˜ '+c.port);
+      hb.title = c.running ? ('השרת פועל על '+(c.url||'')+' — לחץ לעצירה') : ('הפעל שרת מקומי לבדיקה על פורט '+c.port);
     }
     if($('#lsDir') && document.activeElement!==$('#lsDir')) $('#lsDir').value=c.dir||'';
     if($('#lsPort') && document.activeElement!==$('#lsPort')) $('#lsPort').value=c.port||2500;
@@ -1177,11 +1177,11 @@ loadModels();
     return (await fetch('/api/localserver/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
   }
 
-  // header button â€” toggles: start when stopped, stop when running
+  // header button — toggles: start when stopped, stop when running
   const lsHB=$('#lsHeaderBtn');
   if(lsHB) lsHB.onclick=async()=>{
     const running = lsHB.dataset.running==='1';
-    lsHB.disabled=true; lsHB.innerHTML = running ? 'â³ ×¢×•×¦×¨â€¦' : 'â³ ×ž×¤×¢×™×œâ€¦';
+    lsHB.disabled=true; lsHB.innerHTML = running ? '⏳ עוצר…' : '⏳ מפעיל…';
     try{ if(running) await lsStop(); else await lsStart(); }catch{}
     lsHB.disabled=false;
     await window.lsSync();
@@ -1189,13 +1189,13 @@ loadModels();
 
   // modal buttons delegate to the same start/stop logic
   if($('#lsStart')) $('#lsStart').onclick=async()=>{
-    $('#lsStatus').textContent='×ž×¤×¢×™×œâ€¦'; $('#lsStatus').style.color='var(--muted)'; $('#lsStart').disabled=true;
-    try{ await lsStart(); }catch(e){ $('#lsStatus').textContent='âœ— '+(e.message||'×©×’×™××”'); $('#lsStatus').style.color='#c15070'; }
+    $('#lsStatus').textContent='מפעיל…'; $('#lsStatus').style.color='var(--muted)'; $('#lsStart').disabled=true;
+    try{ await lsStart(); }catch(e){ $('#lsStatus').textContent='✗ '+(e.message||'שגיאה'); $('#lsStatus').style.color='#c15070'; }
     await window.lsSync();
   };
   if($('#lsStop')) $('#lsStop').onclick=async()=>{
-    $('#lsStatus').textContent='×¢×•×¦×¨â€¦'; $('#lsStatus').style.color='var(--muted)';
-    try{ await lsStop(); }catch(e){ $('#lsStatus').textContent='âœ— '+(e.message||'×©×’×™××”'); $('#lsStatus').style.color='#c15070'; }
+    $('#lsStatus').textContent='עוצר…'; $('#lsStatus').style.color='var(--muted)';
+    try{ await lsStop(); }catch(e){ $('#lsStatus').textContent='✗ '+(e.message||'שגיאה'); $('#lsStatus').style.color='#c15070'; }
     await window.lsSync();
   };
 
@@ -1206,20 +1206,20 @@ loadModels();
 (function(){
   const modal=$('#previewModal');
   async function capture(){
-    $('#previewMeta').textContent='×˜×•×¢×Ÿ ×‘×“×¤×“×¤×Ÿ ×”×ž×§×•×ž×™â€¦'; $('#previewMeta').style.color='var(--muted)';
+    $('#previewMeta').textContent='טוען בדפדפן המקומי…'; $('#previewMeta').style.color='var(--muted)';
     $('#previewShotWrap').style.display='none';
     try{
       const url=$('#previewUrl').value.trim();
       const j=await (await fetch('/api/preview/capture',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(url?{url}:{})})).json();
-      if(j.error){ $('#previewMeta').textContent='âœ— '+j.error; $('#previewMeta').style.color='#c15070'; return; }
+      if(j.error){ $('#previewMeta').textContent='✗ '+j.error; $('#previewMeta').style.color='#c15070'; return; }
       const errs=j.consoleErrors||[], fails=j.failedReqs||[];
       $('#previewMeta').innerHTML =
-        `<b>${esc(j.title||'')}</b> Â· ×¡×˜×˜×•×¡ ${j.status} Â· ${errs.length?('<span style=color:#c15070>'+errs.length+' ×©×’×™××•×ª ×§×•× ×¡×•×œ</span>'):'0 ×©×’×™××•×ª ×§×•× ×¡×•×œ'} Â· ${fails.length?(fails.length+' ×‘×§×©×•×ª ×©× ×›×©×œ×•'):'0 ×‘×§×©×•×ª ×©× ×›×©×œ×•'}`
+        `<b>${esc(j.title||'')}</b> · סטטוס ${j.status} · ${errs.length?('<span style=color:#c15070>'+errs.length+' שגיאות קונסול</span>'):'0 שגיאות קונסול'} · ${fails.length?(fails.length+' בקשות שנכשלו'):'0 בקשות שנכשלו'}`
         + (errs.length?('<div class="note" style="margin-top:6px;direction:ltr;text-align:left">'+errs.slice(0,8).map(esc).join('<br>')+'</div>'):'')
         + (fails.length?('<div class="note" style="margin-top:6px;direction:ltr;text-align:left">'+fails.slice(0,8).map(esc).join('<br>')+'</div>'):'');
       $('#previewMeta').style.color='var(--txt)';
       if(j.screenshot){ $('#previewShot').src=j.screenshot; $('#previewShotWrap').style.display='block'; }
-    }catch(e){ $('#previewMeta').textContent='âœ— ×©×’×™××ª ×¨×©×ª'; $('#previewMeta').style.color='#c15070'; }
+    }catch(e){ $('#previewMeta').textContent='✗ שגיאת רשת'; $('#previewMeta').style.color='#c15070'; }
   }
   $('#previewBtn').onclick=()=>{ modal.classList.add('on'); $('#previewUrl').value=''; capture(); };
   $('#previewGo').onclick=capture;
@@ -1246,7 +1246,7 @@ if(next) await fetch(B+"/api/update",{method:"POST",
   modal.onclick=e=>{ if(e.target===modal) modal.classList.remove('on'); };
   modal.querySelectorAll('[data-cpy]').forEach(b=>b.onclick=()=>{
     const txt=$('#'+b.dataset.cpy).textContent;
-    navigator.clipboard.writeText(txt).then(()=>{ const o=b.textContent; b.textContent='×”×•×¢×ª×§ âœ“'; setTimeout(()=>b.textContent=o,1200); });
+    navigator.clipboard.writeText(txt).then(()=>{ const o=b.textContent; b.textContent='הועתק ✓'; setTimeout(()=>b.textContent=o,1200); });
   });
 })();
 
@@ -1260,28 +1260,28 @@ if(next) await fetch(B+"/api/update",{method:"POST",
   const openSettings=()=>settingsModal.classList.add('on');
   const I18N = {
     he: {
-      settingsBtn: '×”×’×“×¨×•×ª',
-      helpBtn: '×¢×–×¨×”',
-      githubDockBtn: '×—×™×‘×•×¨ ×œ GITHUB',
-      modelDockBtn: '×—×™×‘×•×¨ ×œ×ž×•×“×œ',
-      settingsTitle: 'âš™ï¸ ×”×’×“×¨×•×ª ×¤×¨×•×™×§×˜',
-      settingsHint: '×ž×¡×š ×‘×§×¨×” ×ž×”×™×¨ ×œÖ¾ON TracK. ×ž×›××Ÿ ×¢×•×‘×¨×™× ×œ×ž×¡×š ×”×ž×•×“×œ, ×”×—×™×‘×•×¨ ×œÖ¾GitHub, ××• ×œ×ª×™×¢×•×“ ×”×¤×¨×•×™×§×˜.',
-      projectVersion: '×’×¨×¡×ª ×¤×¨×•×™×§×˜',
-      currentStatus: '×ž×¦×‘ × ×•×›×—×™',
-      workGoal: '×ž×˜×¨×ª ×¢×‘×•×“×”',
-      shortcut: '×§×™×¦×•×¨ ×“×¨×š',
-      shortcutHint: '×¤×ª×— ×¢×–×¨×”, ×ž×•×“×œ, GitHub ××• API ×œ×¤×™ ×”×¦×•×¨×š.',
+      settingsBtn: 'הגדרות',
+      helpBtn: 'עזרה',
+      githubDockBtn: 'חיבור ל GITHUB',
+      modelDockBtn: 'חיבור למודל',
+      settingsTitle: '⚙️ הגדרות פרויקט',
+      settingsHint: 'מסך בקרה מהיר ל־ON TracK. מכאן עוברים למסך המודל, החיבור ל־GitHub, או לתיעוד הפרויקט.',
+      projectVersion: 'גרסת פרויקט',
+      currentStatus: 'מצב נוכחי',
+      workGoal: 'מטרת עבודה',
+      shortcut: 'קיצור דרך',
+      shortcutHint: 'פתח עזרה, מודל, GitHub או API לפי הצורך.',
       pageTitle: 'מרחב עבודה',
       newRequest: '➕ בקשה חדשה',
-      modelBtn: 'ðŸ¤– ×‘×—×™×¨×ª ×ž×•×“×œ',
-      startServer: 'ðŸŸ¢ ×”×¤×¢×œ ×©×¨×ª'
+      modelBtn: '🤖 בחירת מודל',
+      startServer: '🟢 הפעל שרת'
     },
     en: {
       settingsBtn: 'Settings',
       helpBtn: 'Help',
       githubDockBtn: 'Connect GitHub',
       modelDockBtn: 'Connect Model',
-      settingsTitle: 'âš™ï¸ Project Settings',
+      settingsTitle: '⚙️ Project Settings',
       settingsHint: 'Quick control panel for ON TracK. Jump to the model, GitHub, or project docs from here.',
       projectVersion: 'Project Version',
       currentStatus: 'Current Status',
@@ -1311,7 +1311,7 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     if($('#newCheckBtn')) $('#newCheckBtn').textContent = I18N[uiLang].newRequest;
     if($('#modelBtn')) $('#modelBtn').textContent = I18N[uiLang].modelBtn;
     if($('#lsHeaderBtn')) $('#lsHeaderBtn').textContent = I18N[uiLang].startServer;
-    if($('#langBtn')) $('#langBtn').textContent = uiLang === 'en' ? 'English / HE' : '×¢×‘×¨×™×ª / EN';
+    if($('#langBtn')) $('#langBtn').textContent = uiLang === 'en' ? 'English / HE' : 'עברית / EN';
     if($('#newLangBtn')) $('#newLangBtn').textContent = uiLang === 'en' ? 'English / HE' : 'עברית / EN';
     if($('#newSettingsBtn')) $('#newSettingsBtn').textContent = I18N[uiLang].settingsBtn;
     if($('#newHelpBtn')) $('#newHelpBtn').textContent = I18N[uiLang].helpBtn;
@@ -1401,30 +1401,30 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     const b=document.createElement('button');
     b.className='flagbtn compact';
     b.id='helpBtn';
-    b.textContent='â“ ×¢×–×¨×”';
+    b.textContent='❓ עזרה';
     apiBtn.parentElement.insertBefore(b, apiBtn);
   }
   const appVersion='0.1.0';
   $('#appVersion').textContent=appVersion;
   document.title='ON TracK';
   $('#helpDone').textContent=[
-    'â€¢ ×”×“×©×‘×•×¨×“ ×”×ž×§×•×ž×™ ×¨×¥ ×•×ž×¦×™×’ checks, results, report view ×•-thread.',
-    'â€¢ ×§×™×™×ž×™× Model / GitHub / Preview / Local repo settings.',
-    'â€¢ × ×•×¡×¤×” ×ª×¦×•×’×ª ×ž×•×›× ×•×ª MVP ×‘×¨××© ×”×ž×¡×š.',
-    'â€¢ × ×•×¡×£ ×§×•×‘×¥ project-info ×ž×¨×›×–×™ ×œ×ª×™××•×¨ ×ž×¦×‘ ×”×¢×‘×•×“×”.'
+    '• הדשבורד המקומי רץ ומציג checks, results, report view ו-thread.',
+    '• קיימים Model / GitHub / Preview / Local repo settings.',
+    '• נוספה תצוגת מוכנות MVP בראש המסך.',
+    '• נוסף קובץ project-info מרכזי לתיאור מצב העבודה.'
   ].join('\n');
   $('#helpTodo').textContent=[
-    'â€¢ ×œ×—×‘×¨ ×–×¨×™×ž×ª project plan ×ž×¡×•×“×¨×ª ×œ×ž×•×“×œ ×©× ×‘×—×¨.',
-    'â€¢ ×œ×”×¤×¨×™×“ ×‘×™×Ÿ ×ª×›× ×•×Ÿ, ××™×©×•×¨ ×•×‘×™×¦×•×¢.',
-    'â€¢ ×œ×”×•×¡×™×£ state ×ž×¡×•×“×¨ ×œ×¤×¨×•×™×§×˜ ×•×ž×¢×§×‘ ×”×ª×§×“×ž×•×ª.',
-    'â€¢ ×œ×”×—×œ×™×˜ ××™×œ×• ×¤×¢×•×œ×•×ª ×ž×•×ª×¨ ×œ×ž×•×“×œ ×œ×‘×¦×¢ ×‘×¤×•×¢×œ.'
+    '• לחבר זרימת project plan מסודרת למודל שנבחר.',
+    '• להפריד בין תכנון, אישור וביצוע.',
+    '• להוסיף state מסודר לפרויקט ומעקב התקדמות.',
+    '• להחליט אילו פעולות מותר למודל לבצע בפועל.'
   ].join('\n');
   $('#helpFlow').textContent=[
-    '1. ×‘×•×—×¨×™× ×ž×•×“×œ ×—×™×¦×•× ×™.',
-    '2. ×ž×’×“×™×¨×™× Local Repo ××• GitHub.',
-    '3. ×›×•×ª×‘×™× ×ª×›× ×™×ª / ×ž×©×™×ž×”.',
-    '4. ×ž×§×‘×œ×™× ×ª×•×¦××”, ×ž××©×¨×™×, ×•××– ×¢×•×‘×¨×™× ×œ×‘×™×¦×•×¢.',
-    '5. ×ž×©××™×¨×™× log ×ž×¡×•×“×¨ ×œ×›×œ ×©×œ×‘.'
+    '1. בוחרים מודל חיצוני.',
+    '2. מגדירים Local Repo או GitHub.',
+    '3. כותבים תכנית / משימה.',
+    '4. מקבלים תוצאה, מאשרים, ואז עוברים לביצוע.',
+    '5. משאירים log מסודר לכל שלב.'
   ].join('\n');
   $('#helpPath').textContent='C:\\harel\\RLAPP ON RL\\QA\\PROJECT_INFO.md';
   async function loadProjectState(){
@@ -1433,19 +1433,19 @@ if(next) await fetch(B+"/api/update",{method:"POST",
       $('#projectTitle').value=s.title||'';
       $('#projectStatus').value=s.status||'';
       $('#projectGoal').value=s.goal||'';
-      $('#helpDone').textContent=(s.completed||[]).map(x=>'â€¢ '+x).join('\n');
-      $('#helpTodo').textContent=(s.nextSteps||[]).map(x=>'â€¢ '+x).join('\n');
+      $('#helpDone').textContent=(s.completed||[]).map(x=>'• '+x).join('\n');
+      $('#helpTodo').textContent=(s.nextSteps||[]).map(x=>'• '+x).join('\n');
       $('#helpFlow').textContent=[
-        '1. ×‘×•×—×¨×™× ×ž×•×“×œ ×—×™×¦×•× ×™.',
-        '2. ×ž×’×“×™×¨×™× Local Repo ××• GitHub.',
-        '3. ×›×•×ª×‘×™× ×ª×›× ×™×ª / ×ž×©×™×ž×”.',
-        '4. ×ž×§×‘×œ×™× ×ª×•×¦××”, ×ž××©×¨×™×, ×•××– ×¢×•×‘×¨×™× ×œ×‘×™×¦×•×¢.',
-        '5. ×ž×©××™×¨×™× log ×ž×¡×•×“×¨ ×œ×›×œ ×©×œ×‘.'
+        '1. בוחרים מודל חיצוני.',
+        '2. מגדירים Local Repo או GitHub.',
+        '3. כותבים תכנית / משימה.',
+        '4. מקבלים תוצאה, מאשרים, ואז עוברים לביצוע.',
+        '5. משאירים log מסודר לכל שלב.'
       ].join('\n');
     }catch{}
   }
   $('#projectSave').onclick=async()=>{
-    $('#projectSaveStatus').textContent='×©×•×ž×¨...';
+    $('#projectSaveStatus').textContent='שומר...';
     try{
       const body={
         title:$('#projectTitle').value.trim(),
@@ -1453,11 +1453,11 @@ if(next) await fetch(B+"/api/update",{method:"POST",
         goal:$('#projectGoal').value.trim()
       };
       const j=await (await fetch('/api/project/state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})).json();
-      $('#projectSaveStatus').textContent = j.ok ? '× ×©×ž×¨ âœ“' : '×œ× × ×©×ž×¨';
+      $('#projectSaveStatus').textContent = j.ok ? 'נשמר ✓' : 'לא נשמר';
       await loadProjectState();
-      setTimeout(()=>{ if($('#projectSaveStatus').textContent==='× ×©×ž×¨ âœ“') $('#projectSaveStatus').textContent=''; }, 1800);
+      setTimeout(()=>{ if($('#projectSaveStatus').textContent==='נשמר ✓') $('#projectSaveStatus').textContent=''; }, 1800);
     }catch{
-      $('#projectSaveStatus').textContent='×©×’×™××”';
+      $('#projectSaveStatus').textContent='שגיאה';
     }
   };
   $('#helpBtn').onclick=()=>modal.classList.add('on');
@@ -1468,8 +1468,8 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     try{
       const s=await (await fetch('/api/project/state')).json();
       if($('#settingsVersion')) $('#settingsVersion').textContent=s.version||appVersion;
-      if($('#settingsStatus')) $('#settingsStatus').textContent=s.status||'â€”';
-      if($('#settingsGoal')) $('#settingsGoal').textContent=s.goal||'â€”';
+      if($('#settingsStatus')) $('#settingsStatus').textContent=s.status||'—';
+      if($('#settingsGoal')) $('#settingsGoal').textContent=s.goal||'—';
     }catch{}
   })();
   applyLanguage(uiLang);
@@ -1484,7 +1484,7 @@ $('#flag').onclick=async()=>{
 };
 
 // ---------- per-task actions ----------
-async function del(id){ if(confirm('×œ×ž×—×•×§ ××ª ×”×‘×“×™×§×”?')){ await fetch('/api/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})}); refresh(); } }
+async function del(id){ if(confirm('למחוק את הבדיקה?')){ await fetch('/api/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})}); refresh(); } }
 async function togglePriority(id, on){ await fetch('/api/priority',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,urgent:on})}); refresh(); }
 async function toggleHold(id, on){ await fetch('/api/hold',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,held:on})}); refresh(); }
 async function setResult(id, result){ await fetch('/api/update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,result})}); refresh(); }
@@ -1502,14 +1502,14 @@ async function sendReply(id, ta, imgRef){
 }
 function threadHTML(t){
   if(!Array.isArray(t.thread) || !t.thread.length) return '';
-  // When a specific agent tab is active, hide OTHER agents' replies in this thread â€”
+  // When a specific agent tab is active, hide OTHER agents' replies in this thread —
   // keep the user's own messages (context) and only that agent's own messages.
   const msgs = (activeTab==='__all__') ? t.thread
     : t.thread.filter(m=> m.from!=='agent' || m.agent===activeTab);
   if(!msgs.length) return '';
   return '<div class="thread">'+msgs.map(m=>`
     <div class="bubble ${m.from}">
-      <div class="who">${m.from==='agent'?('ðŸ¤– '+esc(m.agent||'×¡×•×›×Ÿ')):'ðŸ§‘ ××ª×”'} Â· ${fmt(m.created)}</div>
+      <div class="who">${m.from==='agent'?('🤖 '+esc(m.agent||'סוכן')):'🧑 אתה'} · ${fmt(m.created)}</div>
       ${m.text?`<div class="btxt">${esc(m.text)}</div>`:''}
       ${m.image?`<div class="thumb"><a href="/${m.image}" target="_blank"><img src="/${m.image}"></a></div>`:''}
     </div>`).join('')+'</div>';
@@ -1536,10 +1536,10 @@ function renderTabbar(tasks){
   if(!agents.size){ bar.innerHTML=''; bar.style.display='none'; return; }
   bar.style.display='flex';
   const allCount=tasks.length;
-  const chips=[`<button class="tabchip${activeTab==='__all__'?' on':''}" data-tab="__all__">ðŸ—‚ï¸ ×”×›×œ <span class="n">${allCount}</span></button>`]
+  const chips=[`<button class="tabchip${activeTab==='__all__'?' on':''}" data-tab="__all__">🗂️ הכל <span class="n">${allCount}</span></button>`]
     .concat([...agents].sort().map(a=>{
       const n=tasks.filter(t=>taskAgents(t).has(a)).length;
-      return `<button class="tabchip${activeTab===a?' on':''}" data-tab="${esc(a)}">ðŸ¤– ${esc(a)} <span class="n">${n}</span></button>`;
+      return `<button class="tabchip${activeTab===a?' on':''}" data-tab="${esc(a)}">🤖 ${esc(a)} <span class="n">${n}</span></button>`;
     }));
   bar.innerHTML=chips.join('');
   bar.querySelectorAll('.tabchip').forEach(btn=>{
@@ -1552,27 +1552,27 @@ function render(state){
   if(reportOn) renderReport();
   // flag button
   $('#flag').classList.toggle('on', !!state.stop);
-  $('#flag').textContent = state.stop ? 'ðŸš© ×œ×•×œ××” × ×¢×¦×¨×ªâ€¦' : 'ðŸš© ×¢×¦×•×¨ ×œ×•×œ××”';
+  $('#flag').textContent = state.stop ? '🚩 לולאה נעצרת…' : '🚩 עצור לולאה';
   // counts
   const c=state.tasks.reduce((a,t)=>(a[t.status]=(a[t.status]||0)+1,a),{});
   const passN=state.tasks.filter(t=>t.result==='pass').length;
   const failN=state.tasks.filter(t=>t.result==='fail').length;
-  $('#counts').textContent = `â¬œ ${c.open||0}  â³ ${c.in_progress||0}  ðŸ”¶ ${c.partial||0}  âœ… ${c.done||0}  Â·  âœ…PASS ${passN}  âŒFAIL ${failN}`;
+  $('#counts').textContent = `⬜ ${c.open||0}  ⏳ ${c.in_progress||0}  🔶 ${c.partial||0}  ✅ ${c.done||0}  ·  ✅PASS ${passN}  ❌FAIL ${failN}`;
   updateMvpBanner(state);
 
-  // Don't rebuild the list while the user is typing a reply/edit â€” it would wipe the open box.
+  // Don't rebuild the list while the user is typing a reply/edit — it would wipe the open box.
   if(composing || liveActive){ pendingRender=true; return; }
   renderTabbar(state.tasks);
   const list=$('#list');
   const visibleTasks = activeTab==='__all__' ? state.tasks : state.tasks.filter(t=>taskAgents(t).has(activeTab));
   if(!visibleTasks.length){
     list.innerHTML = activeTab==='__all__'
-      ? '<div class="empty">××™×Ÿ ×‘×“×™×§×•×ª ×¢×“×™×™×Ÿ â€” ×›×ª×•×‘ ××ª ×”×¨××©×•× ×” ×œ×ž×¢×œ×” âœï¸</div>'
-      : `<div class="empty">××™×Ÿ ×‘×“×™×§×•×ª ×©×œ ${esc(activeTab)} ×¢×“×™×™×Ÿ</div>`;
+      ? '<div class="empty">אין בדיקות עדיין — כתוב את הראשונה למעלה ✍️</div>'
+      : `<div class="empty">אין בדיקות של ${esc(activeTab)} עדיין</div>`;
     return;
   }
   list.innerHTML='';
-  // Display: unfinished on top (newest-first), completed (âœ…) sink to the bottom.
+  // Display: unfinished on top (newest-first), completed (✅) sink to the bottom.
   // Processing order stays FIFO regardless of this display order.
   // A task is "active" (top) if it's not done, OR it's awaiting an agent reply.
   const isActive = t => t.status!=='done' || t.awaitingAgent;
@@ -1583,8 +1583,8 @@ function render(state){
   [...active, ...done].forEach(t=>{
     const s=ST[t.status]||ST.open;
     const heldNotAwaiting = t.held && !t.awaitingAgent && t.status!=='done';
-    const stIcon = t.awaitingAgent ? 'ðŸ’¬' : (heldNotAwaiting ? 'ðŸ›‘' : s.icon);
-    const stLabel = t.awaitingAgent ? '×ž×ž×ª×™×Ÿ ×œ×ª×’×•×‘×ª ×”×¡×•×›×Ÿ' : (heldNotAwaiting ? '×ž×•×©×”×” â€” ×”×¡×•×›×Ÿ ×œ× ×™×‘×¦×¢' : s.label);
+    const stIcon = t.awaitingAgent ? '💬' : (heldNotAwaiting ? '🛑' : s.icon);
+    const stLabel = t.awaitingAgent ? 'ממתין לתגובת הסוכן' : (heldNotAwaiting ? 'מושהה — הסוכן לא יבצע' : s.label);
     const card=document.createElement('div');
     card.className='card s-'+t.status+(t.status==='done'?' done':'')+(t.awaitingAgent?' awaiting':'')+(t.urgent?' urgent':'')+(t.held?' held':'')+(t.result?' result-'+t.result:'');
     card.dataset.cid=t.id;
@@ -1592,49 +1592,49 @@ function render(state){
     card.innerHTML=`
       <div class="st" title="${stLabel}">${stIcon}</div>
       <div class="body">
-        ${t.category&&CAT_LABEL[t.category]?`<div class="catBadge">ðŸ·ï¸ ${esc(CAT_LABEL[t.category])}</div>`:''}
-        ${t.module&&MODULE_LABEL[t.module]?`<div class="catBadge">ðŸ§© ${esc(MODULE_LABEL[t.module])}</div>`:''}
-        ${t.browser&&BROWSER_LABEL[t.browser]?`<div class="catBadge">ðŸŒ ${esc(BROWSER_LABEL[t.browser])}</div>`:''}
-        ${t.resolution&&RES_LABEL[t.resolution]?`<div class="catBadge">ðŸ“ ${esc(RES_LABEL[t.resolution])}</div>`:''}
-        ${t.result==='pass'?'<div class="resultBadge pass">âœ… PASS</div>':''}
-        ${t.result==='fail'?'<div class="resultBadge fail">âŒ FAIL</div>':''}
-        ${t.severity?`<div class="resultBadge fail">âš ï¸ ${esc(SEVERITY_LABEL[t.severity]||t.severity)}</div>`:''}
-        ${t.priority?`<div class="catBadge">ðŸŽ¯ ${esc(PRIORITY_LABEL[t.priority]||t.priority)}</div>`:''}
-        ${agentNames.length?`<div class="agentBadge">ðŸ¤– ${agentNames.map(esc).join(' Â· ')}</div>`:''}
-        ${t.source==='qa-retest'?`<div class="agentBadge" style="color:#b8862f;background:var(--await-tint);border-color:var(--await-line)">ðŸ” ×‘×“×™×§×” ×—×•×–×¨×ª${t.retestOf?' ×©×œ #'+t.retestOf:''}</div>`:''}
-        ${t.forum?`<div class="agentBadge">ðŸ“® × ×©×œ×— ×œ×¤×•×¨×•× #${t.forum.id}${t.forum.retestId?` â†’ ×‘×“×™×§×” ×—×•×–×¨×ª #${t.forum.retestId}`:''}</div>`:''}
-        ${t.urgent?'<div class="urgentBadge">ðŸš© ×“×—×•×£</div>':''}
-        ${heldNotAwaiting?'<div class="heldBadge">ðŸ›‘ ×ž×•×©×”×” â€” ×”×¡×•×›×Ÿ ×œ× ×™×‘×¦×¢ ×¢×“ ×©×ª×¡×™×¨ ××ª ×”×“×’×œ</div>':''}
+        ${t.category&&CAT_LABEL[t.category]?`<div class="catBadge">🏷️ ${esc(CAT_LABEL[t.category])}</div>`:''}
+        ${t.module&&MODULE_LABEL[t.module]?`<div class="catBadge">🧩 ${esc(MODULE_LABEL[t.module])}</div>`:''}
+        ${t.browser&&BROWSER_LABEL[t.browser]?`<div class="catBadge">🌐 ${esc(BROWSER_LABEL[t.browser])}</div>`:''}
+        ${t.resolution&&RES_LABEL[t.resolution]?`<div class="catBadge">📐 ${esc(RES_LABEL[t.resolution])}</div>`:''}
+        ${t.result==='pass'?'<div class="resultBadge pass">✅ PASS</div>':''}
+        ${t.result==='fail'?'<div class="resultBadge fail">❌ FAIL</div>':''}
+        ${t.severity?`<div class="resultBadge fail">⚠️ ${esc(SEVERITY_LABEL[t.severity]||t.severity)}</div>`:''}
+        ${t.priority?`<div class="catBadge">🎯 ${esc(PRIORITY_LABEL[t.priority]||t.priority)}</div>`:''}
+        ${agentNames.length?`<div class="agentBadge">🤖 ${agentNames.map(esc).join(' · ')}</div>`:''}
+        ${t.source==='qa-retest'?`<div class="agentBadge" style="color:#b8862f;background:var(--await-tint);border-color:var(--await-line)">🔁 בדיקה חוזרת${t.retestOf?' של #'+t.retestOf:''}</div>`:''}
+        ${t.forum?`<div class="agentBadge">📮 נשלח לפורום #${t.forum.id}${t.forum.retestId?` → בדיקה חוזרת #${t.forum.retestId}`:''}</div>`:''}
+        ${t.urgent?'<div class="urgentBadge">🚩 דחוף</div>':''}
+        ${heldNotAwaiting?'<div class="heldBadge">🛑 מושהה — הסוכן לא יבצע עד שתסיר את הדגל</div>':''}
         <div class="txt">${esc(t.text)}</div>
         ${(t.screen||t.steps||t.expected)?`<div class="checkFields">
-          ${t.screen?`<div class="cf"><span class="cfLbl">ðŸ–¥ï¸ ×ž×¡×š / ×›×ª×•×‘×ª</span><span class="cfVal">${esc(t.screen)}</span></div>`:''}
-          ${t.steps?`<div class="cf"><span class="cfLbl">ðŸ‘£ ×¦×¢×“×™× ×œ×©×—×–×•×¨</span><span class="cfVal">${esc(t.steps)}</span></div>`:''}
-          ${t.expected?`<div class="cf expected"><span class="cfLbl">âœ“ ×ª×•×¦××” ×¦×¤×•×™×”</span><span class="cfVal">${esc(t.expected)}</span></div>`:''}
+          ${t.screen?`<div class="cf"><span class="cfLbl">🖥️ מסך / כתובת</span><span class="cfVal">${esc(t.screen)}</span></div>`:''}
+          ${t.steps?`<div class="cf"><span class="cfLbl">👣 צעדים לשחזור</span><span class="cfVal">${esc(t.steps)}</span></div>`:''}
+          ${t.expected?`<div class="cf expected"><span class="cfLbl">✓ תוצאה צפויה</span><span class="cfVal">${esc(t.expected)}</span></div>`:''}
         </div>`:''}
         ${t.image?`<div class="thumb"><a href="/${t.image}" target="_blank"><img src="/${t.image}"></a></div>`:''}
-        ${t.note?`<div class="note">ðŸ“ ${esc(t.note)}</div>`:''}
+        ${t.note?`<div class="note">📝 ${esc(t.note)}</div>`:''}
         ${t.result==='fail'?`
         <div class="row" style="margin-top:8px">
-          <select class="catsel sevSel" data-id="${t.id}"><option value="">×—×•×ž×¨×” (Severity)â€¦</option></select>
-          <select class="catsel priSel" data-id="${t.id}"><option value="">×¢×“×™×¤×•×ª (Priority)â€¦</option></select>
+          <select class="catsel sevSel" data-id="${t.id}"><option value="">חומרה (Severity)…</option></select>
+          <select class="catsel priSel" data-id="${t.id}"><option value="">עדיפות (Priority)…</option></select>
         </div>`:''}
         ${threadHTML(t)}
-        ${t.awaitingAgent?'<div class="await">ðŸ’¬ ×ž×ž×ª×™×Ÿ ×œ×ª×’×•×‘×ª ×”×¡×•×›×Ÿ</div>':''}
-        <div class="meta"><span>#${t.id}</span><span>${stLabel}</span><span>${fmt(t.created)}</span>${t.edited?'<span>âœï¸ × ×¢×¨×š</span>':''}</div>
+        ${t.awaitingAgent?'<div class="await">💬 ממתין לתגובת הסוכן</div>':''}
+        <div class="meta"><span>#${t.id}</span><span>${stLabel}</span><span>${fmt(t.created)}</span>${t.edited?'<span>✏️ נערך</span>':''}</div>
         <div class="liveslot"></div>
         <div class="replyslot"></div>
       </div>
       <div class="tools">
-        <button class="icon live" title="×‘×“×™×§×” ×—×™×” ×‘×“×¤×“×¤×Ÿ (×ž×•×“×œ ×—×™×¦×•× ×™)">â–¶ï¸</button>
-        <button class="icon pass${t.result==='pass'?' on':''}" title="×¡×ž×Ÿ PASS">âœ…</button>
-        <button class="icon fail${t.result==='fail'?' on':''}" title="×¡×ž×Ÿ FAIL">âŒ</button>
-        <button class="icon hold${t.held?' on':''}" title="${t.held?'×”×¡×¨ ×”×©×”×™×” â€” ×œ××¤×©×¨ ×œ×¡×•×›×Ÿ ×œ×‘×¦×¢':'×”×©×”×” â€” ×”×¡×•×›×Ÿ ×œ× ×™×‘×¦×¢ ×¢×“ ×©×ª×¡×™×¨'}">ðŸ›‘</button>
-        <button class="icon prio${t.urgent?' on':''}" title="${t.urgent?'×”×¡×¨ ×“×—×™×¤×•×ª':'×¡×ž×Ÿ ×›×“×—×•×£'}">ðŸš©</button>
-        <button class="icon fwd${t.forum?' on':''}" title="${t.forum?('× ×©×œ×— ×œ×¤×•×¨×•× (#'+t.forum.id+') â€” ×©×œ×— ×©×•×‘'):'×©×œ×— ×œ×¤×•×¨×•× ×”×ª×™×§×•× ×™×'}">ðŸ“®</button>
-        ${t.result==='fail'?'<button class="icon ghmk" title="×¦×•×¨ Issue ×‘-GitHub">ðŸ”—</button>':''}
-        <button class="icon" title="×”×’×‘ ×œ×¡×•×›×Ÿ">ðŸ’¬</button>
-        <button class="icon" title="×¢×¨×•×š">âœï¸</button>
-        <button class="icon" title="×ž×—×§">ðŸ—‘ï¸</button>
+        <button class="icon live" title="בדיקה חיה בדפדפן (מודל חיצוני)">▶️</button>
+        <button class="icon pass${t.result==='pass'?' on':''}" title="סמן PASS">✅</button>
+        <button class="icon fail${t.result==='fail'?' on':''}" title="סמן FAIL">❌</button>
+        <button class="icon hold${t.held?' on':''}" title="${t.held?'הסר השהיה — לאפשר לסוכן לבצע':'השהה — הסוכן לא יבצע עד שתסיר'}">🛑</button>
+        <button class="icon prio${t.urgent?' on':''}" title="${t.urgent?'הסר דחיפות':'סמן כדחוף'}">🚩</button>
+        <button class="icon fwd${t.forum?' on':''}" title="${t.forum?('נשלח לפורום (#'+t.forum.id+') — שלח שוב'):'שלח לפורום התיקונים'}">📮</button>
+        ${t.result==='fail'?'<button class="icon ghmk" title="צור Issue ב-GitHub">🔗</button>':''}
+        <button class="icon" title="הגב לסוכן">💬</button>
+        <button class="icon" title="ערוך">✏️</button>
+        <button class="icon" title="מחק">🗑️</button>
       </div>`;
     const tools=[...card.querySelectorAll('.tools .icon')];
     const liveBtn=tools.find(b=>b.classList.contains('live'));
@@ -1651,8 +1651,8 @@ function render(state){
       fwdBtn.disabled=true;
       try{
         const j=await (await fetch('/api/forum/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:t.id})})).json();
-        if(j.error) alert('×©×’×™××”: '+j.error); else { alert('× ×©×œ×— ×œ×¤×•×¨×•× ×”×ª×™×§×•× ×™× (#'+j.forumId+')'); refresh(); }
-      }catch(e){ alert('×©×’×™××ª ×¨×©×ª'); }
+        if(j.error) alert('שגיאה: '+j.error); else { alert('נשלח לפורום התיקונים (#'+j.forumId+')'); refresh(); }
+      }catch(e){ alert('שגיאת רשת'); }
       fwdBtn.disabled=false;
     };
     passBtn.onclick=()=>setResult(t.id, t.result==='pass'?null:'pass');
@@ -1661,9 +1661,9 @@ function render(state){
     prioBtn.onclick=()=>togglePriority(t.id,!t.urgent);
     if(ghBtn) ghBtn.onclick=async()=>{
       ghBtn.disabled=true;
-      const j=await window.createGithubIssue('QA FAIL: '+t.text.slice(0,80), t.text+(t.note?('\n\n×”×¢×¨×ª ×¡×•×›×Ÿ: '+t.note):''));
+      const j=await window.createGithubIssue('QA FAIL: '+t.text.slice(0,80), t.text+(t.note?('\n\nהערת סוכן: '+t.note):''));
       ghBtn.disabled=false;
-      if(j.error) alert('×©×’×™××”: '+j.error); else alert('× ×•×¦×¨ issue #'+j.number);
+      if(j.error) alert('שגיאה: '+j.error); else alert('נוצר issue #'+j.number);
     };
     delBtn.onclick=()=>del(t.id);
     const sevSel=card.querySelector('.sevSel'), priSel=card.querySelector('.priSel');
@@ -1682,9 +1682,9 @@ function render(state){
       if(slot.firstChild){ slot.innerHTML=''; endCompose(); return; }
       startCompose();
       const box=document.createElement('div'); box.className='replybox';
-      box.innerHTML=`<textarea placeholder="×ª×’×•×‘×” ×œ×¡×•×›×Ÿâ€¦ (××©×¨ / ×‘×§×© ×ª×™×§×•×Ÿ / ×”×‘×”×¨)"></textarea>
-        <div class="rprev" style="display:none"><img><button class="rmr" title="×”×¡×¨">âœ•</button></div>
-        <div class="editrow"><button class="add">×©×œ×— ðŸ’¬</button><button class="act">×‘×˜×œ</button><span class="hint">××¤×©×¨ ×œ×”×“×‘×™×§ ×ª×ž×•× ×”</span></div>`;
+      box.innerHTML=`<textarea placeholder="תגובה לסוכן… (אשר / בקש תיקון / הבהר)"></textarea>
+        <div class="rprev" style="display:none"><img><button class="rmr" title="הסר">✕</button></div>
+        <div class="editrow"><button class="add">שלח 💬</button><button class="act">בטל</button><span class="hint">אפשר להדביק תמונה</span></div>`;
       const ta=box.querySelector('textarea');
       const imgRef={data:null};
       const prev=box.querySelector('.rprev'), pimg=prev.querySelector('img');
@@ -1700,7 +1700,7 @@ function render(state){
       startCompose();
       const body=card.querySelector('.body');
       const box=document.createElement('div'); box.className='editbox';
-      box.innerHTML=`<textarea></textarea><div class="editrow"><button class="add">×©×ž×•×¨</button><button class="act">×‘×˜×œ</button></div>`;
+      box.innerHTML=`<textarea></textarea><div class="editrow"><button class="add">שמור</button><button class="act">בטל</button></div>`;
       const eta=box.querySelector('textarea');
       eta.value=t.text;
       // Size the box to fit the existing text so long requests aren't cramped.
@@ -1716,7 +1716,7 @@ function render(state){
 }
 
 // ---------- report / analytics ----------
-const STATUS_LABEL = {open:'×œ× ×‘×•×¦×¢', in_progress:'×‘×¢×‘×•×“×”', partial:'×—×œ×§×™', done:'×‘×•×¦×¢'};
+const STATUS_LABEL = {open:'לא בוצע', in_progress:'בעבודה', partial:'חלקי', done:'בוצע'};
 const RESULT_LABEL = {pass:'PASS', fail:'FAIL'};
 let filtersPopulated=false;
 function populateReportFilters(){
@@ -1740,7 +1740,7 @@ function populateAgentFilter(tasks){
   const cur=sel.value;
   const agents=new Set();
   tasks.forEach(t=> taskAgents(t).forEach(a=>agents.add(a)));
-  sel.innerHTML='<option value="">×”×›×œ</option>'+[...agents].sort().map(a=>`<option value="${esc(a)}">${esc(a)}</option>`).join('');
+  sel.innerHTML='<option value="">הכל</option>'+[...agents].sort().map(a=>`<option value="${esc(a)}">${esc(a)}</option>`).join('');
   if([...agents].includes(cur)) sel.value=cur;
 }
 
@@ -1769,11 +1769,11 @@ function renderKpis(tasks){
   const rate = (pass+fail) ? Math.round(pass/(pass+fail)*100) : null;
   const rateClass = rate===null ? '' : (rate>=80?'pass':(rate<50?'fail':''));
   $('#kpiRow').innerHTML = `
-    <div class="kpiTile"><div class="kpiVal">${total}</div><div class="kpiLabel">×¡×”"×› ×‘×“×™×§×•×ª</div></div>
-    <div class="kpiTile"><div class="kpiVal fail">${fail}</div><div class="kpiLabel">×‘××’×™× ×©× ×ž×¦××• (FAIL)</div></div>
-    <div class="kpiTile"><div class="kpiVal ${critical?'fail':''}" title="×§×¨×™×˜×¨×™×•×Ÿ ×™×¦×™××”: ××¤×¡ ×‘××’×™× ×§×¨×™×˜×™×™×">${critical}</div><div class="kpiLabel">×‘××’×™× ×§×¨×™×˜×™×™× (Critical)</div></div>
-    <div class="kpiTile"><div class="kpiVal ${rateClass}">${rate===null?'â€”':rate+'%'}</div><div class="kpiLabel">××—×•×– ×”×¦×œ×—×”</div></div>
-    <div class="kpiTile"><div class="kpiVal">${pending}</div><div class="kpiLabel">×‘×“×™×§×•×ª ×¤×ª×•×—×•×ª</div></div>
+    <div class="kpiTile"><div class="kpiVal">${total}</div><div class="kpiLabel">סה"כ בדיקות</div></div>
+    <div class="kpiTile"><div class="kpiVal fail">${fail}</div><div class="kpiLabel">באגים שנמצאו (FAIL)</div></div>
+    <div class="kpiTile"><div class="kpiVal ${critical?'fail':''}" title="קריטריון יציאה: אפס באגים קריטיים">${critical}</div><div class="kpiLabel">באגים קריטיים (Critical)</div></div>
+    <div class="kpiTile"><div class="kpiVal ${rateClass}">${rate===null?'—':rate+'%'}</div><div class="kpiLabel">אחוז הצלחה</div></div>
+    <div class="kpiTile"><div class="kpiVal">${pending}</div><div class="kpiLabel">בדיקות פתוחות</div></div>
   `;
 }
 
@@ -1785,14 +1785,14 @@ function renderCatChart(tasks){
     return { id, label:CAT_LABEL[id], total:inCat.length, fail:inCat.filter(t=>t.result==='fail').length };
   }).filter(r=>r.total>0);
   const noCat = tasks.filter(t=>!t.category);
-  if(noCat.length) rows.push({id:null, label:'×œ×œ× ×§×˜×’×•×¨×™×”', total:noCat.length, fail:noCat.filter(t=>t.result==='fail').length});
-  if(!rows.length){ el.innerHTML='<div class="emptyReport">××™×Ÿ × ×ª×•× ×™× ×œ×”×¦×’×”</div>'; return; }
+  if(noCat.length) rows.push({id:null, label:'ללא קטגוריה', total:noCat.length, fail:noCat.filter(t=>t.result==='fail').length});
+  if(!rows.length){ el.innerHTML='<div class="emptyReport">אין נתונים להצגה</div>'; return; }
   const max=Math.max(...rows.map(r=>r.total),1);
   el.innerHTML = rows.map(r=>`
     <div class="barRow">
       <span class="barLbl" title="${esc(r.label)}">${esc(r.label)}</span>
       <div class="barTrack"><div class="barFill" style="width:${Math.round(r.total/max*100)}%" title="${esc(r.label)}: ${r.total}"></div></div>
-      <span class="barVal">${r.total}${r.fail?` <span class="failTag">âŒ${r.fail}</span>`:''}</span>
+      <span class="barVal">${r.total}${r.fail?` <span class="failTag">❌${r.fail}</span>`:''}</span>
     </div>`).join('');
 }
 
@@ -1802,10 +1802,10 @@ function renderBrowserChart(tasks){
   const colors=['var(--viz-1)','var(--viz-2)','var(--viz-3)','var(--viz-4)','var(--viz-5)','var(--viz-6)'];
   const rows = browsers.map((id,i)=>({id,label:BROWSER_LABEL[id],n:tasks.filter(t=>t.browser===id).length,color:colors[i%colors.length]})).filter(r=>r.n>0);
   const noBrowser = tasks.filter(t=>!t.browser).length;
-  if(noBrowser) rows.push({id:null,label:'×œ× ×¦×•×™×Ÿ',n:noBrowser,color:'var(--muted)'});
+  if(noBrowser) rows.push({id:null,label:'לא צוין',n:noBrowser,color:'var(--muted)'});
   const total = rows.reduce((s,r)=>s+r.n,0);
-  if(!total){ el.innerHTML='<div class="emptyReport">××™×Ÿ × ×ª×•× ×™× ×œ×”×¦×’×”</div>'; return; }
-  // donut via stroke-dasharray segments â€” categorical hues, direct-labeled legend (never color alone)
+  if(!total){ el.innerHTML='<div class="emptyReport">אין נתונים להצגה</div>'; return; }
+  // donut via stroke-dasharray segments — categorical hues, direct-labeled legend (never color alone)
   const R=54, C=2*Math.PI*R;
   let offset=0;
   const segs = rows.map(r=>{
@@ -1817,7 +1817,7 @@ function renderBrowserChart(tasks){
     offset += dash;
     return seg;
   }).join('');
-  const legend = rows.map(r=>`<span><span class="sw" style="background:${r.color}"></span>${esc(r.label)} â€” ${r.n} (${Math.round(r.n/total*100)}%)</span>`).join('');
+  const legend = rows.map(r=>`<span><span class="sw" style="background:${r.color}"></span>${esc(r.label)} — ${r.n} (${Math.round(r.n/total*100)}%)</span>`).join('');
   el.innerHTML = `
     <svg width="140" height="140" viewBox="0 0 140 140">${segs}
       <circle cx="70" cy="70" r="${R-14}" fill="var(--panel)"></circle>
@@ -1851,7 +1851,7 @@ applyMainView();
 async function startLive(id){
   const r=await fetch('/api/agent/run-live',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
   const j=await r.json();
-  if(j.error){ alert('×©×’×™××”: '+j.error); return; }
+  if(j.error){ alert('שגיאה: '+j.error); return; }
   // make sure the target card is on screen (switch to list view), THEN pause re-render
   if(reportOn){ reportOn=false; applyMainView(); }
   await refresh();
@@ -1869,13 +1869,13 @@ function renderLive(sess){
   // Newest action always on top: take the most recent 14, then reverse for display
   // (.slice returns a fresh array, so .reverse() doesn't touch the real steps order).
   const stepsHtml = (sess.steps||[]).slice(-14).reverse().map(s=>{
-    const a='ðŸ–¥ï¸ '+esc(s.action)+(s.index!=null?(' ['+s.index+']'):'')+(s.text?(' "'+esc(String(s.text).slice(0,40))+'"'):'');
+    const a='🖥️ '+esc(s.action)+(s.index!=null?(' ['+s.index+']'):'')+(s.text?(' "'+esc(String(s.text).slice(0,40))+'"'):'');
     return `<div class="lpStep"><span class="a">${a}</span>${s.detail?`<span class="d">${esc(String(s.detail).slice(0,160))}</span>`:''}</div>`;
   }).join('');
-  const verdict = sess.verdict ? `<div class="lpVerdict ${sess.verdict}">${sess.verdict==='pass'?'âœ… PASS':'âŒ FAIL'}${sess.note?(' â€” '+esc(sess.note)):''}</div>` : '';
+  const verdict = sess.verdict ? `<div class="lpVerdict ${sess.verdict}">${sess.verdict==='pass'?'✅ PASS':'❌ FAIL'}${sess.note?(' — '+esc(sess.note)):''}</div>` : '';
   slot.innerHTML = `<div class="liveInline">
-    <div class="lpHead"><b><span class="lpDot ${dotCls}"></span>ðŸ–¥ï¸ ×“×¤×“×¤×Ÿ ×—×™ â€” ${sess.running?'×¤×•×¢×œâ€¦':'×”×¡×ª×™×™×'}</b>
-      ${sess.running?'<button class="act" id="liveStopBtn">â¹ ×¢×¦×•×¨</button>':''}</div>
+    <div class="lpHead"><b><span class="lpDot ${dotCls}"></span>🖥️ דפדפן חי — ${sess.running?'פועל…':'הסתיים'}</b>
+      ${sess.running?'<button class="act" id="liveStopBtn">⏹ עצור</button>':''}</div>
     ${sess.shot?`<img class="lpShot" src="${sess.shot}">`:''}
     ${sess.url?`<div class="lpUrl">${esc(sess.url)}</div>`:''}
     ${verdict}
@@ -1893,7 +1893,7 @@ async function pollLive(){
     if(sess && !sess.running){ done=true; }
     if(!done) await new Promise(r=>setTimeout(r,1200));
   }
-  // run finished â€” resume normal rendering (the final transcript is now in the thread)
+  // run finished — resume normal rendering (the final transcript is now in the thread)
   liveActive=false;
   refresh();
 }
