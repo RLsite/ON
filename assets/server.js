@@ -129,7 +129,7 @@ function saveGhConfig() { fs.writeFileSync(GITHUB_CONFIG_FILE, JSON.stringify(gh
 function reloadGhConfig() { ghConfig = loadGhConfig(); }
 
 const DEFAULT_PROJECT_STATE = {
-  version: '0.1.0',
+  version: '0.4.0',
   title: 'QA Project',
   status: 'MVP in progress',
   goal: 'Build a structured local workspace for model-assisted project work.',
@@ -996,6 +996,59 @@ async function githubRepoContext() {
   return out;
 }
 
+// ---- Live GitHub connection check — this is the actual "connect" button behind the modal.
+// It hits the real GitHub API (repo reachability + token identity) so the UI can show a true
+// connected/failed state instead of just "a token string is present". Cached briefly so opening
+// the modal or refreshing the MVP banner repeatedly doesn't burn API rate limit.
+let _ghStatusCache = { at: 0, data: null };
+function invalidateGhStatusCache() { _ghStatusCache = { at: 0, data: null }; }
+async function ghConnectionStatus(force) {
+  reloadGhConfig();
+  if (!force && _ghStatusCache.data && Date.now() - _ghStatusCache.at < 30000) return _ghStatusCache.data;
+  if (!ghConfig.enabled) {
+    return { ok: false, checked: false, error: 'חיבור GitHub אינו מופעל.' };
+  }
+  if (!ghConfig.owner || !ghConfig.repo) {
+    return { ok: false, checked: true, error: 'חסר Owner ו/או שם ריפו.' };
+  }
+  const headers = { 'User-Agent': 'on-track-app', Accept: 'application/vnd.github+json' };
+  if (ghConfig.token) headers.Authorization = `Bearer ${ghConfig.token}`;
+  let data;
+  try {
+    const r = await fetch(`https://api.github.com/repos/${ghConfig.owner}/${ghConfig.repo}`, { headers });
+    const j = await r.json();
+    if (!r.ok) {
+      data = { ok: false, checked: true, error: j.message || ('GitHub API החזיר שגיאה (' + r.status + ')') };
+    } else {
+      data = {
+        ok: true, checked: true,
+        fullName: j.full_name, private: !!j.private,
+        defaultBranch: j.default_branch, htmlUrl: j.html_url,
+        permissions: j.permissions || null,
+        authenticated: false, login: null, scopes: []
+      };
+      if (ghConfig.token) {
+        try {
+          const ur = await fetch('https://api.github.com/user', { headers });
+          const uj = await ur.json();
+          if (ur.ok) {
+            data.authenticated = true;
+            data.login = uj.login;
+            const scopesHeader = (ur.headers.get('x-oauth-scopes') || '').trim();
+            data.scopes = scopesHeader ? scopesHeader.split(',').map(s => s.trim()).filter(Boolean) : [];
+          } else {
+            data.authWarning = uj.message || 'הטוקן לא זוהה מול /user.';
+          }
+        } catch (e) { data.authWarning = e.message; }
+      }
+    }
+  } catch (e) {
+    data = { ok: false, checked: true, error: 'שגיאת רשת מול GitHub: ' + e.message };
+  }
+  _ghStatusCache = { at: Date.now(), data };
+  return data;
+}
+
 function projectPromptContext(promptText) {
   const raw = (promptText || '').trim();
   if (!raw) return '';
@@ -1568,8 +1621,19 @@ const server = http.createServer(async (req, res) => {
       if (typeof b.token === 'string' && b.token.trim()) ghConfig.token = b.token.trim();
       if (b.token === null) ghConfig.token = null;
       saveGhConfig();
+      invalidateGhStatusCache();
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ ok: true, enabled: ghConfig.enabled, hasToken: !!ghConfig.token }));
+    }
+
+    // --- GitHub connection test: actually calls the GitHub API (repo + token identity) so the
+    // UI can show a real connected/failed state, not just "fields are filled in". GET returns a
+    // short-lived cached result (cheap polling for the header dot / MVP chip); POST forces a
+    // fresh check (used by the explicit "בדוק חיבור" button after Save).
+    if (p === '/api/github/status' && (req.method === 'GET' || req.method === 'POST')) {
+      const data = await ghConnectionStatus(req.method === 'POST');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify(data));
     }
 
     // --- local project folder (fed to the external model as code context) ---

@@ -371,7 +371,7 @@
       <aside class="sideCard">
         <h3 data-i18n="quickStats">Quick Status</h3>
         <div class="heroStatRow"><span data-i18n="statusLabel">Status</span><b id="miniStatus">Fresh start</b></div>
-        <div class="heroStatRow"><span data-i18n="versionLabel">Version</span><b>0.2.0</b></div>
+        <div class="heroStatRow"><span data-i18n="versionLabel">Version</span><b>0.4.0</b></div>
         <div class="heroStatRow"><span data-i18n="langLabel">Language</span><b id="langLabel">Hebrew</b></div>
       </aside>
     </div>
@@ -580,9 +580,11 @@
       <div id="ghTokenSaved" style="display:none;margin-top:6px;font-size:13px;color:#3a9c75;font-weight:700">✓ טוקן שמור — לא צריך להזין שוב</div>
       <div class="editrow" style="margin-top:14px">
         <button class="add" id="ghSave">שמור</button>
+        <button class="act" id="ghTest">🔌 בדוק חיבור</button>
         <button class="act" id="ghLoadIssues">רענן issues פתוחים</button>
         <span class="hint" id="ghSaveStatus"></span>
       </div>
+      <div id="ghStatusBox" class="hint" style="margin-top:10px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);display:none"></div>
       <hr class="sep">
       <label>Issues פתוחים</label>
       <div id="ghIssuesList" class="hint">—</div>
@@ -854,9 +856,8 @@ function connDot(ok){ return `<span class="cdot" style="background:${ok?'var(--p
   const runBtn=$('#agentRunTop');
   if(runBtn) runBtn.style.display = (m && !m.builtin && m.hasKey) ? '' : 'none';
     try{
-      const g = await (await fetch('/api/github/config')).json();
-      const ghOk = !!(g.enabled && g.hasToken && g.owner && g.repo);
-      $('#githubBtn').innerHTML = connDot(ghOk)+' 🔗 GitHub';
+      const g = await (await fetch('/api/github/status')).json();
+      $('#githubBtn').innerHTML = connDot(!!g.ok)+' 🔗 GitHub';
     }catch{ $('#githubBtn').innerHTML = connDot(false)+' 🔗 GitHub'; }
   }
   function setMvpChip(id, state, label){
@@ -870,13 +871,13 @@ function connDot(ok){ return `<span class="cdot" style="background:${ok?'var(--p
     try{
       const [models, gh, pv] = await Promise.all([
         fetch('/api/models').then(r=>r.json()).catch(()=>null),
-        fetch('/api/github/config').then(r=>r.json()).catch(()=>null),
+        fetch('/api/github/status').then(r=>r.json()).catch(()=>null),
         fetch('/api/preview/config').then(r=>r.json()).catch(()=>null)
       ]);
       const m = models?.models?.find(x=>x.id===models?.selectedId);
       setMvpChip('#mvpModel', m ? 'on' : 'off', m ? `מודל: ${m.label}` : 'מודל');
       setMvpChip('#mvpPreview', pv?.baseUrl ? 'on' : 'warn', pv?.baseUrl ? 'Preview מחובר' : 'Preview לא מוגדר');
-      setMvpChip('#mvpGithub', gh?.enabled && gh?.owner && gh?.repo ? 'on' : 'warn', gh?.enabled && gh?.owner && gh?.repo ? 'GitHub מחובר' : 'GitHub לא מוגדר');
+      setMvpChip('#mvpGithub', gh?.ok ? 'on' : 'warn', gh?.ok ? ('GitHub מחובר: '+(gh.fullName||'')) : 'GitHub לא מחובר');
       const openCount = Array.isArray(state?.tasks) ? state.tasks.filter(t=>t.status==='open').length : 0;
       setMvpChip('#mvpQueue', openCount ? 'warn' : 'on', openCount ? `${openCount} בבדיקה` : 'תור נקי');
     }catch{}
@@ -1042,6 +1043,46 @@ loadModels();
     $('#ghToken').placeholder = hasToken ? '•••• טוקן שמור — הזן רק כדי להחליף' : 'ghp_…';
   }
 
+  function renderGhStatus(d){
+    const box=$('#ghStatusBox');
+    box.style.display='block';
+    if(!d || !d.ok){
+      box.style.borderColor='var(--fail)';
+      box.style.background='var(--fail-tint)';
+      box.innerHTML='❌ '+esc(d && d.error ? d.error : 'החיבור נכשל.');
+      return;
+    }
+    box.style.borderColor='var(--pass)';
+    box.style.background='var(--pass-tint)';
+    const perm = d.permissions ? (d.permissions.push ? 'קריאה+כתיבה' : 'קריאה בלבד') : 'לא ידוע';
+    let html='✅ מחובר ל-<a href="'+esc(d.htmlUrl||'#')+'" target="_blank" style="direction:ltr;display:inline-block">'+esc(d.fullName||'')+'</a>';
+    html+='<br>נראות: '+(d.private?'פרטי':'ציבורי')+' · ברירת מחדל: <span style="direction:ltr;display:inline-block">'+esc(d.defaultBranch||'?')+'</span> · הרשאות טוקן: '+perm;
+    if(d.authenticated){
+      html+='<br>מזוהה כ-<span style="direction:ltr;display:inline-block">'+esc(d.login||'')+'</span>'+(d.scopes&&d.scopes.length?(' · הרשאות טוקן: '+esc(d.scopes.join(', '))):'');
+    } else if(d.authWarning){
+      html+='<br>⚠️ '+esc(d.authWarning);
+    } else {
+      html+='<br><span class="hint">ללא טוקן — קריאה בלבד (ריפו ציבורי). הוסף טוקן כדי ליצור issues.</span>';
+    }
+    box.innerHTML=html;
+  }
+
+  async function testGh(force){
+    $('#ghStatusBox').style.display='block';
+    $('#ghStatusBox').style.borderColor='var(--line)';
+    $('#ghStatusBox').style.background='var(--panel2)';
+    $('#ghStatusBox').textContent='בודק מול GitHub…';
+    try{
+      const r=await fetch('/api/github/status', force?{method:'POST'}:undefined);
+      const j=await r.json();
+      renderGhStatus(j);
+      updateConnDots();
+      return j;
+    }catch(e){
+      renderGhStatus({ ok:false, error:'שגיאת רשת: '+e.message });
+    }
+  }
+
   async function loadIssues(){
     const list=$('#ghIssuesList');
     list.textContent='טוען…';
@@ -1088,11 +1129,13 @@ loadModels();
     $('#ghToken').value='';
     showTokenStatus(!!c.hasToken);
     $('#ghSaveStatus').textContent='';
-    if(c.enabled && c.owner && c.repo) loadIssues(); else $('#ghIssuesList').textContent='—';
+    $('#ghStatusBox').style.display='none';
+    if(c.enabled && c.owner && c.repo){ loadIssues(); testGh(false); } else { $('#ghIssuesList').textContent='—'; }
     loadLocalRepo();
     if(window.loadPreviewCfg) window.loadPreviewCfg();
     if(window.loadLsCfg) window.loadLsCfg();
   };
+  $('#ghTest').onclick=()=>testGh(true);
   $('#githubClose').onclick=()=>modal.classList.remove('on');
   modal.onclick=e=>{ if(e.target===modal) modal.classList.remove('on'); };
   $('#ghToken').addEventListener('blur', async()=>{
@@ -1107,6 +1150,7 @@ loadModels();
     $('#ghSaveStatus').textContent='שומר…';
     await saveGh();
     $('#ghSaveStatus').textContent='נשמר ✓';
+    await testGh(true);
   };
   $('#ghLoadIssues').onclick=loadIssues;
 
@@ -1404,7 +1448,7 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     b.textContent='❓ עזרה';
     apiBtn.parentElement.insertBefore(b, apiBtn);
   }
-  const appVersion='0.1.0';
+  const appVersion='0.4.0';
   $('#appVersion').textContent=appVersion;
   document.title='ON TracK';
   $('#helpDone').textContent=[
