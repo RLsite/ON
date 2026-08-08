@@ -1,31 +1,33 @@
-# QA Project Info
+# ON TracK Project Info
 
-Version: `0.1.0`
-Status: `Fresh start`
+Version: `0.2.0`
+Status: `Step 1 - New workspace shell`
 
 ## Goal
-Build a clean local workspace for model-assisted project work.
+Build a local-first workspace where a chosen model can understand a project, connect to repositories, and perform approved actions in a controlled flow.
 
-## What is kept
-- Source code
-- UI structure
-- Core dashboard flow
+## What is already done
+- Local project copied into `ON TracK`
+- GitHub repository created and seeded
+- New workspace shell started
+- Top actions added: Settings, Help, GitHub, Model
+- Left rail added for Projects and Libraries
+- Bilingual direction started: Hebrew and English
 
-## What was cleared
-- Saved checks
-- Saved project state
-- Saved local repo settings
-- Saved GitHub settings
-- Saved preview/local server settings
-- Saved model registry overrides
+## Current step
+1. Finish the clean home screen
+2. Remove the remaining QA-first visual noise
+3. Make the workspace feel like a new product
 
 ## Next steps
-1. Set up a model
-2. Set up a local project folder
-3. Define the first project task
-4. Add project milestones
-5. Connect execution flow when ready
+1. Build the project picker and libraries view
+2. Add a real project overview panel
+3. Add model connection flow
+4. Add GitHub connection flow
+5. Add execution approval flow
+6. Connect model actions to repository operations
 
 ## Notes
-- This is now a clean slate for a new user.
-- Existing code stays in place.
+- This project is local-first for now.
+- The new UI should stay simple, calm, and product-like.
+- The old QA dashboard is kept only as background logic until the new shell is complete.
