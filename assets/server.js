@@ -156,6 +156,23 @@ const DEFAULT_PROJECT_STATE = {
     'Choose model -> choose project folder -> plan -> approve -> execute'
   ]
 };
+const DEFAULT_WORKSPACE = {
+  projects: [
+    { id: 'ontrack', name: 'ON TracK', status: 'active', note: 'Main workspace' },
+    { id: 'sandbox', name: 'Sandbox', status: 'idle', note: 'Experiment space' },
+    { id: 'research', name: 'Research', status: 'idle', note: 'Ideas and notes' }
+  ],
+  libraries: [
+    { id: 'docs', name: 'Project Docs', note: 'Specs and guides' },
+    { id: 'design', name: 'Design System', note: 'UI patterns and tokens' },
+    { id: 'assets', name: 'Shared Assets', note: 'Reusable files' }
+  ],
+  selectedProjectId: 'ontrack',
+  selectedLibraryId: 'docs'
+};
+let workspaceState = { ...DEFAULT_WORKSPACE };
+function loadWorkspaceState() { return { ...DEFAULT_WORKSPACE, ...workspaceState }; }
+function saveWorkspaceState() {}
 function loadProjectState() {
   try {
     const c = JSON.parse(fs.readFileSync(PROJECT_STATE_FILE, 'utf8'));
@@ -173,6 +190,19 @@ function loadProjectState() {
 let projectState = loadProjectState();
 function saveProjectState() { fs.writeFileSync(PROJECT_STATE_FILE, JSON.stringify(projectState, null, 2)); }
 function reloadProjectState() { projectState = loadProjectState(); }
+
+function projectSummary() {
+  const state = loadProjectState();
+  const ws = loadWorkspaceState();
+  const project = ws.projects.find(p => p.id === ws.selectedProjectId) || ws.projects[0];
+  const library = ws.libraries.find(l => l.id === ws.selectedLibraryId) || ws.libraries[0];
+  return {
+    projectState: state,
+    workspace: ws,
+    selectedProject: project,
+    selectedLibrary: library
+  };
+}
 
 // ---- models registry: which model runs the QA checks (built-in Claude, or external) ----
 // The user picks a model; its label is attached (as `agent`) to checks added from the UI,
@@ -1006,6 +1036,21 @@ const server = http.createServer(async (req, res) => {
       saveProjectState();
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ ok: true, ...projectState }));
+    }
+    if (p === '/api/workspace' && req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify(projectSummary()));
+    }
+    if (p === '/api/workspace/select' && req.method === 'POST') {
+      const b = await readBody(req);
+      if (typeof b.projectId === 'string' && workspaceState.projects.some(pj => pj.id === b.projectId)) {
+        workspaceState.selectedProjectId = b.projectId;
+      }
+      if (typeof b.libraryId === 'string' && workspaceState.libraries.some(lb => lb.id === b.libraryId)) {
+        workspaceState.selectedLibraryId = b.libraryId;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify(projectSummary()));
     }
 
     // --- static category / browser / resolution lists (for the composer dropdowns) ---

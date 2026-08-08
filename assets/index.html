@@ -1331,6 +1331,54 @@ if(next) await fetch(B+"/api/update",{method:"POST",
       : 'אני רוצה לבנות מערכת שמקבלת פרויקט, מחברת מודל, ומבצעת פעולות מבוקרות על GitHub.';
     if($('#langLabel')) $('#langLabel').textContent = uiLang === 'en' ? 'English' : 'Hebrew';
   }
+  async function renderWorkspace(){
+    try{
+      const data = await (await fetch('/api/workspace')).json();
+      const projectList = $('#projectList');
+      const libraryList = $('#libraryList');
+      const docBody = $('#docBody');
+      if(projectList){
+        projectList.innerHTML = (data.workspace?.projects || []).map(p => `
+          <button class="sideLink ${data.selectedProject?.id===p.id?'on':''}" data-pid="${p.id}">
+            <span>${p.name}</span><span>${p.status==='active'?'●':'○'}</span>
+          </button>`).join('');
+        projectList.querySelectorAll('[data-pid]').forEach(btn => {
+          btn.onclick = async () => {
+            const j = await (await fetch('/api/workspace/select',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId:btn.dataset.pid})})).json();
+            renderWorkspace();
+            updateMiniStatus(j);
+          };
+        });
+      }
+      if(libraryList){
+        libraryList.innerHTML = (data.workspace?.libraries || []).map(l => `
+          <button class="sideLink ${data.selectedLibrary?.id===l.id?'on':''}" data-lid="${l.id}">
+            <span>${l.name}</span><span>↗</span>
+          </button>`).join('');
+        libraryList.querySelectorAll('[data-lid]').forEach(btn => {
+          btn.onclick = async () => {
+            const j = await (await fetch('/api/workspace/select',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({libraryId:btn.dataset.lid})})).json();
+            renderWorkspace();
+            updateMiniStatus(j);
+          };
+        });
+      }
+      if(docBody && data.selectedProject){
+        const p = data.selectedProject;
+        docBody.innerHTML = `
+          <div class="heroStatRow"><span>Project</span><b>${p.name}</b></div>
+          <div class="heroStatRow"><span>Status</span><b>${p.status}</b></div>
+          <div class="heroStatRow"><span>Note</span><b>${p.note || ''}</b></div>
+          <div class="heroStatRow"><span>Library</span><b>${data.selectedLibrary?.name || ''}</b></div>
+        `;
+      }
+      updateMiniStatus(data);
+    }catch{}
+  }
+  function updateMiniStatus(data){
+    const mini = $('#miniStatus');
+    if(mini && data && data.selectedProject) mini.textContent = data.selectedProject.name + ' · ' + data.selectedProject.status;
+  }
   if($('#settingsBtn')) $('#settingsBtn').onclick=openSettings;
   if(langBtn) langBtn.onclick=()=>applyLanguage(uiLang === 'en' ? 'he' : 'en');
   if(newLangBtn) newLangBtn.onclick=()=>applyLanguage(uiLang === 'en' ? 'he' : 'en');
@@ -1425,6 +1473,7 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     }catch{}
   })();
   applyLanguage(uiLang);
+  renderWorkspace();
 })();
 
 // ---------- flag ----------
