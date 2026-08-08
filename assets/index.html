@@ -199,6 +199,14 @@
   .heroStat{display:flex;flex-direction:column;gap:8px}
   .heroStatRow{display:flex;justify-content:space-between;gap:10px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13px}
   .heroStatRow span{color:var(--muted)}
+  /* Sits where the <b> of a sibling row sits, so all three rows keep one height. */
+  .verBtn{font:inherit;font-weight:700;line-height:inherit;color:var(--txt);
+    background:none;border:0;padding:0;cursor:pointer;
+    display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+  .verBtn:hover{color:var(--accent)}
+  .verBtn[data-state="stale"]{color:var(--accent)}
+  .verBtn[data-state="busy"]{color:var(--muted);cursor:progress}
+  .verBtn[data-state="error"]{color:var(--flag)}
   .modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
   .modal-head b{font-size:16px}
   .modal-card label{display:block;color:var(--muted);font-size:12px;font-weight:600;margin:12px 0 4px}
@@ -371,7 +379,7 @@
       <aside class="sideCard">
         <h3 data-i18n="quickStats">Quick Status</h3>
         <div class="heroStatRow"><span data-i18n="statusLabel">Status</span><b id="miniStatus">Fresh start</b></div>
-        <div class="heroStatRow"><span data-i18n="versionLabel">Version</span><b>0.4.1</b></div>
+        <div class="heroStatRow"><span data-i18n="versionLabel">Version</span><button type="button" class="verBtn" id="verBtn" title="לחץ לבדיקת גרסה מול השרת">0.4.1 ↻</button></div>
         <div class="heroStatRow"><span data-i18n="langLabel">Language</span><b id="langLabel">Hebrew</b></div>
       </aside>
     </div>
@@ -1461,6 +1469,34 @@ if(next) await fetch(B+"/api/update",{method:"POST",
   const appVersion='0.4.1';
   $('#appVersion').textContent=appVersion;
   if($('#docVersion')) $('#docVersion').textContent='v'+appVersion;
+  // Seeded here too: without a local server /api/state never answers, and this would
+  // otherwise keep showing whatever literal the markup was last edited with.
+  if($('#settingsVersion')) $('#settingsVersion').textContent=appVersion;
+  // Version button: re-fetches this page with the cache bypassed and reads the version
+  // the server is actually serving. Asking for the page itself, rather than a dedicated
+  // endpoint, keeps this working on Cloudflare, GitHub Pages and the local server alike.
+  const verBtn=$('#verBtn');
+  if(verBtn){
+    const idle=()=>{ verBtn.dataset.state='idle'; verBtn.textContent=appVersion+' ↻'; };
+    idle();
+    verBtn.onclick=async()=>{
+      if(verBtn.dataset.state==='busy') return;
+      if(verBtn.dataset.state==='stale'){ location.reload(); return; }
+      verBtn.dataset.state='busy'; verBtn.textContent='בודק…';
+      try{
+        const r=await fetch(location.pathname+'?_v='+Date.now(),{cache:'no-store'});
+        if(!r.ok) throw new Error(r.status);
+        // Pattern built from parts so this line cannot match itself in the fetched HTML.
+        const m=(await r.text()).match(new RegExp('appVersion='+"'([^']+)'"));
+        if(!m) throw new Error('no version found');
+        if(m[1]===appVersion){ verBtn.dataset.state='ok'; verBtn.textContent=appVersion+' ✓'; setTimeout(idle,2000); }
+        else { verBtn.dataset.state='stale'; verBtn.textContent=m[1]+' — רענן'; verBtn.title='גרסה '+m[1]+' זמינה. לחץ לטעינה מחדש.'; }
+      }catch(e){
+        verBtn.dataset.state='error'; verBtn.textContent='נכשל ↻'; verBtn.title='הבדיקה נכשלה: '+e.message;
+        setTimeout(idle,3000);
+      }
+    };
+  }
   document.title='ON TracK';
   $('#helpDone').textContent=[
     '• הדשבורד המקומי רץ ומציג checks, results, report view ו-thread.',
