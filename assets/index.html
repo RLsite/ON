@@ -874,8 +874,8 @@ function connDot(ok){ return `<span class="cdot" style="background:${ok?'var(--p
   const runBtn=$('#agentRunTop');
   if(runBtn) runBtn.style.display = (m && !m.builtin && m.hasKey) ? '' : 'none';
     try{
-      const g = await (await fetch('/api/github/status')).json();
-      $('#githubBtn').innerHTML = connDot(!!g.ok)+' 🔗 GitHub';
+      const { data: g } = await fetchJsonSafe('/api/github/status');
+      $('#githubBtn').innerHTML = connDot(!!(g && g.ok))+' 🔗 GitHub';
     }catch{ $('#githubBtn').innerHTML = connDot(false)+' 🔗 GitHub'; }
   }
   function setMvpChip(id, state, label){
@@ -1085,15 +1085,28 @@ loadModels();
     box.innerHTML=html;
   }
 
+  async function fetchJsonSafe(url, options){
+    const r = await fetch(url, options);
+    const text = await r.text();
+    let data = null;
+    if (text && text.trim()) {
+      try { data = JSON.parse(text); }
+      catch (e) {
+        throw new Error('תגובה לא תקינה משרת GitHub: ' + e.message + (text ? ' · ' + text.slice(0, 180) : ''));
+      }
+    }
+    return { response: r, data };
+  }
+
   async function testGh(force){
     $('#ghStatusBox').style.display='block';
     $('#ghStatusBox').style.borderColor='var(--line)';
     $('#ghStatusBox').style.background='var(--panel2)';
     $('#ghStatusBox').textContent='בודק מול GitHub…';
     try{
-      const r=await fetch('/api/github/status', force?{method:'POST'}:undefined);
-      const j=await r.json();
-      renderGhStatus(j);
+      const { response: r, data: j } = await fetchJsonSafe('/api/github/status', force ? { method:'POST' } : undefined);
+      if (!r.ok && !j) throw new Error('GitHub status request failed with HTTP ' + r.status);
+      renderGhStatus(j || { ok:false, error:'לא התקבלה תגובה מהשרת' });
       updateConnDots();
       return j;
     }catch(e){
@@ -1105,9 +1118,8 @@ loadModels();
     const list=$('#ghIssuesList');
     list.textContent='טוען…';
     try{
-      const r=await fetch('/api/github/issues');
-      const j=await r.json();
-      if(!r.ok||j.error){ list.textContent='שגיאה: '+(j.error||r.status); return; }
+      const { response: r, data: j } = await fetchJsonSafe('/api/github/issues');
+      if(!r.ok||!j||j.error){ list.textContent='שגיאה: '+((j&&j.error)||('HTTP '+r.status)); return; }
       if(!j.issues.length){ list.textContent='אין issues פתוחים.'; return; }
       list.innerHTML=j.issues.map(i=>`<div class="ghIssue"><span>#${i.number} ${esc(i.title)}</span><a href="${i.url}" target="_blank">פתח ↗</a></div>`).join('');
     }catch(e){ list.textContent='שגיאת רשת: '+e.message; }
@@ -1117,9 +1129,8 @@ loadModels();
     const body={ enabled:$('#ghEnabled').checked, owner:$('#ghOwner').value.trim(), repo:$('#ghRepo').value.trim() };
     const token=(opts.token ?? $('#ghToken').value).trim();
     if(token) body.token=token;
-    const r=await fetch('/api/github/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    const j=await r.json();
-    if(j.ok!==undefined){ showTokenStatus(!!j.hasToken); $('#ghToken').value=''; }
+    const { data: j } = await fetchJsonSafe('/api/github/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(j && j.ok!==undefined){ showTokenStatus(!!j.hasToken); $('#ghToken').value=''; }
     updateConnDots();
     return j;
   }
