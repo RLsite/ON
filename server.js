@@ -1200,7 +1200,7 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/workspace/libraries' && req.method === 'POST') {
       const b = await readBody(req);
       const name = typeof b.name === 'string' ? b.name.trim() : '';
-      const type = ['info-site', 'network-folder', 'local-folder'].includes(b.type) ? b.type : 'info-site';
+      const type = ['info-site', 'network-folder', 'local-folder', 'skill-folder'].includes(b.type) ? b.type : 'info-site';
       const location = typeof b.location === 'string' ? b.location.trim() : '';
       if (!name || !location) { res.writeHead(400, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ error: 'library name and location are required' })); }
       const ws = loadWorkspaceState();
@@ -1217,7 +1217,7 @@ const server = http.createServer(async (req, res) => {
       const library = ws.libraries.find(lb => lb.id === b.id);
       if (!library) { res.writeHead(404, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ error: 'library not found' })); }
       if (typeof b.name === 'string' && b.name.trim()) library.name = b.name.trim();
-      if (['info-site', 'network-folder', 'local-folder'].includes(b.type)) library.type = b.type;
+      if (['info-site', 'network-folder', 'local-folder', 'skill-folder'].includes(b.type)) library.type = b.type;
       if (typeof b.location === 'string' && b.location.trim()) library.location = b.location.trim();
       if (typeof b.note === 'string') library.note = b.note.trim();
       saveWorkspaceState(ws);

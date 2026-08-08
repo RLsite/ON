@@ -1,7 +1,7 @@
 # ON TracK Project Info
 
-Version: `1.2.9`
-Status: `GitHub is the live project source; model connections are isolated from GitHub tokens.`
+Version: `1.3.0`
+Status: `GitHub is the live project source; chat history and library metadata persist per user.`
 
 ## Goal
 Build a web-first workspace where a chosen model can understand a project, connect to repositories, and perform approved actions in a controlled flow.
@@ -37,6 +37,9 @@ Build a web-first workspace where a chosen model can understand a project, conne
 - The project-management actions (open/create/rename/delete, added to the home screen's Projects panel) only worked locally — they called `/api/workspace/*`, which existed in `server.js` but was never ported to `worker.js`, so every click 404'd on the deployed site (same bug class as GitHub/models before those were ported). Added the missing `/api/workspace`, `/api/workspace/select`, `/api/workspace/projects`, `/api/workspace/projects/update`, `/api/workspace/projects/open`, `/api/workspace/projects/delete` endpoints to `worker.js`, per-user (`workspace_config:<uid>` in the same KV namespace), behind the same login gate as everything else. Also fixed two bugs found in the same review: (1) three of the four new button labels (open/rename/delete project) had Hebrew text that didn't match the i18n dictionary, so toggling language and back would silently change them; (2) project/library names were written into `innerHTML` without escaping, unlike every other user-supplied string rendered this way elsewhere in the file — a stored-XSS gap (a project named e.g. `<img src=x onerror=...>` would have executed). Verified end-to-end with `wrangler dev --local`: create/rename/open/delete round-trip correctly, two simulated users' project lists stay fully isolated, a non-string `name` in the request body returns a clean 400 instead of crashing the handler, and a malicious project name renders as inert text, not markup.
 
 ## Recent Updates
+- Added per-user chat history in Worker KV, restored after refresh, with an intentional clear-conversation action.
+- Added a folder-selection button to library creation/editing, including a browser fallback when the live site cannot inspect the local filesystem.
+- Added a `Skill folder` library type. On the live site it stores a selected folder reference; actual local file reading still requires a local Agent.
 - Changed the model connection list to compact cards: three models per row on desktop, two on tablets, and one on phones.
 - Fixed the RTL top-bar alignment so the action icons sit on the physical right side.
 - Removed the visible Settings icon from the top bar as requested.

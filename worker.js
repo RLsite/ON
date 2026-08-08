@@ -290,6 +290,250 @@ async function handleGithubApi(request, env, path, uid) {
 }
 
 // ---------------------------------------------------------------------------
+// ON TracK agent bridge — the model never receives the GitHub token. It plans
+// through a small JSON contract, while this Worker performs the actual API
+// calls and keeps write operations behind an explicit user approval.
+// ---------------------------------------------------------------------------
+
+function githubRepoBase(config) {
+  return `https://api.github.com/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}`;
+}
+
+function githubPath(path) {
+  return String(path || '').split('/').map(encodeURIComponent).join('/');
+}
+
+async function githubApi(config, suffix = '', options = {}) {
+  const headers = { ...ghHeaders(config), 'Content-Type': 'application/json' };
+  const response = await fetch(githubRepoBase(config) + suffix, { ...options, headers: { ...headers, ...(options.headers || {}) } });
+  const raw = await response.text();
+  let data = null;
+  try { data = raw ? JSON.parse(raw) : null; } catch { data = { message: raw.slice(0, 500) }; }
+  if (!response.ok) {
+    const error = new Error(data?.message || `GitHub API returned HTTP ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
+  return data;
+}
+
+function safeAgentPath(value) {
+  const path = typeof value === 'string' ? value.trim() : '';
+  if (!path || path.length > 240 || path.startsWith('/') || path.includes('\\') || path.split('/').some(part => !part || part === '.' || part === '..')) return null;
+  return path;
+}
+
+function safeAgentBranch(value) {
+  const branch = typeof value === 'string' ? value.trim() : '';
+  if (!branch || branch.length > 200 || branch.startsWith('/') || branch.endsWith('/') || branch.includes('..') || /[~^:?*\[\\\s]/.test(branch)) return null;
+  return branch;
+}
+
+function encodeBase64Utf8(value) {
+  const bytes = new TextEncoder().encode(String(value));
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(binary);
+}
+
+function decodeBase64Utf8(value) {
+  const binary = atob(String(value || '').replace(/\s/g, ''));
+  const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+async function loadAgentRepoContext(config) {
+  const repo = await githubApi(config);
+  const defaultBranch = repo.default_branch || 'main';
+  let paths = [];
+  try {
+    const tree = await githubApi(config, `/git/trees/${encodeURIComponent(defaultBranch)}?recursive=1`);
+    paths = Array.isArray(tree?.tree) ? tree.tree.filter(item => item.type === 'blob').map(item => item.path).slice(0, 240) : [];
+  } catch {}
+  return {
+    fullName: repo.full_name || `${config.owner}/${config.repo}`,
+    private: !!repo.private,
+    defaultBranch,
+    permissions: repo.permissions || null,
+    paths
+  };
+}
+
+function agentSystemPrompt(githubConnected, repoContext) {
+  const repoText = repoContext
+    ? JSON.stringify(repoContext)
+    : 'null';
+  return `You are the ON TracK project agent. You work for the user through a secure server bridge.
+The server, not you, holds the GitHub token. Never ask for, reveal, invent, or echo a token.
+You do not browse GitHub directly. You may request only the tools listed below; ON executes them.
+GitHub connected: ${githubConnected ? 'yes' : 'no'}.
+Repository context (safe metadata only): ${repoText}
+
+Available tools:
+- github.list_files: read the repository file tree. Arguments: branch (optional).
+- github.read_file: read one text file. Arguments: path, branch (optional).
+- github.write_file: prepare a complete replacement for one text file. Arguments: path, content, message.
+- github.create_pull_request: after file changes, request a Pull Request. Arguments: title, body, base (optional).
+
+Write actions are never executed immediately. They are shown to the user and require approval.
+For any request involving a file or repository, do not claim that you completed it unless ON returns an execution result.
+If you need file contents, first return a read action. If read results are supplied in a later message, use them and then return the smallest complete plan.
+Do not use unsupported tools, do not output shell commands as if they were executed, and do not make up file contents.
+
+Return JSON only, with this shape:
+For an answer: {"kind":"answer","reply":"...","actions":[]}
+For work: {"kind":"plan","reply":"Short explanation in the user's language","actions":[{"tool":"github.read_file","path":"..."}]}
+Use the user's language. Keep replies concise. A write_file action must contain the full intended file content and a short commit message.
+${githubConnected ? '' : 'GitHub is not connected. Explain that clearly and do not create GitHub actions.'}`;
+}
+
+function agentWriteTool(tool) {
+  return tool === 'github.write_file' || tool === 'github.create_pull_request';
+}
+
+function normalizeAgentPlan(rawText) {
+  const source = String(rawText || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+  const start = source.indexOf('{');
+  const end = source.lastIndexOf('}');
+  if (start < 0 || end <= start) return null;
+  let parsed;
+  try { parsed = JSON.parse(source.slice(start, end + 1)); } catch { return null; }
+  if (!parsed || !['answer', 'plan'].includes(parsed.kind)) return null;
+  const actions = Array.isArray(parsed.actions) ? parsed.actions.slice(0, 6).map(action => ({ ...action, tool: String(action.tool || '') })) : [];
+  return { kind: parsed.kind, reply: String(parsed.reply || '').slice(0, 6000), actions };
+}
+
+function validateAgentPlan(plan, githubConnected) {
+  if (!plan || plan.kind === 'answer') return null;
+  if (!githubConnected) return 'GitHub is not connected.';
+  if (!Array.isArray(plan.actions) || !plan.actions.length) return 'The model returned an empty action plan.';
+  const allowed = new Set(['github.list_files', 'github.read_file', 'github.write_file', 'github.create_pull_request']);
+  let hasWrite = false;
+  for (const action of plan.actions) {
+    if (!allowed.has(action.tool)) return `Unsupported agent tool: ${action.tool}`;
+    if (action.tool === 'github.list_files') {
+      if (action.branch && !safeAgentBranch(action.branch)) return 'Invalid branch name.';
+      continue;
+    }
+    if (action.tool === 'github.read_file' || action.tool === 'github.write_file') {
+      if (!safeAgentPath(action.path)) return 'Invalid repository file path.';
+      if (action.branch && !safeAgentBranch(action.branch)) return 'Invalid branch name.';
+    }
+    if (action.tool === 'github.write_file') {
+      hasWrite = true;
+      if (typeof action.content !== 'string' || action.content.length > 300000) return 'The proposed file content is missing or too large.';
+      if (!String(action.message || '').trim() || String(action.message).length > 180) return 'The proposed commit message is missing or too long.';
+    }
+    if (action.tool === 'github.create_pull_request') {
+      hasWrite = true;
+      if (!String(action.title || '').trim() || String(action.title).length > 180) return 'The Pull Request title is missing or too long.';
+      if (action.base && !safeAgentBranch(action.base)) return 'Invalid Pull Request base branch.';
+    }
+  }
+  if (plan.actions.some(action => action.tool === 'github.create_pull_request') && !plan.actions.some(action => action.tool === 'github.write_file')) {
+    return 'A Pull Request requires at least one file change.';
+  }
+  return hasWrite ? null : null;
+}
+
+function publicAgentPlan(plan) {
+  return {
+    kind: plan.kind,
+    reply: plan.reply,
+    actions: plan.actions.map(action => ({
+      tool: action.tool,
+      path: action.path || null,
+      branch: action.branch || null,
+      message: action.message || null,
+      title: action.title || null,
+      body: action.body ? String(action.body).slice(0, 1200) : null,
+      contentLength: typeof action.content === 'string' ? action.content.length : null
+    }))
+  };
+}
+
+async function executeAgentReadActions(config, actions, defaultBranch) {
+  const results = [];
+  for (const action of actions) {
+    const branch = safeAgentBranch(action.branch) || defaultBranch;
+    if (action.tool === 'github.list_files') {
+      const tree = await githubApi(config, `/git/trees/${encodeURIComponent(branch)}?recursive=1`);
+      const files = Array.isArray(tree?.tree) ? tree.tree.filter(item => item.type === 'blob').map(item => item.path).slice(0, 400) : [];
+      results.push({ tool: action.tool, branch, files });
+    } else if (action.tool === 'github.read_file') {
+      const file = await githubApi(config, `/contents/${githubPath(action.path)}?ref=${encodeURIComponent(branch)}`);
+      if (file?.type !== 'file' || typeof file.content !== 'string') throw new Error(`GitHub path is not a text file: ${action.path}`);
+      const content = decodeBase64Utf8(file.content);
+      results.push({ tool: action.tool, path: action.path, branch, sha: file.sha || null, content: content.slice(0, 50000), truncated: content.length > 50000 });
+    }
+  }
+  return results;
+}
+
+function agentToolResultsPrompt(results) {
+  return `ON executed these read-only GitHub tools. Use only these results; do not claim other access. Return the final JSON plan now.\n${JSON.stringify(results).slice(0, 70000)}`;
+}
+
+async function executeAgentWritePlan(config, plan, planId) {
+  const repo = await githubApi(config);
+  const baseBranch = safeAgentBranch(plan.actions.find(action => action.base)?.base) || repo.default_branch || 'main';
+  const baseRef = await githubApi(config, `/git/ref/heads/${encodeURIComponent(baseBranch)}`);
+  const branch = `ontrack/agent-${String(planId).replace(/[^a-zA-Z0-9-]/g, '').slice(0, 18)}`;
+  await githubApi(config, '/git/refs', {
+    method: 'POST',
+    body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: baseRef.object.sha })
+  });
+  const files = [];
+  for (const action of plan.actions.filter(item => item.tool === 'github.write_file')) {
+    const path = safeAgentPath(action.path);
+    const ref = safeAgentBranch(action.branch) || branch;
+    let current = null;
+    try { current = await githubApi(config, `/contents/${githubPath(path)}?ref=${encodeURIComponent(ref)}`); }
+    catch (e) { if (e.status !== 404) throw e; }
+    const body = { message: String(action.message).trim(), content: encodeBase64Utf8(action.content), branch: ref };
+    if (current?.sha) body.sha = current.sha;
+    const updated = await githubApi(config, `/contents/${githubPath(path)}`, { method: 'PUT', body: JSON.stringify(body) });
+    files.push({ path, action: current?.sha ? 'updated' : 'created', commit: updated?.commit?.sha || null });
+  }
+  let pullRequest = null;
+  const pullAction = plan.actions.find(item => item.tool === 'github.create_pull_request');
+  if (pullAction) {
+    const pr = await githubApi(config, '/pulls', {
+      method: 'POST',
+      body: JSON.stringify({
+        title: String(pullAction.title).trim(),
+        body: String(pullAction.body || '').trim(),
+        head: branch,
+        base: safeAgentBranch(pullAction.base) || baseBranch
+      })
+    });
+    pullRequest = { number: pr.number, url: pr.html_url, title: pr.title };
+  }
+  return { branch, baseBranch, files, pullRequest };
+}
+
+async function handleAgentApproval(request, env, uid) {
+  if (request.method !== 'POST') return json({ error: 'not found' }, 404);
+  const body = await request.json().catch(() => ({}));
+  const planId = typeof body.planId === 'string' ? body.planId.trim() : '';
+  if (!planId || !/^[a-zA-Z0-9-]{12,80}$/.test(planId)) return json({ error: 'Invalid or expired agent plan.' }, 400);
+  const key = `agent_plan:${uid}:${planId}`;
+  const raw = await env.GH_CONFIG.get(key);
+  if (!raw) return json({ error: 'This agent plan has expired. Send the request again.' }, 410);
+  await env.GH_CONFIG.delete(key);
+  let stored;
+  try { stored = JSON.parse(raw); } catch { return json({ error: 'Invalid agent plan.' }, 400); }
+  const config = await loadGithubConfig(env, uid);
+  if (!config.enabled || !config.owner || !config.repo || !config.token) return json({ error: 'GitHub is not connected for this account.' }, 400);
+  try {
+    const result = await executeAgentWritePlan(config, stored.plan, planId);
+    return json({ ok: true, result });
+  } catch (e) {
+    return json({ error: e.message || 'GitHub write failed.' }, e.status === 401 || e.status === 403 ? 502 : 502);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Model connection — per-user config, same GH_CONFIG namespace under a different key prefix.
 // ---------------------------------------------------------------------------
 
@@ -353,17 +597,20 @@ function publicModels(cfg) {
 // Shared provider call (OpenAI-compatible chat/completions, or Gemini generateContent).
 // Returns the raw text reply. Used by the cheap connection ping (testModel), the real chat
 // endpoint (handleChat), so there's one place that knows how to talk to each provider.
-async function callModel(m, prompt, maxTokens, imagePart) {
+async function callModel(m, prompt, maxTokens, imagePart, systemPrompt) {
   const keyError = modelKeyError(m.apiKey);
   if (keyError) throw new Error(keyError);
   if (m.provider === 'openai') {
     const content = imagePart
       ? [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: `data:${imagePart.mime};base64,${imagePart.data}` } }]
       : prompt;
+    const messages = [];
+    if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
+    messages.push({ role: 'user', content });
     const r = await fetch(`${m.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${m.apiKey}` },
-      body: JSON.stringify({ model: m.model, messages: [{ role: 'user', content }], max_tokens: maxTokens })
+      body: JSON.stringify({ model: m.model, messages, max_tokens: maxTokens })
     });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
@@ -372,8 +619,10 @@ async function callModel(m, prompt, maxTokens, imagePart) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${m.model}:generateContent?key=${encodeURIComponent(m.apiKey)}`;
   const parts = [{ text: prompt }];
   if (imagePart) parts.push({ inline_data: { mime_type: imagePart.mime, data: imagePart.data } });
+  const payload = { contents: [{ parts }], generationConfig: { maxOutputTokens: maxTokens } };
+  if (systemPrompt) payload.systemInstruction = { parts: [{ text: systemPrompt }] };
   const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ contents: [{ parts }], generationConfig: { maxOutputTokens: maxTokens } }) });
+    body: JSON.stringify(payload) });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
   return (j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts &&
@@ -650,7 +899,7 @@ async function handleWorkspaceApi(request, env, path, uid) {
   if (path === '/api/workspace/libraries' && method === 'POST') {
     const b = await request.json().catch(() => ({}));
     const name = typeof b.name === 'string' ? b.name.trim() : '';
-    const type = ['info-site', 'network-folder', 'local-folder'].includes(b.type) ? b.type : 'info-site';
+    const type = ['info-site', 'network-folder', 'local-folder', 'skill-folder'].includes(b.type) ? b.type : 'info-site';
     const location = typeof b.location === 'string' ? b.location.trim() : '';
     if (!name) return json({ error: 'Library name is required.' }, 400);
     if (!location) return json({ error: 'URL or path is required.' }, 400);
@@ -668,7 +917,7 @@ async function handleWorkspaceApi(request, env, path, uid) {
     const library = ws.libraries.find(l => l.id === b.id);
     if (!library) return json({ error: 'Library not found.' }, 404);
     if (typeof b.name === 'string' && b.name.trim()) library.name = b.name.trim();
-    if (['info-site', 'network-folder', 'local-folder'].includes(b.type)) library.type = b.type;
+    if (['info-site', 'network-folder', 'local-folder', 'skill-folder'].includes(b.type)) library.type = b.type;
     if (typeof b.location === 'string' && b.location.trim()) library.location = b.location.trim();
     if (typeof b.note === 'string') library.note = b.note.trim();
     await saveWorkspace(env, uid, ws);
@@ -693,7 +942,66 @@ async function handleWorkspaceApi(request, env, path, uid) {
 // Home-screen chat: sends the prompt to the user's own selected model.
 // ---------------------------------------------------------------------------
 
-async function handleChat(request, env, uid) {
+const CHAT_HISTORY_LIMIT = 40;
+
+function compactChatEntry(entry) {
+  return {
+    id: crypto.randomUUID(),
+    created: new Date().toISOString(),
+    prompt: String(entry.prompt || '').slice(0, 8000),
+    reply: String(entry.reply || '').slice(0, 12000),
+    error: entry.error ? String(entry.error).slice(0, 2000) : null,
+    imageAttached: !!entry.imageAttached,
+    plan: entry.plan || null,
+    planId: entry.planId || null,
+    execution: entry.execution || null
+  };
+}
+
+async function loadChatHistory(env, uid) {
+  const raw = await env.GH_CONFIG.get('chat_history:' + uid);
+  if (!raw) return [];
+  try {
+    const items = JSON.parse(raw);
+    return Array.isArray(items) ? items.slice(-CHAT_HISTORY_LIMIT) : [];
+  } catch { return []; }
+}
+
+async function appendChatHistory(env, uid, entry) {
+  const history = await loadChatHistory(env, uid);
+  const saved = compactChatEntry(entry);
+  history.push(saved);
+  await env.GH_CONFIG.put('chat_history:' + uid, JSON.stringify(history.slice(-CHAT_HISTORY_LIMIT)));
+  return saved;
+}
+
+async function chatJson(env, uid, entry, payload, status = 200) {
+  try {
+    const saved = await appendChatHistory(env, uid, entry);
+    if (payload && typeof payload === 'object') payload.historyId = saved.id;
+  } catch {}
+  return json(payload, status);
+}
+
+async function handleChatHistory(request, env, uid, path) {
+  if (request.method === 'GET' && path === '/api/chat/history') return json({ history: await loadChatHistory(env, uid) });
+  if (request.method === 'POST' && path === '/api/chat/clear') {
+    await env.GH_CONFIG.delete('chat_history:' + uid);
+    return json({ ok: true });
+  }
+  if (request.method === 'POST' && path === '/api/chat/delete') {
+    const body = await request.json().catch(() => ({}));
+    const id = typeof body.id === 'string' ? body.id.trim() : '';
+    if (!id) return json({ error: 'Missing conversation id.' }, 400);
+    const history = await loadChatHistory(env, uid);
+    const next = history.filter(item => item.id !== id);
+    await env.GH_CONFIG.put('chat_history:' + uid, JSON.stringify(next));
+    return json({ ok: true, deleted: next.length !== history.length });
+  }
+  return json({ error: 'not found' }, 404);
+}
+
+async function handleLegacyChat(request, env, uid) {
   if (request.method !== 'POST') return json({ error: 'not found' }, 404);
   const cfg = await loadModelsConfig(env, uid);
   const m = cfg.models.find(x => x.id === cfg.selectedId);
@@ -716,6 +1024,30 @@ async function handleChat(request, env, uid) {
   }
 }
 
+async function handleChat(request, env, uid) {
+  if (request.method !== 'POST') return json({ error: 'not found' }, 404);
+  const cfg = await loadModelsConfig(env, uid);
+  const m = cfg.models.find(x => x.id === cfg.selectedId);
+  if (!m) return json({ error: 'No model is selected.' }, 400);
+  const b = await request.json().catch(() => ({}));
+  const prompt = (b.prompt || '').trim();
+  const imagePart = parseImagePart(b.image);
+  if (!prompt) return chatJson(env, uid, { prompt: '', error: 'The message is empty.', imageAttached: !!imagePart }, { error: 'The message is empty.' }, 400);
+  if (m.builtin) {
+    const reply = 'The built-in Claude model runs through a Claude Code session, not through this provider API.';
+    return chatJson(env, uid, { prompt, reply, imageAttached: !!imagePart }, { reply });
+  }
+  if (!m.apiKey) return chatJson(env, uid, { prompt, error: 'No API key is configured for the selected model.', imageAttached: !!imagePart }, { error: 'No API key is configured for the selected model.' }, 400);
+  const keyError = modelKeyError(m.apiKey);
+  if (keyError) return chatJson(env, uid, { prompt, error: keyError, imageAttached: !!imagePart }, { error: keyError }, 400);
+  try {
+    const reply = await callModel(m, prompt, 1024, imagePart);
+    return chatJson(env, uid, { prompt, reply: reply || '(empty model response)', imageAttached: !!imagePart }, { reply: reply || '(empty model response)' });
+  } catch (e) {
+    return chatJson(env, uid, { prompt, error: e.message, imageAttached: !!imagePart }, { error: e.message }, 502);
+  }
+}
+
 // ---------------------------------------------------------------------------
 
 export default {
@@ -725,13 +1057,15 @@ export default {
 
     if (path.startsWith('/api/auth/')) return handleAuth(request, env, url, path);
 
-    const needsAuth = path.startsWith('/api/github/') || path.startsWith('/api/models') || path === '/api/chat' || path.startsWith('/api/workspace');
+    const needsAuth = path.startsWith('/api/github/') || path.startsWith('/api/models') || path === '/api/chat' || path === '/api/chat/history' || path === '/api/chat/clear' || path === '/api/chat/delete' || path.startsWith('/api/agent/') || path.startsWith('/api/workspace');
     if (needsAuth) {
       const user = await getSession(env, request);
       if (!user) return json({ error: 'לא מחובר. יש להתחבר עם Google כדי להשתמש בתכונה הזו.', loginRequired: true }, 401);
       if (path.startsWith('/api/github/')) return handleGithubApi(request, env, path, user.uid);
       if (path.startsWith('/api/models')) return handleModelsApi(request, env, path, user.uid);
       if (path === '/api/chat') return handleChat(request, env, user.uid);
+      if (path === '/api/chat/history' || path === '/api/chat/clear' || path === '/api/chat/delete') return handleChatHistory(request, env, user.uid, path);
+      if (path === '/api/agent/approve') return handleAgentApproval(request, env, user.uid);
       if (path.startsWith('/api/workspace')) return handleWorkspaceApi(request, env, path, user.uid);
     }
 

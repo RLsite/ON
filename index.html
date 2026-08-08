@@ -362,6 +362,10 @@
   .sideLink{display:flex;justify-content:space-between;gap:10px;padding:11px 12px;border-radius:14px;border:1px solid transparent;background:transparent;cursor:pointer;font:inherit;color:var(--txt);text-align:start}
   .sideLink:hover,.sideLink.on{background:var(--panel2);border-color:var(--line)}
   .chatPanel{padding:16px;display:flex;flex-direction:column;gap:12px}
+  .chatPanelToolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:30px}
+  .chatPanelToolbar .hint{font-weight:700}
+  .chatClearBtn{border:1px solid transparent;background:transparent;color:var(--muted);border-radius:9px;padding:5px 8px;cursor:pointer;font:inherit;font-size:12px}
+  .chatClearBtn:hover{border-color:var(--line);background:var(--panel2);color:var(--txt)}
   .chatBubble{position:relative;border:1px solid var(--line);background:var(--panel2);border-radius:18px;padding:14px 44px 14px 16px}
   .chatBubble .meta{margin-top:0}
   #chatThread{display:flex;flex-direction:column-reverse;gap:10px}
@@ -370,6 +374,14 @@
   .chatBubble.user{background:var(--accent-tint);border-color:var(--accent)}
   .chatBubble.pending .meta{opacity:.7}
   .chatBubble.err{background:var(--fail-tint);border-color:var(--fail)}
+  .agentPlan{margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--panel);display:flex;flex-direction:column;gap:6px}
+  .agentPlanTitle{font-weight:800;font-size:13px}
+  .agentPlanHint{color:var(--muted);font-size:12px}
+  .agentPlanAction{font-size:12px;direction:ltr;text-align:left;background:var(--panel2);border-radius:8px;padding:6px 8px;overflow-wrap:anywhere}
+  .agentApproveBtn{align-self:flex-start;margin-top:4px;padding:7px 11px;font-size:12px}
+  .agentPlanResult,.agentPlanError{font-size:12px;padding:7px 8px;border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere}
+  .agentPlanResult{background:var(--pass-tint);color:var(--txt)}
+  .agentPlanError{background:var(--fail-tint);color:var(--fail)}
   .composerBar{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:22px;padding:12px 14px;box-shadow:var(--shadow-sm)}
   .chatAttachBtn{flex:none}
   .chatImagePreview{display:none;align-items:center;gap:8px;padding:8px 14px 0}
@@ -453,9 +465,14 @@
             <option value="info-site" data-i18n="libraryTypeSite">אתר מידע</option>
             <option value="network-folder" data-i18n="libraryTypeNetwork">תיקייה ברשת</option>
             <option value="local-folder" data-i18n="libraryTypeLocal">תיקייה מקומית</option>
+            <option value="skill-folder" data-i18n="libraryTypeSkill">🧩 תיקיית Skill</option>
           </select>
           <label class="fieldLabel" data-i18n="libraryLocationLabel">כתובת / נתיב</label>
-          <input id="libraryLocationInput" class="fieldInput" data-i18n-placeholder="phLibraryLocation" placeholder="כתובת או נתיב">
+          <div class="pathPickRow">
+            <input id="libraryLocationInput" class="fieldInput" data-i18n-placeholder="phLibraryLocation" placeholder="כתובת או נתיב">
+            <button class="pathPickBtn" id="libraryLocationPick" type="button" data-i18n="pickFolder">📂 בחר תיקייה…</button>
+          </div>
+          <div class="hint" data-i18n="libraryLocationHint">באתר החי ניתן לבחור שם תיקייה; קריאת הקבצים בפועל תדרוש Agent מקומי.</div>
           <input id="libraryNoteInput" class="fieldInput" data-i18n-placeholder="phLibraryNote" placeholder="הערה קצרה">
           <div class="projectEditorActions">
             <button class="add" id="librarySaveBtn" data-i18n="saveLibrary">שמור</button>
@@ -486,6 +503,10 @@
     </div>
     <div class="newContent">
       <section class="chatPanel">
+        <div class="chatPanelToolbar">
+          <span class="hint" data-i18n="chatHistoryTitle">שיחה</span>
+          <button type="button" class="chatClearBtn" id="chatClearBtn" data-i18n="clearChat">נקה שיחה</button>
+        </div>
         <div class="composerBar">
           <button class="miniBtn chatAttachBtn" id="chatAttachBtn" type="button" title="צרף תמונה" aria-label="צרף תמונה">+</button>
           <input type="file" id="chatImageInput" accept="image/*" hidden>
@@ -596,7 +617,7 @@
         <b data-i18n="helpTitle">❓ עזרה ל־ON TracK</b>
         <button class="icon" id="helpClose">✕</button>
       </div>
-      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">1.2.9</b></div>
+      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">1.3.0</b></div>
       <p class="hint" style="line-height:1.7;margin-top:0" data-i18n="helpIntro">ON TracK מחבר בין מודל שבחרת לבין פרויקט ומקורות קוד. המודל מקבל בקשות ומבצע פעולות רק דרך החיבורים וההרשאות שהגדרת.</p>
       <div class="helpList">
         <div class="hint" data-i18n="helpStepOne">1. צור או בחר פרויקט בצד.</div>
@@ -758,6 +779,8 @@
       <div class="folderPickerPath" id="folderPickerPath">—</div>
       <div class="folderPickerList" id="folderPickerList"></div>
       <div class="folderPickerFoot">
+        <input type="file" id="folderNativeInput" webkitdirectory directory multiple hidden>
+        <button class="act" id="folderNativePick" type="button" data-i18n="chooseFromComputer">🖥️ בחר מהמחשב</button>
         <button class="act" id="folderPickerCancel" type="button" data-i18n="cancel">ביטול</button>
         <button class="add" id="folderPickerChoose" type="button" data-i18n="chooseThisFolder">בחר תיקייה זו</button>
       </div>
@@ -903,11 +926,11 @@
       projectNameRequired:'חסר שם פרויקט', creatingProject:'יוצר...', createdProject:'נוצר ✓', savingProject:'שומר...', updatedProject:'עודכן ✓', deletingProject:'מוחק...', deletedProject:'נמחק ✓',
       newLibraryTitle:'ספרייה חדשה', editLibraryTitle:'עריכת ספרייה', renameLibraryTitle:'שינוי שם ספרייה', saveLibrary:'שמור',
       editLibrary:'ערוך', renameLibrary:'שנה שם', deleteLibrary:'מחק', libraryActions:'פעולות ספרייה', libraryMore:'פעולות נוספות לספרייה',
-      libraryTypeLabel:'מה סוג המקור?', libraryTypeSite:'אתר מידע', libraryTypeNetwork:'תיקייה ברשת', libraryTypeLocal:'תיקייה מקומית', libraryLocationLabel:'כתובת / נתיב',
+      libraryTypeLabel:'מה סוג המקור?', libraryTypeSite:'אתר מידע', libraryTypeNetwork:'תיקייה ברשת', libraryTypeLocal:'תיקייה מקומית', libraryTypeSkill:'🧩 תיקיית Skill', libraryLocationLabel:'כתובת / נתיב', libraryLocationHint:'באתר החי ניתן לבחור שם תיקייה; קריאת הקבצים בפועל תדרוש Agent מקומי.', chooseFromComputer:'🖥️ בחר מהמחשב',
       libraryNameRequired:'חסר שם ספרייה', libraryLocationRequired:'חסרה כתובת או נתיב', creatingLibrary:'יוצר ספרייה...', createdLibrary:'הספרייה נוצרה ✓', savingLibrary:'שומר ספרייה...', updatedLibrary:'הספרייה עודכנה ✓', deletingLibrary:'מוחק ספרייה...', deletedLibrary:'הספרייה נמחקה ✓',
       phLibraryName:'שם הספרייה', phLibraryNote:'הערה קצרה', phLibraryLocation:'כתובת או נתיב', phLibrarySite:'https://...', phLibraryNetwork:'\\\\server\\folder', phLibraryLocal:'C:\\folder\\project',
       noProjects:'אין עדיין פרויקטים', noLibraries:'אין עדיין ספריות', noProjectStatus:'אין פרויקט נבחר',
-      chatText:'אין עדיין הודעות. כתוב בקשה למודל כדי להתחיל.', chatDelete:'מחק הודעה', imageAttached:'תמונה מצורפת', removeImage:'הסר תמונה',
+      chatHistoryTitle:'שיחה', clearChat:'נקה שיחה', chatText:'אין עדיין הודעות. כתוב בקשה למודל כדי להתחיל.', chatDelete:'מחק הודעה', imageAttached:'תמונה מצורפת', removeImage:'הסר תמונה',
       modelKeyWarning:'המפתח נראה כמו טוקן GitHub. הזן כאן מפתח API של ספק המודל, ואת טוקן GitHub הזן בחיבור GitHub.', saveModelChanges:'שמור שינויי מודל', editModel:'ערוך חיבור',
       quickStats:'מצב מהיר', statusLabel:'סטטוס', miniStatusDefault:'אין פרויקט נבחר', versionLabel:'גרסה', langLabel:'שפה',
       settingsTitle:'⚙️ הגדרות', settingsHint:'כאן מנהלים את סביבת העבודה, בודקים את החיבורים ובוחרים את הפרויקט והספרייה הפעילים.',
@@ -991,11 +1014,11 @@
       projectNameRequired:'Project name is required', creatingProject:'Creating...', createdProject:'Created ✓', savingProject:'Saving...', updatedProject:'Updated ✓', deletingProject:'Deleting...', deletedProject:'Deleted ✓',
       newLibraryTitle:'New library', editLibraryTitle:'Edit library', renameLibraryTitle:'Rename library', saveLibrary:'Save',
       editLibrary:'Edit', renameLibrary:'Rename', deleteLibrary:'Delete', libraryActions:'Library actions', libraryMore:'More library actions',
-      libraryTypeLabel:'What is the source type?', libraryTypeSite:'Information site', libraryTypeNetwork:'Network folder', libraryTypeLocal:'Local folder', libraryLocationLabel:'URL / path',
+      libraryTypeLabel:'What is the source type?', libraryTypeSite:'Information site', libraryTypeNetwork:'Network folder', libraryTypeLocal:'Local folder', libraryTypeSkill:'🧩 Skill folder', libraryLocationLabel:'URL / path', libraryLocationHint:'On the live site, folder selection stores the folder name; reading its files requires a local Agent.', chooseFromComputer:'🖥️ Choose from computer',
       libraryNameRequired:'Library name is required', libraryLocationRequired:'URL or path is required', creatingLibrary:'Creating library...', createdLibrary:'Library created ✓', savingLibrary:'Saving library...', updatedLibrary:'Library updated ✓', deletingLibrary:'Deleting library...', deletedLibrary:'Library deleted ✓',
       phLibraryName:'Library name', phLibraryNote:'Short note', phLibraryLocation:'URL or path', phLibrarySite:'https://...', phLibraryNetwork:'\\\\server\\folder', phLibraryLocal:'C:\\folder\\project',
       noProjects:'No projects yet', noLibraries:'No libraries yet', noProjectStatus:'No project selected',
-      chatText:'No messages yet. Write a request to the model to begin.', chatDelete:'Delete message', imageAttached:'Image attached', removeImage:'Remove image',
+      chatHistoryTitle:'Conversation', clearChat:'Clear conversation', chatText:'No messages yet. Write a request to the model to begin.', chatDelete:'Delete message', imageAttached:'Image attached', removeImage:'Remove image',
       modelKeyWarning:'This key looks like a GitHub token. Enter the model provider API key here, and enter the GitHub token in GitHub connection.', saveModelChanges:'Save model changes', editModel:'Edit connection',
       quickStats:'Quick Status', statusLabel:'Status', miniStatusDefault:'No project selected', versionLabel:'Version', langLabel:'Language',
       settingsTitle:'⚙️ Settings', settingsHint:'Manage the workspace, check connections, and see the active project and library.',
@@ -1135,11 +1158,12 @@
   (function(){
     const escHtml = s => (s||'').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
     let imageData = null;
-    function addBubble(cls, meta, text, image){
+    function addBubble(cls, meta, text, image, historyId){
       const thread = document.getElementById('chatThread');
       if(!thread) return null;
       const div = document.createElement('div');
       div.className = 'chatBubble' + (cls ? ' '+cls : '');
+      if(historyId) div.dataset.historyId = historyId;
       div.innerHTML = `<div class="meta">${escHtml(meta)}</div><div class="bubbleText">${escHtml(text)}</div>`;
       if(image){
         const img = document.createElement('img');
@@ -1160,9 +1184,71 @@
       return div;
     }
     const thread = document.getElementById('chatThread');
+    const emptyThreadMarkup = thread ? thread.innerHTML : '';
+    function appendAgentPlan(bubble, plan, planId){
+      if(!bubble || !plan) return;
+      const box = document.createElement('div');
+      box.className = 'agentPlan';
+      const title = uiLang==='en' ? 'Action plan' : 'תוכנית פעולה';
+      const approval = uiLang==='en' ? 'Approval required before GitHub changes' : 'נדרש אישור לפני שינוי ב־GitHub';
+      box.innerHTML = `<div class="agentPlanTitle">${title}</div><div class="agentPlanHint">${approval}</div>`;
+      (plan.actions || []).forEach(action=>{
+        const row = document.createElement('div');
+        row.className = 'agentPlanAction';
+        const name = action.tool === 'github.write_file' ? (uiLang==='en' ? 'Write file' : 'שינוי קובץ') : action.tool === 'github.read_file' ? (uiLang==='en' ? 'Read file' : 'קריאת קובץ') : action.tool === 'github.create_pull_request' ? 'Pull Request' : (uiLang==='en' ? 'List files' : 'רשימת קבצים');
+        row.textContent = `${name}${action.path ? ' · '+action.path : ''}${action.contentLength ? ' · '+action.contentLength+' chars' : ''}`;
+        box.appendChild(row);
+      });
+      if(planId){
+        const approve = document.createElement('button');
+        approve.type='button'; approve.className='add agentApproveBtn';
+        approve.textContent = uiLang==='en' ? 'Approve and run' : 'אשר ובצע';
+        approve.onclick = async()=>{
+          approve.disabled=true; approve.textContent=uiLang==='en' ? 'Running…' : 'מבצע…';
+          try{
+            const r=await fetch('/api/agent/approve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({planId})});
+            const j=await r.json().catch(()=>({}));
+            if(!r.ok || j.error) throw new Error(j.error || ('HTTP '+r.status));
+            approve.textContent=uiLang==='en' ? 'Executed ✓' : 'בוצע ✓';
+            const result=document.createElement('div'); result.className='agentPlanResult';
+            result.textContent=JSON.stringify(j.result || {}, null, 2);
+            box.appendChild(result);
+          }catch(e){
+            approve.disabled=false; approve.textContent=uiLang==='en' ? 'Try again' : 'נסה שוב';
+            const error=document.createElement('div'); error.className='agentPlanError'; error.textContent=e.message; box.appendChild(error);
+          }
+        };
+        box.appendChild(approve);
+      }
+      bubble.appendChild(box);
+    }
+    function renderHistory(history){
+      if(!thread) return;
+      if(!Array.isArray(history) || !history.length){ thread.innerHTML=emptyThreadMarkup; return; }
+      thread.innerHTML='';
+      history.forEach(turn=>{
+        addBubble('user', uiLang==='en' ? 'You' : 'אתה', turn.prompt || (turn.imageAttached ? (uiLang==='en' ? 'Image' : 'תמונה') : ''), null, turn.id);
+        const assistant = addBubble(turn.error ? 'err' : '', turn.error ? (uiLang==='en' ? 'Error' : 'שגיאה') : 'ON TracK', turn.error || turn.reply || '', null, turn.id);
+        if(turn.plan) appendAgentPlan(assistant, turn.plan, turn.planId);
+      });
+    }
+    window.loadChatHistory = async function(){
+      try{
+        const r=await fetch('/api/chat/history');
+        const j=await r.json().catch(()=>({}));
+        if(r.ok) renderHistory(j.history || []);
+      }catch{}
+    };
     if(thread) thread.addEventListener('click', e => {
       const deleteBtn = e.target.closest('.chatDeleteBtn');
-      if(deleteBtn) deleteBtn.closest('.chatBubble')?.remove();
+      if(deleteBtn){
+        const bubble=deleteBtn.closest('.chatBubble');
+        const id=bubble?.dataset.historyId;
+        if(id){
+          fetch('/api/chat/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})}).catch(()=>{});
+          document.querySelectorAll(`[data-history-id="${CSS.escape(id)}"]`).forEach(el=>el.remove());
+        } else bubble?.remove();
+      }
     });
     async function sendChatMessage(){
       const input = document.getElementById('mainPrompt');
@@ -1174,7 +1260,7 @@
       if(!user){ window.requireLogin(); return; }
       input.value = '';
       const sentImage = imageData;
-      addBubble('user', uiLang==='en' ? 'You' : 'אתה', text || (uiLang==='en' ? 'Image' : 'תמונה'), sentImage);
+      const userBubble = addBubble('user', uiLang==='en' ? 'You' : 'אתה', text || (uiLang==='en' ? 'Image' : 'תמונה'), sentImage);
       clearImage();
       btn.disabled = true;
       const pending = addBubble('pending', uiLang==='en' ? 'Thinking…' : 'חושב…', '…');
@@ -1189,6 +1275,11 @@
         } else {
           pending.querySelector('.meta').textContent = 'ON TracK';
           pending.querySelector('.bubbleText').textContent = j.reply || '';
+          if(j.approvalRequired && j.plan) appendAgentPlan(pending, j.plan, j.planId);
+        }
+        if(j.historyId){
+          userBubble.dataset.historyId=j.historyId;
+          pending.dataset.historyId=j.historyId;
         }
       }catch(e){
         pending.classList.remove('pending');
@@ -1229,6 +1320,12 @@
     };
     const removeImage = document.getElementById('chatImageRemove');
     if(removeImage) removeImage.onclick = clearImage;
+    const clearChatBtn = document.getElementById('chatClearBtn');
+    if(clearChatBtn) clearChatBtn.onclick = async()=>{
+      if(!confirm(uiLang==='en' ? 'Clear this conversation?' : 'לנקות את השיחה?')) return;
+      await fetch('/api/chat/clear',{method:'POST'});
+      if(thread) thread.innerHTML=emptyThreadMarkup;
+    };
     if(btn) btn.onclick = sendChatMessage;
     if(input) input.addEventListener('keydown', e => { if(e.key==='Enter'){ e.preventDefault(); sendChatMessage(); } });
   })();
@@ -1238,6 +1335,7 @@
   // those three is opened/used, so a login/logout in another tab is picked up immediately.
   (function(){
     let currentUser = null;
+    let chatHistoryLoaded = false;
     // Reuse the favicon's own data URI for the gate logo too, instead of a third copy of the image.
     const gateLogo = document.getElementById('gateLogo');
     const iconLink = document.querySelector('link[rel="icon"]');
@@ -1270,6 +1368,11 @@
         currentUser = j.loggedIn ? j : null;
       }catch{ currentUser = null; }
       renderAuthBtn();
+      if(currentUser && !chatHistoryLoaded){
+        chatHistoryLoaded = true;
+        window.loadChatHistory?.();
+      }
+      if(!currentUser) chatHistoryLoaded = false;
       return currentUser;
     }
     window.refreshAuthState = refreshAuthState;
@@ -1285,7 +1388,9 @@
         if(!confirm(msg)) return;
         await fetch('/api/auth/logout', { method:'POST' });
         currentUser = null;
+        chatHistoryLoaded = false;
         renderAuthBtn();
+        document.getElementById('chatThread')?.replaceChildren();
       } else {
         location.href = '/api/auth/login';
       }
@@ -1331,16 +1436,20 @@ document.querySelectorAll('.modalTabs').forEach(tabs => {
   const pathEl = document.getElementById('folderPickerPath');
   const listEl = document.getElementById('folderPickerList');
   const chooseBtn = document.getElementById('folderPickerChoose');
+  const nativePick = document.getElementById('folderNativePick');
+  const nativeInput = document.getElementById('folderNativeInput');
   let currentPath = '';
   let targetInputId = null;
+  let nativeSelection = '';
 
   async function browse(dirPath){
     listEl.innerHTML = '<div class="folderPickerEmpty">טוען…</div>';
+    if(nativePick) nativePick.style.display='none';
     try {
       const url = '/api/fs/browse' + (dirPath ? ('?path=' + encodeURIComponent(dirPath)) : '');
       const r = await fetch(url);
       const data = await r.json();
-      if (data.error) { listEl.innerHTML = '<div class="folderPickerEmpty">✗ ' + esc(data.error) + '</div>'; return; }
+      if (data.error) { listEl.innerHTML = '<div class="folderPickerEmpty">✗ ' + esc(data.error) + '</div>'; if(nativePick) nativePick.style.display=''; return; }
       currentPath = data.path || '';
       pathEl.textContent = currentPath || 'כוננים';
       const rows = [];
@@ -1351,11 +1460,14 @@ document.querySelectorAll('.modalTabs').forEach(tabs => {
       listEl.querySelectorAll('[data-nav]').forEach(row => { row.onclick = () => browse(row.dataset.nav); });
     } catch (e) {
       listEl.innerHTML = '<div class="folderPickerEmpty">✗ לא ניתן להתחבר לשרת המקומי</div>';
+      if(nativePick) nativePick.style.display='';
     }
   }
 
   function openPickerFor(inputId, startPath){
     targetInputId = inputId;
+    nativeSelection = '';
+    if(nativeInput) nativeInput.value='';
     picker.classList.add('on');
     browse(startPath || (document.getElementById(inputId) || {}).value || '');
   }
@@ -1369,12 +1481,24 @@ document.querySelectorAll('.modalTabs').forEach(tabs => {
   });
 
   chooseBtn.onclick = () => {
-    if (targetInputId && currentPath) {
+    if (targetInputId && (nativeSelection || currentPath)) {
       const input = document.getElementById(targetInputId);
-      if (input) { input.value = currentPath; input.dispatchEvent(new Event('input')); }
+      if (input) { input.value = nativeSelection || currentPath; input.dispatchEvent(new Event('input')); }
     }
     picker.classList.remove('on');
   };
+  if(nativePick && nativeInput){
+    nativePick.onclick=()=>nativeInput.click();
+    nativeInput.onchange=()=>{
+      const file = nativeInput.files?.[0];
+      const root = file?.webkitRelativePath?.split('/')[0] || file?.name || '';
+      if(!root) return;
+      nativeSelection = 'browser-folder://' + root;
+      currentPath = nativeSelection;
+      pathEl.textContent = root + ' (בחירה מהדפדפן)';
+      listEl.innerHTML = '<div class="folderPickerEmpty">✓ נבחרה תיקייה: ' + esc(root) + '<br>האתר החי שומר את הבחירה; Agent מקומי יוכל לקרוא את הקבצים.</div>';
+    };
+  }
   document.getElementById('folderPickerClose').onclick = () => picker.classList.remove('on');
   document.getElementById('folderPickerCancel').onclick = () => picker.classList.remove('on');
   picker.onclick = e => { if (e.target === picker) picker.classList.remove('on'); };
@@ -2102,7 +2226,8 @@ if(next) await fetch(B+"/api/update",{method:"POST",
   const LIBRARY_TYPES = {
     'info-site': { icon:'🌐', placeholder:'phLibrarySite' },
     'network-folder': { icon:'🗂️', placeholder:'phLibraryNetwork' },
-    'local-folder': { icon:'📁', placeholder:'phLibraryLocal' }
+    'local-folder': { icon:'📁', placeholder:'phLibraryLocal' },
+    'skill-folder': { icon:'🧩', placeholder:'phLibraryLocation' }
   };
   function libraryTypeMeta(type){ return LIBRARY_TYPES[type] || LIBRARY_TYPES['info-site']; }
   function syncLibraryEditor(){
@@ -2396,7 +2521,7 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     b.textContent='❓ עזרה';
     apiBtn.parentElement.insertBefore(b, apiBtn);
   }
-  const appVersion='1.2.9';
+  const appVersion='1.3.0';
   $('#appVersion').textContent=appVersion;
   // Seeded here too: without a local server /api/state never answers, and this would
   // otherwise keep showing whatever literal the markup was last edited with.
