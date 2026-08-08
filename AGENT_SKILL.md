@@ -11,9 +11,13 @@ The Worker stores a separate approval for each Google account and the exact sele
 - `github.list_files` is read-only.
 - `github.read_file` is read-only.
 - `github.write_file` creates a proposed complete-file replacement.
+- `github.apply_patch` creates a proposed focused patch for an existing file.
+- `github.update_version` updates the project version in the canonical project files.
 - `github.create_pull_request` is proposed together with file changes.
+- `github.deploy` merges the approved Pull Request into the configured deployment branch.
 - Write plans are stored for a short period and require explicit user approval.
 - Approved changes are written to a new `ontrack/agent-*` branch, never directly to the default branch.
+- The current ON live deployment branch is `claude/github-site-integration-fbb693`.
 - Changing the selected model invalidates the previous Agent approval until the user confirms the new destination.
 
 ## Data Boundary
@@ -32,7 +36,8 @@ The web UI can record a browser-selected local Skill folder as library metadata.
 4. Return exactly one JSON object. Do not narrate intentions with messages such as "I will read..." or "Reading..."; request the read tool in `actions`.
 5. Show the exact files and intended actions before any write.
 6. Require approval before creating a branch, commit, or Pull Request.
-7. Report the GitHub result, branch, commit, or Pull Request URL after execution.
+7. For every code change, include version update, Pull Request, and deploy actions in the same plan.
+8. Report the GitHub result, branch, commit, Pull Request URL, and deployment branch after execution.
 
 ## Anti-Stall Contract
 
@@ -49,3 +54,14 @@ or:
 ```
 
 The model must not output progress narration as the final response. ON shows progress in the UI while the request is running. If the model cannot follow the JSON contract, ON asks once for a corrected JSON response and then stops safely without executing anything.
+
+## End-To-End Contract
+
+The model must not say that a change was deployed based on a patch alone. The required sequence is:
+
+1. Read the relevant files.
+2. Propose `github.apply_patch` or `github.write_file`.
+3. Include `github.update_version` for `index.html`, `PROJECT_INFO.md`, `package.json`, and `package-lock.json`.
+4. Include `github.create_pull_request`.
+5. Include `github.deploy` targeting `claude/github-site-integration-fbb693`.
+6. Wait for the user approval and report the execution result.

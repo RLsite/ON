@@ -21,6 +21,7 @@
   // (Dashboard -> Workers & Pages -> on -> Settings -> Variables and secrets -> Add ->
   // type "Secret", name it exactly GOOGLE_CLIENT_SECRET), never committed to the repo.
   "vars": {
-    "GOOGLE_CLIENT_ID": "305824554178-lo2jkmujfab3i4p52dpvcv65lmj6vtb5.apps.googleusercontent.com"
+    "GOOGLE_CLIENT_ID": "305824554178-lo2jkmujfab3i4p52dpvcv65lmj6vtb5.apps.googleusercontent.com",
+    "DEPLOY_BRANCH": "claude/github-site-integration-fbb693"
   }
 }

@@ -382,6 +382,8 @@ Available tools:
 - github.apply_patch: prepare a small unified diff for an existing text file. Arguments: path, patch, message, branch (optional). Prefer this for existing files.
 - github.write_file: prepare a complete replacement for one new or small text file. Arguments: path, content, message.
 - github.create_pull_request: after file changes, request a Pull Request. Arguments: title, body, base (optional).
+- github.update_version: update the canonical project version files. Arguments: version, message (optional).
+- github.deploy: merge the approved Pull Request into the configured deployment branch. Arguments: branch, version.
 
 Write actions are never executed immediately. They are shown to the user and require approval.
 For any request involving a file or repository, do not claim that you completed it unless ON returns an execution result.
@@ -395,11 +397,12 @@ For an answer: {"kind":"answer","reply":"...","actions":[]}
 For work: {"kind":"plan","reply":"Short explanation in the user's language","actions":[{"tool":"github.read_file","path":"..."}]}
 Use the user's language. Keep replies concise. A write_file action must contain the full intended file content and a short commit message.
 An apply_patch action must contain a valid unified diff for one file and a short commit message. Return exactly one JSON object and no Markdown fences.
+For any code change, include all of these actions in the same plan: a file write, github.update_version, github.create_pull_request, and github.deploy. The deployment branch is claude/github-site-integration-fbb693.
 ${githubConnected && dataSharingAuthorized ? '' : 'Repository access is not authorized for this request. Explain that clearly and do not create GitHub actions.'}`;
 }
 
 function agentWriteTool(tool) {
-  return tool === 'github.write_file' || tool === 'github.apply_patch' || tool === 'github.create_pull_request';
+  return tool === 'github.write_file' || tool === 'github.apply_patch' || tool === 'github.update_version' || tool === 'github.create_pull_request' || tool === 'github.deploy';
 }
 
 function agentRepairPrompt(rawText, requestContext) {
@@ -408,6 +411,7 @@ If you need repository information, return a plan with github.read_file or githu
 If you want to change an existing file, return github.apply_patch with a small unified diff.
 If no tool is needed, return {"kind":"answer","reply":"...","actions":[]}.
 Do not say that you will read or change something; request the tool in actions instead.
+For a code change, include the source-file action, github.update_version, github.create_pull_request, and github.deploy in the same plan.
 Current user request:
 ${String(requestContext || '').slice(0, 8000)}
 Previous response:
@@ -448,8 +452,12 @@ function validateAgentPlan(plan, githubConnected) {
   if (!plan || plan.kind === 'answer') return null;
   if (!githubConnected) return 'GitHub is not connected.';
   if (!Array.isArray(plan.actions) || !plan.actions.length) return 'The model returned an empty action plan.';
-  const allowed = new Set(['github.list_files', 'github.read_file', 'github.write_file', 'github.apply_patch', 'github.create_pull_request']);
+  const allowed = new Set(['github.list_files', 'github.read_file', 'github.write_file', 'github.apply_patch', 'github.update_version', 'github.create_pull_request', 'github.deploy']);
   let hasWrite = false;
+  let hasSourceWrite = false;
+  let hasVersion = false;
+  let hasPullRequest = false;
+  let hasDeploy = false;
   for (const action of plan.actions) {
     if (!allowed.has(action.tool)) return `Unsupported agent tool: ${action.tool}`;
     if (action.tool === 'github.list_files') {
@@ -466,21 +474,39 @@ function validateAgentPlan(plan, githubConnected) {
       if (typeof action.patch !== 'string' || !action.patch.trim() || action.patch.length > 80000) return 'The proposed patch is missing or too large.';
       if (!String(action.message || '').trim() || String(action.message).length > 180) return 'The proposed commit message is missing or too long.';
       hasWrite = true;
+      hasSourceWrite = true;
     }
     if (action.tool === 'github.write_file') {
       hasWrite = true;
+      hasSourceWrite = true;
       if (typeof action.content !== 'string' || action.content.length > 300000) return 'The proposed file content is missing or too large.';
       if (!String(action.message || '').trim() || String(action.message).length > 180) return 'The proposed commit message is missing or too long.';
     }
     if (action.tool === 'github.create_pull_request') {
       hasWrite = true;
+      hasPullRequest = true;
       if (!String(action.title || '').trim() || String(action.title).length > 180) return 'The Pull Request title is missing or too long.';
       if (action.base && !safeAgentBranch(action.base)) return 'Invalid Pull Request base branch.';
+    }
+    if (action.tool === 'github.update_version') {
+      hasWrite = true;
+      hasVersion = true;
+      if (!/^\d+\.\d+\.\d+$/.test(String(action.version || '').trim())) return 'Invalid project version.';
+    }
+    if (action.tool === 'github.deploy') {
+      hasWrite = true;
+      hasDeploy = true;
+      if (action.branch && !safeAgentBranch(action.branch)) return 'Invalid deployment branch.';
+      if (!/^\d+\.\d+\.\d+$/.test(String(action.version || '').trim())) return 'Invalid deployment version.';
+      if (action.branch && action.branch !== 'claude/github-site-integration-fbb693') return 'Deployment must target the configured live branch.';
     }
   }
   if (plan.actions.some(action => action.tool === 'github.create_pull_request') && !plan.actions.some(action => action.tool === 'github.write_file' || action.tool === 'github.apply_patch')) {
     return 'A Pull Request requires at least one file change.';
   }
+  if (hasSourceWrite && !hasVersion) return 'Every code change must include github.update_version.';
+  if (hasSourceWrite && !hasPullRequest) return 'Every code change must include github.create_pull_request.';
+  if (hasSourceWrite && !hasDeploy) return 'Every code change must include github.deploy.';
   return hasWrite ? null : null;
 }
 
@@ -495,6 +521,7 @@ function publicAgentPlan(plan) {
       message: action.message || null,
       title: action.title || null,
       body: action.body ? String(action.body).slice(0, 1200) : null,
+      version: action.version || null,
       contentLength: typeof action.content === 'string' ? action.content.length : (typeof action.patch === 'string' ? action.patch.length : null)
     }))
   };
@@ -567,9 +594,55 @@ function agentToolResultsPrompt(results, requestContext) {
   return `ON executed these read-only GitHub tools. Use only these results; do not claim other access. Keep the original request in mind and return the final JSON plan now.\nOriginal user request:\n${String(requestContext || '').slice(0, 8000)}\nRead results:\n${JSON.stringify(results).slice(0, 70000)}`;
 }
 
-async function executeAgentWritePlan(config, plan, planId) {
+const LIVE_DEPLOY_BRANCH = 'claude/github-site-integration-fbb693';
+
+async function writeGithubTextFile(config, path, branch, content, message) {
+  let current = null;
+  try { current = await githubApi(config, `/contents/${githubPath(path)}?ref=${encodeURIComponent(branch)}`); }
+  catch (e) { if (e.status !== 404) throw e; }
+  const body = { message: String(message || 'Update file').trim(), content: encodeBase64Utf8(content), branch };
+  if (current?.sha) body.sha = current.sha;
+  const updated = await githubApi(config, `/contents/${githubPath(path)}`, { method: 'PUT', body: JSON.stringify(body) });
+  return { path, action: current?.sha ? 'updated' : 'created', commit: updated?.commit?.sha || null };
+}
+
+async function readGithubTextFile(config, path, branch) {
+  const file = await githubApi(config, `/contents/${githubPath(path)}?ref=${encodeURIComponent(branch)}`);
+  if (file?.type !== 'file' || typeof file.content !== 'string') throw new Error(`GitHub path is not a text file: ${path}`);
+  return decodeBase64Utf8(file.content);
+}
+
+async function updateProjectVersion(config, branch, version, message) {
+  const files = [];
+  const packageJson = JSON.parse(await readGithubTextFile(config, 'package.json', branch));
+  packageJson.version = version;
+  files.push(await writeGithubTextFile(config, 'package.json', branch, JSON.stringify(packageJson, null, 2) + '\n', message || `Bump version to ${version}`));
+
+  const packageLock = JSON.parse(await readGithubTextFile(config, 'package-lock.json', branch));
+  packageLock.version = version;
+  if (packageLock.packages && packageLock.packages['']) packageLock.packages[''].version = version;
+  files.push(await writeGithubTextFile(config, 'package-lock.json', branch, JSON.stringify(packageLock, null, 2) + '\n', message || `Bump version to ${version}`));
+
+  let html = await readGithubTextFile(config, 'index.html', branch);
+  html = html
+    .replace(/(id="verBtn"[^>]*>)[^<]*(<\/button>)/, `$1${version} ↻$2`)
+    .replace(/(id="appVersion"[^>]*>)[^<]*(<\/b>)/, `$1${version}$2`)
+    .replace(/(const appVersion\s*=\s*['"])\d+\.\d+\.\d+(['"])/, `$1${version}$2`);
+  files.push(await writeGithubTextFile(config, 'index.html', branch, html, message || `Bump version to ${version}`));
+
+  let info = await readGithubTextFile(config, 'PROJECT_INFO.md', branch);
+  if (/^Version:\s*`[^`]*`/m.test(info)) info = info.replace(/^Version:\s*`[^`]*`/m, `Version: \`${version}\``);
+  else info = `Version: \`${version}\`\n\n${info}`;
+  files.push(await writeGithubTextFile(config, 'PROJECT_INFO.md', branch, info, message || `Bump version to ${version}`));
+  return files;
+}
+
+async function executeAgentWritePlan(config, plan, planId, env) {
   const repo = await githubApi(config);
-  const baseBranch = safeAgentBranch(plan.actions.find(action => action.base)?.base) || repo.default_branch || 'main';
+  const pullAction = plan.actions.find(item => item.tool === 'github.create_pull_request');
+  const deployAction = plan.actions.find(item => item.tool === 'github.deploy');
+  const deployBranch = safeAgentBranch(deployAction?.branch) || safeAgentBranch(env?.DEPLOY_BRANCH) || LIVE_DEPLOY_BRANCH;
+  const baseBranch = safeAgentBranch(pullAction?.base) || deployBranch || repo.default_branch || 'main';
   const baseRef = await githubApi(config, `/git/ref/heads/${encodeURIComponent(baseBranch)}`);
   const branch = `ontrack/agent-${String(planId).replace(/[^a-zA-Z0-9-]/g, '').slice(0, 18)}`;
   await githubApi(config, '/git/refs', {
@@ -595,8 +668,9 @@ async function executeAgentWritePlan(config, plan, planId) {
     const updated = await githubApi(config, `/contents/${githubPath(path)}`, { method: 'PUT', body: JSON.stringify(body) });
     files.push({ path, action: current?.sha ? actionName : 'created', commit: updated?.commit?.sha || null });
   }
+  const versionAction = plan.actions.find(item => item.tool === 'github.update_version');
+  if (versionAction) files.push(...await updateProjectVersion(config, branch, String(versionAction.version).trim(), versionAction.message));
   let pullRequest = null;
-  const pullAction = plan.actions.find(item => item.tool === 'github.create_pull_request');
   if (pullAction) {
     const pr = await githubApi(config, '/pulls', {
       method: 'POST',
@@ -609,7 +683,18 @@ async function executeAgentWritePlan(config, plan, planId) {
     });
     pullRequest = { number: pr.number, url: pr.html_url, title: pr.title };
   }
-  return { branch, baseBranch, files, pullRequest };
+  let deployment = null;
+  if (deployAction) {
+    if (!pullRequest?.number) throw new Error('Deployment requires a created Pull Request.');
+    if (deployBranch !== baseBranch) throw new Error('Deployment branch and Pull Request base do not match.');
+    const merge = await githubApi(config, `/pulls/${pullRequest.number}/merge`, {
+      method: 'PUT',
+      body: JSON.stringify({ merge_method: 'merge', commit_title: `Deploy ON TracK ${deployAction.version}` })
+    });
+    if (!merge?.merged) throw new Error(merge?.message || 'Pull Request was not merged; deployment did not start.');
+    deployment = { branch: deployBranch, version: deployAction.version, merged: true, commit: merge.sha || null };
+  }
+  return { branch, baseBranch, files, pullRequest, deployment };
 }
 
 async function handleAgentApproval(request, env, uid) {
@@ -628,7 +713,7 @@ async function handleAgentApproval(request, env, uid) {
   const config = await loadGithubConfig(env, uid);
   if (!config.enabled || !config.owner || !config.repo || !config.token) return json({ error: 'GitHub is not connected for this account.' }, 400);
   try {
-    const result = await executeAgentWritePlan(config, stored.plan, planId);
+    const result = await executeAgentWritePlan(config, stored.plan, planId, env);
     return json({ ok: true, result });
   } catch (e) {
     return json({ error: e.message || 'GitHub write failed.' }, e.status === 401 || e.status === 403 ? 502 : 502);
