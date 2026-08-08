@@ -185,6 +185,29 @@
   .modal{display:none;position:fixed;inset:0;background:rgba(50,54,78,.34);z-index:50;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto;backdrop-filter:blur(2px)}
   .modal.on{display:flex}
   .modal-card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;max-width:640px;width:100%;box-shadow:var(--shadow-md)}
+  .modal-card.wide{max-width:720px}
+  .modalTabs{display:flex;gap:6px;border-bottom:1px solid var(--line);margin:12px 0 0;flex-wrap:wrap}
+  .modalTabBtn{border:none;background:transparent;color:var(--muted);font:inherit;font-size:13.5px;font-weight:700;padding:9px 12px;border-radius:10px 10px 0 0;cursor:pointer;transition:.15s;border-bottom:2px solid transparent;margin-bottom:-1px}
+  .modalTabBtn:hover{color:var(--txt);background:var(--panel2)}
+  .modalTabBtn.on{color:var(--accent);border-bottom-color:var(--accent);background:var(--panel2)}
+  .modalTabPanel{display:none;padding-top:14px}
+  .modalTabPanel.on{display:block}
+  .pathPickRow{display:flex;gap:8px;align-items:stretch}
+  .pathPickRow input[type=text]{flex:1}
+  .pathPickBtn{border:1px solid var(--line);background:var(--panel2);color:var(--txt);padding:0 12px;border-radius:10px;cursor:pointer;font:inherit;font-size:13px;font-weight:700;white-space:nowrap;transition:.15s}
+  .pathPickBtn:hover{border-color:var(--accent);color:var(--accent)}
+  .folderPicker{position:fixed;inset:0;background:rgba(50,54,78,.34);z-index:60;display:none;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(2px)}
+  .folderPicker.on{display:flex}
+  .folderPickerCard{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow-md);width:100%;max-width:520px;max-height:70vh;display:flex;flex-direction:column;overflow:hidden}
+  .folderPickerHead{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)}
+  .folderPickerHead b{font-size:15px}
+  .folderPickerPath{padding:8px 16px;font-size:12px;color:var(--muted);direction:ltr;text-align:left;word-break:break-all;background:var(--panel2);border-bottom:1px solid var(--line)}
+  .folderPickerList{flex:1;overflow:auto;padding:6px}
+  .folderPickerItem{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:10px;cursor:pointer;font-size:13.5px}
+  .folderPickerItem:hover{background:var(--panel2)}
+  .folderPickerItem.up{color:var(--muted)}
+  .folderPickerEmpty{color:var(--muted);font-size:13px;padding:16px;text-align:center}
+  .folderPickerFoot{display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid var(--line)}
   .settingsGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
   @media (max-width:860px){.appShell{grid-template-columns:1fr}.sideRail{position:relative;height:auto;border-inline-end:none;border-bottom:1px solid var(--line)}.appMain{padding:12px}.settingsGrid{grid-template-columns:1fr}}
   .settingCard{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:12px}
@@ -305,6 +328,10 @@
   .composerBar input{border:none;outline:none;background:transparent;flex:1;font:inherit;font-size:15px;color:var(--txt)}
   .roundBtn{width:44px;height:44px;border-radius:50%;border:none;background:#111827;color:#fff;cursor:pointer}
   .miniBtn{border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:10px 12px;cursor:pointer;font:inherit}
+  .miniBtn.iconBtn{position:relative;display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;padding:0;font-size:18px;line-height:1}
+  .ledDot{position:absolute;top:6px;inset-inline-end:6px;width:8px;height:8px;border-radius:50%;background:#c9ccdb;border:1.5px solid var(--panel);box-shadow:0 0 0 1px rgba(0,0,0,.05)}
+  .ledDot.ok{background:#2fae66}
+  .ledDot.fail{background:#e35b5b}
 </style>
 </head>
 <body>
@@ -334,11 +361,11 @@
     <div class="newTop">
       <div class="title" data-i18n="topTitle">Workspace</div>
       <div class="actions">
-        <button class="miniBtn" id="newLangBtn">עברית / EN</button>
-        <button class="miniBtn" id="newSettingsBtn" data-i18n="settingsBtn">הגדרות</button>
-        <button class="miniBtn" id="newHelpBtn" data-i18n="helpBtn">עזרה</button>
-        <button class="miniBtn" id="newGithubBtn" data-i18n="githubDockBtn">חיבור ל GitHub</button>
-        <button class="miniBtn" id="newModelBtn" data-i18n="modelDockBtn">חיבור למודל</button>
+        <button class="miniBtn iconBtn" id="newLangBtn" title="עברית / EN">🌐</button>
+        <button class="miniBtn iconBtn" id="newSettingsBtn" title="הגדרות">⚙️</button>
+        <button class="miniBtn iconBtn" id="newHelpBtn" title="עזרה">❓</button>
+        <button class="miniBtn iconBtn" id="newGithubBtn" title="חיבור ל GitHub">🔗<span class="ledDot" id="newGithubLed"></span></button>
+        <button class="miniBtn iconBtn" id="newModelBtn" title="חיבור למודל">🤖<span class="ledDot" id="newModelLed"></span></button>
       </div>
     </div>
     <div class="newContent">
@@ -354,7 +381,7 @@
       <section class="docPanel">
         <div class="docHeader">
           <div class="docTitle" data-i18n="docTitle">Project Info</div>
-          <span class="hint" id="docVersion">v0.4.1</span>
+          <span class="hint" id="docVersion">v0.5.0</span>
         </div>
         <div class="docBody" id="docBody">
           <ul>
@@ -379,7 +406,7 @@
       <aside class="sideCard">
         <h3 data-i18n="quickStats">Quick Status</h3>
         <div class="heroStatRow"><span data-i18n="statusLabel">Status</span><b id="miniStatus">Fresh start</b></div>
-        <div class="heroStatRow"><span data-i18n="versionLabel">Version</span><button type="button" class="verBtn" id="verBtn" title="לחץ לבדיקת גרסה מול השרת">0.4.1 ↻</button></div>
+        <div class="heroStatRow"><span data-i18n="versionLabel">Version</span><button type="button" class="verBtn" id="verBtn" title="לחץ לבדיקת גרסה מול השרת">0.5.0 ↻</button></div>
         <div class="heroStatRow"><span data-i18n="langLabel">Language</span><b id="langLabel">Hebrew</b></div>
       </aside>
     </div>
@@ -429,7 +456,7 @@
         <div class="settingsGrid">
           <div class="settingCard">
             <b>גרסת פרויקט</b>
-            <div class="hint" id="settingsVersion">0.4.1</div>
+            <div class="hint" id="settingsVersion">0.5.0</div>
           </div>
           <div class="settingCard">
             <b>מצב נוכחי</b>
@@ -568,62 +595,94 @@
   </div>
 
   <div class="modal" id="githubModal">
-    <div class="modal-card">
+    <div class="modal-card wide">
       <div class="modal-head">
         <b>🔗 חיבור GitHub</b>
         <button class="icon" id="githubClose">✕</button>
       </div>
-      <p class="hint">חיבור לריפו GitHub — לצפייה ב-issues פתוחים הקשורים לבדיקות, וליצירת issue ישירות מבדיקה שנכשלה (FAIL).</p>
-      <label style="display:flex;align-items:center;gap:8px;margin-top:14px">
-        <input type="checkbox" id="ghEnabled" style="width:16px;height:16px">
-        חיבור GitHub פעיל
-      </label>
-      <label>Owner (משתמש/ארגון)</label>
-      <input type="text" id="ghOwner" placeholder="לדוגמה: harel" style="direction:ltr;text-align:left">
-      <label>שם הריפו</label>
-      <input type="text" id="ghRepo" placeholder="לדוגמה: my-project" style="direction:ltr;text-align:left">
-      <label>Personal Access Token</label>
-      <input type="password" id="ghToken" placeholder="ghp_…">
-      <div class="hint" id="ghTokenStatus" style="margin-top:4px"></div>
-      <div id="ghTokenSaved" style="display:none;margin-top:6px;font-size:13px;color:#3a9c75;font-weight:700">✓ טוקן שמור — לא צריך להזין שוב</div>
-      <div class="editrow" style="margin-top:14px">
-        <button class="add" id="ghSave">שמור</button>
-        <button class="act" id="ghTest">🔌 בדוק חיבור</button>
-        <button class="act" id="ghLoadIssues">רענן issues פתוחים</button>
-        <span class="hint" id="ghSaveStatus"></span>
+      <div class="modalTabs" role="tablist">
+        <button class="modalTabBtn on" data-modaltab="ghTabGithub" role="tab" aria-selected="true">🔗 חיבור GitHub</button>
+        <button class="modalTabBtn" data-modaltab="ghTabLocal" role="tab" aria-selected="false">📁 תיקיית קוד מקומית</button>
+        <button class="modalTabBtn" data-modaltab="ghTabPreview" role="tab" aria-selected="false">🖥️ דפדפן מקומי</button>
       </div>
-      <div id="ghStatusBox" class="hint" style="margin-top:10px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);display:none"></div>
-      <hr class="sep">
-      <label>Issues פתוחים</label>
-      <div id="ghIssuesList" class="hint">—</div>
-      <hr class="sep">
-      <label>📁 תיקיית קוד מקומית (הקשר למודל)</label>
-      <p class="hint" style="margin-bottom:6px">נתיב לתיקיית הקוד של הפרויקט על הדיסק (למשל של אלון). כשמוגדר, הרצת המודל החיצוני תכלול את מבנה הקבצים ותוכן קבצים רלוונטיים — כדי שיבצע <b>ניתוח קוד אמיתי</b>, לא רק ניחוש. מהיר יותר מ-GitHub ותמיד עדכני.</p>
-      <input type="text" id="localPath" placeholder="C:\\harel\\...\\alon" style="direction:ltr;text-align:left">
-      <div class="editrow" style="margin-top:10px">
-        <button class="add" id="localSave">שמור</button>
-        <span class="hint" id="localStatus"></span>
+
+      <div class="modalTabPanel on" id="ghTabGithub" role="tabpanel">
+        <p class="hint">חיבור לריפו GitHub — לצפייה ב-issues פתוחים הקשורים לבדיקות, וליצירת issue ישירות מבדיקה שנכשלה (FAIL).</p>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:14px">
+          <input type="checkbox" id="ghEnabled" style="width:16px;height:16px">
+          חיבור GitHub פעיל
+        </label>
+        <label>Owner (משתמש/ארגון)</label>
+        <input type="text" id="ghOwner" placeholder="לדוגמה: harel" style="direction:ltr;text-align:left">
+        <label>שם הריפו</label>
+        <input type="text" id="ghRepo" placeholder="לדוגמה: my-project" style="direction:ltr;text-align:left">
+        <label>Personal Access Token</label>
+        <input type="password" id="ghToken" placeholder="ghp_…">
+        <div class="hint" id="ghTokenStatus" style="margin-top:4px"></div>
+        <div id="ghTokenSaved" style="display:none;margin-top:6px;font-size:13px;color:#3a9c75;font-weight:700">✓ טוקן שמור — לא צריך להזין שוב</div>
+        <div class="editrow" style="margin-top:14px">
+          <button class="add" id="ghSave">שמור</button>
+          <button class="act" id="ghTest">🔌 בדוק חיבור</button>
+          <button class="act" id="ghLoadIssues">רענן issues פתוחים</button>
+          <span class="hint" id="ghSaveStatus"></span>
+        </div>
+        <div id="ghStatusBox" class="hint" style="margin-top:10px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);display:none"></div>
+        <hr class="sep">
+        <label>Issues פתוחים</label>
+        <div id="ghIssuesList" class="hint">—</div>
       </div>
-      <hr class="sep">
-      <label>🖥️ דפדפן מקומי — כתובת האתר לבדיקה</label>
-      <p class="hint" style="margin-bottom:6px">כתובת האפליקציה לבדיקה (למשל <code dir=ltr>https://alon.rlapp.net</code> או <code dir=ltr>http://localhost:3000</code>). כשמוגדר, הכלי טוען את הדף ב-Chrome המקומי שלו וקורא DOM + שגיאות קונסול + בקשות שנכשלו — <b>מצב הדף החי</b> מוזן למודל (בדיקה דינמית, בלי תלות בסשן Claude).</p>
-      <input type="text" id="previewBase" placeholder="https://alon.rlapp.net" style="direction:ltr;text-align:left">
-      <div class="editrow" style="margin-top:10px">
-        <button class="add" id="previewSave">שמור</button>
-        <span class="hint" id="previewCfgStatus"></span>
+
+      <div class="modalTabPanel" id="ghTabLocal" role="tabpanel">
+        <label>📁 תיקיית קוד מקומית (הקשר למודל)</label>
+        <p class="hint" style="margin-bottom:6px">נתיב לתיקיית הקוד של הפרויקט על הדיסק (למשל של אלון). כשמוגדר, הרצת המודל החיצוני תכלול את מבנה הקבצים ותוכן קבצים רלוונטיים — כדי שיבצע <b>ניתוח קוד אמיתי</b>, לא רק ניחוש. מהיר יותר מ-GitHub ותמיד עדכני.</p>
+        <div class="pathPickRow">
+          <input type="text" id="localPath" placeholder="C:\harel\...\alon" style="direction:ltr;text-align:left">
+          <button class="pathPickBtn" id="localPathPick" type="button">📂 בחר תיקייה…</button>
+        </div>
+        <div class="hint" id="localPathPickHint" style="margin-top:4px"></div>
+        <div class="editrow" style="margin-top:10px">
+          <button class="add" id="localSave">שמור</button>
+          <span class="hint" id="localStatus"></span>
+        </div>
       </div>
-      <hr class="sep">
-      <label>🟢 שרת מקומי לאפליקציה (הכלי מפעיל/עוצר)</label>
-      <p class="hint" style="margin-bottom:6px">הכלי יכול להפעיל את האפליקציה מקומית לבדיקה — בלי לגעת באתר החי. הזן תיקייה ופורט (ברירת מחדל: אלון על 2500), לחץ הפעל, והכתובת לבדיקה מתעדכנת אוטומטית. <b>הערה:</b> שרת סטטי — ה-functions של Cloudflare (API צד-שרת) לא ירוצו; ה-UI והזרימות כן.</p>
-      <div class="editrow">
-        <input type="text" id="lsDir" placeholder="C:\\harel\\RLAPP ON RL\\ALON" style="direction:ltr;text-align:left;flex:2">
-        <input type="text" id="lsPort" placeholder="2500" style="direction:ltr;text-align:left;flex:none;width:90px">
+
+      <div class="modalTabPanel" id="ghTabPreview" role="tabpanel">
+        <label>🖥️ דפדפן מקומי — כתובת האתר לבדיקה</label>
+        <p class="hint" style="margin-bottom:6px">כתובת האפליקציה לבדיקה (למשל <code dir=ltr>https://alon.rlapp.net</code> או <code dir=ltr>http://localhost:3000</code>). כשמוגדר, הכלי טוען את הדף ב-Chrome המקומי שלו וקורא DOM + שגיאות קונסול + בקשות שנכשלו — <b>מצב הדף החי</b> מוזן למודל (בדיקה דינמית, בלי תלות בסשן Claude).</p>
+        <input type="text" id="previewBase" placeholder="https://alon.rlapp.net" style="direction:ltr;text-align:left">
+        <div class="editrow" style="margin-top:10px">
+          <button class="add" id="previewSave">שמור</button>
+          <span class="hint" id="previewCfgStatus"></span>
+        </div>
+        <hr class="sep">
+        <label>🟢 שרת מקומי לאפליקציה (הכלי מפעיל/עוצר)</label>
+        <p class="hint" style="margin-bottom:6px">הכלי יכול להפעיל את האפליקציה מקומית לבדיקה — בלי לגעת באתר החי. הזן תיקייה ופורט (ברירת מחדל: אלון על 2500), לחץ הפעל, והכתובת לבדיקה מתעדכנת אוטומטית. <b>הערה:</b> שרת סטטי — ה-functions של Cloudflare (API צד-שרת) לא ירוצו; ה-UI והזרימות כן.</p>
+        <div class="pathPickRow">
+          <input type="text" id="lsDir" placeholder="C:\harel\RLAPP ON RL\ALON" style="direction:ltr;text-align:left;flex:2">
+          <button class="pathPickBtn" id="lsDirPick" type="button">📂 בחר תיקייה…</button>
+          <input type="text" id="lsPort" placeholder="2500" style="direction:ltr;text-align:left;flex:none;width:90px">
+        </div>
+        <div class="editrow" style="margin-top:10px">
+          <button class="add" id="lsStart">🟢 הפעל שרת</button>
+          <button class="act" id="lsStop">🔴 עצור</button>
+          <a id="lsOpen" class="act" href="#" target="_blank" style="display:none;text-decoration:none">↗ פתח בדפדפן</a>
+          <span class="hint" id="lsStatus"></span>
+        </div>
       </div>
-      <div class="editrow" style="margin-top:10px">
-        <button class="add" id="lsStart">🟢 הפעל שרת</button>
-        <button class="act" id="lsStop">🔴 עצור</button>
-        <a id="lsOpen" class="act" href="#" target="_blank" style="display:none;text-decoration:none">↗ פתח בדפדפן</a>
-        <span class="hint" id="lsStatus"></span>
+    </div>
+  </div>
+
+  <div class="folderPicker" id="folderPicker">
+    <div class="folderPickerCard">
+      <div class="folderPickerHead">
+        <b>📂 בחירת תיקייה</b>
+        <button class="icon" id="folderPickerClose" type="button">✕</button>
+      </div>
+      <div class="folderPickerPath" id="folderPickerPath">—</div>
+      <div class="folderPickerList" id="folderPickerList"></div>
+      <div class="folderPickerFoot">
+        <button class="act" id="folderPickerCancel" type="button">ביטול</button>
+        <button class="add" id="folderPickerChoose" type="button">בחר תיקייה זו</button>
       </div>
     </div>
   </div>
@@ -747,9 +806,84 @@
 // UI's buttons. Re-parent them to <body> once, up front, so they render as normal fixed-position
 // overlays regardless of the legacy shell's visibility.
 (function relocateModalsOutOfHiddenShell(){
-  ['settingsModal','helpModal','modelModal','githubModal','previewModal','apiModal','newCheckModal']
+  ['settingsModal','helpModal','modelModal','githubModal','previewModal','apiModal','newCheckModal','folderPicker']
     .forEach(id => { const el = document.getElementById(id); if (el) document.body.appendChild(el); });
 })();
+
+// Generic tab switching for any modal that uses .modalTabs / .modalTabBtn / .modalTabPanel
+// (currently used by the GitHub modal: GitHub connection / local code folder / local browser).
+document.querySelectorAll('.modalTabs').forEach(tabs => {
+  const card = tabs.closest('.modal-card');
+  tabs.querySelectorAll('.modalTabBtn').forEach(btn => {
+    btn.onclick = () => {
+      tabs.querySelectorAll('.modalTabBtn').forEach(b => { b.classList.remove('on'); b.setAttribute('aria-selected','false'); });
+      btn.classList.add('on'); btn.setAttribute('aria-selected','true');
+      const targetId = btn.dataset.modaltab;
+      card.querySelectorAll('.modalTabPanel').forEach(p => p.classList.toggle('on', p.id === targetId));
+    };
+  });
+});
+
+// Server-side folder browser: browsers refuse to expose real OS paths from an <input type=file>
+// picker, so a real "choose folder" experience for a local-first tool has to ask the server
+// (which runs on the user's own machine) to list real directories. This powers every "בחר
+// תיקייה…" button — it opens a shared dialog, lets the user click through real folders on disk,
+// and writes the chosen absolute path back into whichever text input requested it.
+(function folderPickerInit(){
+  const picker = document.getElementById('folderPicker');
+  if (!picker) return;
+  const pathEl = document.getElementById('folderPickerPath');
+  const listEl = document.getElementById('folderPickerList');
+  const chooseBtn = document.getElementById('folderPickerChoose');
+  let currentPath = '';
+  let targetInputId = null;
+
+  async function browse(dirPath){
+    listEl.innerHTML = '<div class="folderPickerEmpty">טוען…</div>';
+    try {
+      const url = '/api/fs/browse' + (dirPath ? ('?path=' + encodeURIComponent(dirPath)) : '');
+      const r = await fetch(url);
+      const data = await r.json();
+      if (data.error) { listEl.innerHTML = '<div class="folderPickerEmpty">✗ ' + esc(data.error) + '</div>'; return; }
+      currentPath = data.path || '';
+      pathEl.textContent = currentPath || 'כוננים';
+      const rows = [];
+      if (data.parent) rows.push(`<div class="folderPickerItem up" data-nav="${esc(data.parent)}">⬆️ תיקייה למעלה</div>`);
+      if (!data.entries.length) rows.push('<div class="folderPickerEmpty">אין תת-תיקיות כאן</div>');
+      else data.entries.forEach(en => rows.push(`<div class="folderPickerItem" data-nav="${esc(en.path)}">📁 ${esc(en.name)}</div>`));
+      listEl.innerHTML = rows.join('');
+      listEl.querySelectorAll('[data-nav]').forEach(row => { row.onclick = () => browse(row.dataset.nav); });
+    } catch (e) {
+      listEl.innerHTML = '<div class="folderPickerEmpty">✗ לא ניתן להתחבר לשרת המקומי</div>';
+    }
+  }
+
+  function openPickerFor(inputId, startPath){
+    targetInputId = inputId;
+    picker.classList.add('on');
+    browse(startPath || (document.getElementById(inputId) || {}).value || '');
+  }
+
+  document.querySelectorAll('.pathPickBtn').forEach(btn => {
+    btn.onclick = () => {
+      const row = btn.closest('.pathPickRow');
+      const input = row ? row.querySelector('input[type=text]') : null;
+      openPickerFor(input ? input.id : null, input ? input.value : '');
+    };
+  });
+
+  chooseBtn.onclick = () => {
+    if (targetInputId && currentPath) {
+      const input = document.getElementById(targetInputId);
+      if (input) { input.value = currentPath; input.dispatchEvent(new Event('input')); }
+    }
+    picker.classList.remove('on');
+  };
+  document.getElementById('folderPickerClose').onclick = () => picker.classList.remove('on');
+  document.getElementById('folderPickerCancel').onclick = () => picker.classList.remove('on');
+  picker.onclick = e => { if (e.target === picker) picker.classList.remove('on'); };
+})();
+
 const ST = {
   open:      {icon:'⬜', label:'לא בוצע'},
   in_progress:{icon:'⏳', label:'בעבודה'},
@@ -870,13 +1004,23 @@ function connDot(ok){ return `<span class="cdot" style="background:${ok?'var(--p
     const m = modelsState.models.find(x=>x.id===modelsState.selectedId);
     const modelOk = !!(m && (m.builtin || m.hasKey)); // built-in Claude is always available; external needs a key
     $('#modelBtn').innerHTML = connDot(modelOk)+' 🤖 '+esc(selectedModelLabel()||'בחירת מודל');
+    setLed('#newModelLed', modelOk);
     // The prominent header trigger only makes sense for an external model that can be woken by API.
   const runBtn=$('#agentRunTop');
   if(runBtn) runBtn.style.display = (m && !m.builtin && m.hasKey) ? '' : 'none';
     try{
       const { data: g } = await fetchJsonSafe('/api/github/status');
-      $('#githubBtn').innerHTML = connDot(!!(g && g.ok))+' 🔗 GitHub';
-    }catch{ $('#githubBtn').innerHTML = connDot(false)+' 🔗 GitHub'; }
+      const ghOk = !!(g && g.ok);
+      $('#githubBtn').innerHTML = connDot(ghOk)+' 🔗 GitHub';
+      setLed('#newGithubLed', ghOk);
+    }catch{ $('#githubBtn').innerHTML = connDot(false)+' 🔗 GitHub'; setLed('#newGithubLed', false); }
+  }
+  // LED dot on the icon-only top-bar buttons: green = connected, red = not connected.
+  function setLed(sel, ok){
+    const el = $(sel);
+    if(!el) return;
+    el.classList.remove('ok','fail');
+    el.classList.add(ok ? 'ok' : 'fail');
   }
   function setMvpChip(id, state, label){
     const el = $(id);
@@ -1385,11 +1529,11 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     if($('#modelBtn')) $('#modelBtn').textContent = I18N[uiLang].modelBtn;
     if($('#lsHeaderBtn')) $('#lsHeaderBtn').textContent = I18N[uiLang].startServer;
     if($('#langBtn')) $('#langBtn').textContent = uiLang === 'en' ? 'English / HE' : 'עברית / EN';
-    if($('#newLangBtn')) $('#newLangBtn').textContent = uiLang === 'en' ? 'English / HE' : 'עברית / EN';
-    if($('#newSettingsBtn')) $('#newSettingsBtn').textContent = I18N[uiLang].settingsBtn;
-    if($('#newHelpBtn')) $('#newHelpBtn').textContent = I18N[uiLang].helpBtn;
-    if($('#newGithubBtn')) $('#newGithubBtn').textContent = I18N[uiLang].githubDockBtn;
-    if($('#newModelBtn')) $('#newModelBtn').textContent = I18N[uiLang].modelDockBtn;
+    if($('#newLangBtn')) $('#newLangBtn').title = uiLang === 'en' ? 'English / HE' : 'עברית / EN';
+    if($('#newSettingsBtn')) $('#newSettingsBtn').title = I18N[uiLang].settingsBtn;
+    if($('#newHelpBtn')) $('#newHelpBtn').title = I18N[uiLang].helpBtn;
+    if($('#newGithubBtn')) $('#newGithubBtn').title = I18N[uiLang].githubDockBtn;
+    if($('#newModelBtn')) $('#newModelBtn').title = I18N[uiLang].modelDockBtn;
     if($('#heroStart')) $('#heroStart').textContent = uiLang === 'en' ? 'Start new project' : 'פרויקט חדש';
     if($('#heroDocs')) $('#heroDocs').textContent = uiLang === 'en' ? 'Open docs' : 'פתח תיעוד';
     if($('#heroConnect')) $('#heroConnect').textContent = uiLang === 'en' ? 'Connect model' : 'חיבור למודל';
@@ -1477,7 +1621,7 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     b.textContent='❓ עזרה';
     apiBtn.parentElement.insertBefore(b, apiBtn);
   }
-  const appVersion='0.4.1';
+  const appVersion='0.5.0';
   $('#appVersion').textContent=appVersion;
   if($('#docVersion')) $('#docVersion').textContent='v'+appVersion;
   // Seeded here too: without a local server /api/state never answers, and this would

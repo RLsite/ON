@@ -6,6 +6,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { spawn } = require('child_process');
 // Optional: local preview browser engine. Absent until `npm install puppeteer-core` is run.
 let puppeteer = null;
@@ -129,7 +130,7 @@ function saveGhConfig() { fs.writeFileSync(GITHUB_CONFIG_FILE, JSON.stringify(gh
 function reloadGhConfig() { ghConfig = loadGhConfig(); }
 
 const DEFAULT_PROJECT_STATE = {
-  version: '0.4.1',
+  version: '0.5.0',
   title: 'QA Project',
   status: 'MVP in progress',
   goal: 'Build a structured local workspace for model-assisted project work.',
@@ -1655,6 +1656,43 @@ const server = http.createServer(async (req, res) => {
       if (ok) { const f = []; walkLocal(localRepo.path, localRepo.path, f, 400); fileCount = f.length; }
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ ok: true, path: localRepo.path, exists: ok, fileCount }));
+    }
+
+    // --- server-side folder browser (real "open folder" dialog, since browsers never expose
+    // real OS paths from a file picker). Lists subfolders of a given directory (or drives / home
+    // on first call) so the UI can offer point-and-click navigation instead of manual path typing.
+    if (p === '/api/fs/browse' && req.method === 'GET') {
+      const reqPath = u.searchParams.get('path') || '';
+      try {
+        let dir = reqPath;
+        if (!dir) {
+          // No path yet: on Windows, list available drives; elsewhere, start at the home folder.
+          if (process.platform === 'win32') {
+            const drives = [];
+            for (let c = 65; c <= 90; c++) {
+              const letter = String.fromCharCode(c) + ':\\';
+              try { if (fs.statSync(letter).isDirectory()) drives.push(letter); } catch {}
+            }
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ path: '', parent: null, entries: drives.map(d => ({ name: d, path: d })) }));
+          }
+          dir = os.homedir();
+        }
+        const stat = fs.statSync(dir);
+        if (!stat.isDirectory()) throw new Error('not a directory');
+        const names = fs.readdirSync(dir, { withFileTypes: true });
+        const entries = names
+          .filter(d => d.isDirectory() && !d.name.startsWith('.') && d.name !== 'node_modules')
+          .map(d => ({ name: d.name, path: path.join(dir, d.name) }))
+          .sort((a, b) => a.name.localeCompare(b.name, 'he'));
+        const parentDir = path.dirname(dir);
+        const parent = parentDir !== dir ? parentDir : null;
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ path: dir, parent, entries }));
+      } catch (e) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: e.message || 'נתיב לא תקין' }));
+      }
     }
 
     // --- local preview browser: config + capture ---
