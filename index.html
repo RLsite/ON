@@ -21,12 +21,13 @@
     --shadow-md:0 8px 24px rgba(15,23,42,.08), 0 2px 6px rgba(15,23,42,.05);
   }
   body[data-theme="dark"]{
-    --bg:#0b1220; --panel:#111827; --panel2:#172033; --line:#253047;
-    --txt:#e5eefc; --muted:#9ca3af; --accent:#60a5fa; --accent2:#3b82f6; --accent-tint:#17284a;
-    --open:#94a3b8; --prog:#f59e0b; --partial:#fb923c; --done:#34d399; --flag:#fb7185; --hold:#a78bfa;
-    --pass:#34d399; --fail:#fb7185;
-    --pass-tint:#0f2a22; --fail-tint:#2a1117; --hold-tint:#20183b; --await-tint:#2a2113; --await-line:#f59e0b;
-    --viz-grid:#152338; --viz-axis:#26344f;
+    /* Warm charcoal surfaces keep the dark theme aligned with the light shell. */
+    --bg:#171412; --panel:#211b18; --panel2:#2a221d; --line:#4a382c;
+    --txt:#f5ebe3; --muted:#b9a99c; --accent:#e9a06f; --accent2:#d9874e; --accent-tint:#3b2b25;
+    --open:#b6aaa1; --prog:#f3ba62; --partial:#f3a36d; --done:#58c99a; --flag:#ff7d87; --hold:#c3a0ed;
+    --pass:#58c99a; --fail:#ff7d87;
+    --pass-tint:#17382d; --fail-tint:#402126; --hold-tint:#2f2540; --await-tint:#3b2b1d; --await-line:#f3ba62;
+    --viz-grid:#382b23; --viz-axis:#5a4434;
     --shadow-sm:0 1px 2px rgba(0,0,0,.24), 0 1px 3px rgba(0,0,0,.16);
     --shadow-md:0 8px 24px rgba(0,0,0,.30), 0 2px 6px rgba(0,0,0,.16);
     color-scheme: dark;
@@ -43,7 +44,7 @@
   .brandName{font-weight:800;font-size:18px;line-height:1.1}
   .brandSub{font-size:12px;color:var(--muted)}
   .railSection{display:flex;flex-direction:column;gap:8px}
-  .railTitle{padding:0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:#8b6a53;font-weight:800}
+  .railTitle{padding:0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--accent2);font-weight:800}
   .railItem{border:1px solid transparent;background:transparent;color:var(--txt);padding:11px 12px;border-radius:14px;cursor:pointer;font:inherit;text-align:start;transition:.15s}
   .railItem:hover{background:var(--panel);border-color:var(--line)}
   .railItem.on{background:var(--panel);border-color:var(--line);box-shadow:var(--shadow-sm)}
@@ -318,15 +319,17 @@
   .sidebarResizer:hover::after,.sidebarResizer:active::after{height:72px;background:var(--accent)}
   body.isResizing,body.isResizing *{cursor:col-resize !important;user-select:none !important}
   .newMain{min-width:0;display:flex;flex-direction:column}
-  .newTop{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border-bottom:1px solid var(--line);background:rgba(255,253,249,.8);backdrop-filter:blur(10px);position:sticky;top:0;z-index:10}
+  .newTop{display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:16px 18px;border-bottom:1px solid var(--line);background:rgba(255,253,249,.8);backdrop-filter:blur(10px);position:sticky;top:0;z-index:10}
+  body[data-theme="dark"] .newTop{background:rgba(23,20,18,.9)}
   .newTop .title{font-size:18px;font-weight:800}
   .newTop .actions{display:flex;gap:8px;flex-wrap:wrap}
-  .newContent{padding:22px;display:grid;grid-template-columns:minmax(0,1.4fr) minmax(320px,.9fr);gap:18px;align-items:start}
+  .newContent{padding:22px;display:grid;grid-template-columns:minmax(0,1fr);gap:18px;align-items:start}
   @media (max-width:1020px){.newContent{grid-template-columns:1fr}.newShell{grid-template-columns:1fr}.newSidebar{border-inline-end:none;border-bottom:1px solid var(--line)}.sidebarResizer{display:none}}
   .chatPanel,.sideCard{background:var(--panel);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow-sm)}
   .sideCard{padding:14px}
+  .quickStatusCard{margin-top:auto}
   .sideCardHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
-  .sideCard h3{margin:0;font-size:13px;color:#8b6a53;text-transform:uppercase;letter-spacing:.12em}
+  .sideCard h3{margin:0;font-size:13px;color:var(--accent2);text-transform:uppercase;letter-spacing:.12em}
   .projectAddBtn{width:30px;height:30px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--accent);font:inherit;font-size:21px;line-height:1;cursor:pointer;display:grid;place-items:center;transition:.15s}
   .projectAddBtn:hover{background:var(--accent);border-color:var(--accent);color:#fff}
   .projectEditor{display:none;flex-direction:column;gap:8px;padding:10px;margin-bottom:10px;background:var(--panel2);border:1px solid var(--line);border-radius:14px}
@@ -342,6 +345,9 @@
   .projectMenuWrap{position:relative;flex:none}
   .projectMenuBtn{width:30px;height:30px;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--muted);font:inherit;font-size:18px;line-height:1;cursor:pointer;display:grid;place-items:center}
   .projectMenuBtn:hover,.projectMenuBtn.on{background:var(--panel2);border-color:var(--line);color:var(--txt)}
+  .menuDots{display:block;transform:rotate(90deg);line-height:1}
+  .libraryIdentity{display:flex;align-items:center;gap:7px;min-width:0;overflow:hidden}
+  .libraryIcon{width:20px;flex:none;text-align:center;font-size:16px}
   .projectMenu{display:none;position:absolute;z-index:20;top:34px;inset-inline-end:0;min-width:140px;padding:5px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-md)}
   .projectMenu.on{display:flex;flex-direction:column;gap:2px}
   .projectMenu button{border:0;border-radius:8px;background:transparent;color:var(--txt);padding:8px 10px;font:inherit;font-size:13px;text-align:start;cursor:pointer;white-space:nowrap}
@@ -361,6 +367,15 @@
   .chatBubble.pending .meta{opacity:.7}
   .chatBubble.err{background:var(--fail-tint);border-color:var(--fail)}
   .composerBar{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:22px;padding:12px 14px;box-shadow:var(--shadow-sm)}
+  .chatAttachBtn{flex:none}
+  .chatImagePreview{display:none;align-items:center;gap:8px;padding:8px 14px 0}
+  .chatImagePreview.on{display:flex}
+  .chatImagePreview img{width:56px;height:42px;object-fit:cover;border:1px solid var(--line);border-radius:8px}
+  .chatImagePreview button{border:0;background:transparent;color:var(--muted);font:inherit;font-size:18px;cursor:pointer}
+  .modelKeyWarning{display:none;margin-top:6px;color:var(--fail);font-size:12px;line-height:1.5}
+  body[data-theme="dark"] .newSidebar{background:linear-gradient(180deg,#201a17,#171412)}
+  body[data-theme="dark"] .composerBar,body[data-theme="dark"] .gateLoginBtn{background:var(--panel)}
+  body[data-theme="dark"] .roundBtn{background:var(--accent);color:#24160e}
   .composerBar input{border:none;outline:none;background:transparent;flex:1;font:inherit;font-size:15px;color:var(--txt)}
   .roundBtn{width:44px;height:44px;border-radius:50%;border:none;background:#111827;color:#fff;cursor:pointer}
   .miniBtn{border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:10px 12px;cursor:pointer;font:inherit}
@@ -413,7 +428,7 @@
             <option value="paused">paused</option>
           </select>
         </div>
-        <div class="projectEditorActions">
+      <div class="projectEditorActions">
           <button class="add" id="projectSaveBtn" data-i18n="saveProject">שמור</button>
           <button class="miniBtn" id="projectCancelBtn" data-i18n="cancel">ביטול</button>
           <span class="hint" id="projectToolsStatus"></span>
@@ -421,21 +436,41 @@
       </div>
       <div id="projectList"></div>
       </div>
+      <div class="sideCard">
+        <div class="sideCardHead">
+          <h3 data-i18n="sidebarLibraries">ספריות</h3>
+          <button type="button" class="projectAddBtn" id="libraryCreateBtn" data-i18n-title="newLibraryTitle" title="ספרייה חדשה">+</button>
+        </div>
+        <div class="projectEditor" id="libraryEditor" aria-hidden="true">
+          <div class="projectEditorTitle" id="libraryEditorTitle">ספרייה חדשה</div>
+          <input id="libraryNameInput" class="fieldInput" data-i18n-placeholder="phLibraryName" placeholder="שם הספרייה">
+          <label class="fieldLabel" data-i18n="libraryTypeLabel">מה סוג המקור?</label>
+          <select id="libraryTypeSelect" class="fieldInput">
+            <option value="info-site" data-i18n="libraryTypeSite">אתר מידע</option>
+            <option value="network-folder" data-i18n="libraryTypeNetwork">תיקייה ברשת</option>
+            <option value="local-folder" data-i18n="libraryTypeLocal">תיקייה מקומית</option>
+          </select>
+          <label class="fieldLabel" data-i18n="libraryLocationLabel">כתובת / נתיב</label>
+          <input id="libraryLocationInput" class="fieldInput" data-i18n-placeholder="phLibraryLocation" placeholder="כתובת או נתיב">
+          <input id="libraryNoteInput" class="fieldInput" data-i18n-placeholder="phLibraryNote" placeholder="הערה קצרה">
+          <div class="projectEditorActions">
+            <button class="add" id="librarySaveBtn" data-i18n="saveLibrary">שמור</button>
+            <button class="miniBtn" id="libraryCancelBtn" data-i18n="cancel">ביטול</button>
+            <span class="hint" id="libraryToolsStatus"></span>
+          </div>
+        </div>
+        <div id="libraryList"></div>
+      </div>
       <div class="sideCard quickStatusCard">
         <h3 data-i18n="quickStats">מצב מהיר</h3>
         <div class="heroStatRow"><span data-i18n="statusLabel">סטטוס</span><b id="miniStatus" data-i18n="miniStatusDefault">אין פרויקט נבחר</b></div>
-        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">1.2.5 ↻</button></div>
+        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">1.2.6 ↻</button></div>
         <div class="heroStatRow"><span data-i18n="langLabel">שפה</span><b id="langValue">עברית</b></div>
       </div>
-      <div class="sideCard">
-        <h3 data-i18n="sidebarLibraries">ספריות</h3>
-      <div id="libraryList"></div>
-    </div>
     <div class="sidebarResizer" id="sidebarResizer" role="separator" aria-orientation="vertical" aria-label="שינוי רוחב אזור הפרויקטים"></div>
   </aside>
   <main class="newMain">
     <div class="newTop">
-      <div class="title" data-i18n="topTitle">מרחב עבודה</div>
       <div class="actions">
         <button class="miniBtn iconBtn" id="authBtn" title="התחבר עם Google">👤</button>
         <button class="miniBtn iconBtn" id="newLangBtn" title="English / עברית">🌐</button>
@@ -449,9 +484,15 @@
     <div class="newContent">
       <section class="chatPanel">
         <div class="composerBar">
-          <button class="miniBtn">+</button>
+          <button class="miniBtn chatAttachBtn" id="chatAttachBtn" type="button" title="צרף תמונה" aria-label="צרף תמונה">+</button>
+          <input type="file" id="chatImageInput" accept="image/*" hidden>
           <input type="text" id="mainPrompt" data-i18n-placeholder="composerPlaceholder" placeholder="כתוב מה תרצה שהמודל יעשה..." />
           <button class="roundBtn" id="chatSendBtn">↑</button>
+        </div>
+        <div class="chatImagePreview" id="chatImagePreview">
+          <img id="chatImageThumb" alt="">
+          <span class="hint" data-i18n="imageAttached">תמונה מצורפת</span>
+          <button type="button" id="chatImageRemove" data-i18n-title="removeImage" title="הסר תמונה" aria-label="הסר תמונה">×</button>
         </div>
         <div id="chatThread">
           <div class="chatBubble">
@@ -552,7 +593,7 @@
         <b data-i18n="helpTitle">❓ עזרה ל־ON TracK</b>
         <button class="icon" id="helpClose">✕</button>
       </div>
-      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">1.2.5</b></div>
+      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">1.2.6</b></div>
       <p class="hint" style="line-height:1.7;margin-top:0" data-i18n="helpIntro">ON TracK מחבר בין מודל שבחרת לבין פרויקט ומקורות קוד. המודל מקבל בקשות ומבצע פעולות רק דרך החיבורים וההרשאות שהגדרת.</p>
       <div class="helpList">
         <div class="hint" data-i18n="helpStepOne">1. צור או בחר פרויקט בצד.</div>
@@ -612,6 +653,7 @@
       <input type="password" id="mNewKey" data-i18n-placeholder="phApiKey" placeholder="הדבק מפתח…">
       <div class="editrow" style="margin-top:14px">
         <button class="add" id="mAdd" data-i18n="addAndSelect">הוסף ובחר</button>
+        <button class="act" id="mEditCancel" data-i18n="cancel" style="display:none">ביטול</button>
         <span class="hint" id="mAddStatus"></span>
       </div>
       <hr class="sep">
@@ -853,11 +895,17 @@
       topTitle:'מרחב עבודה', heroTitle:'מסך עבודה נקי לפרויקטים ומודלים',
       heroText:'זהו ה-MVP החדש: בוחרים מודל, בוחרים פרויקט, מגדירים משימה, ואז נותנים למודל לבצע פעולות מבוקרות על מאגרי קוד.',
       heroStart:'פרויקט חדש', heroDocs:'פתח תיעוד', heroConnect:'חיבור למודל',
-      openProject:'פתח', createProject:'צור פרויקט', editProject:'ערוך', renameProject:'שנה שם', deleteProject:'מחק',
+      openProject:'פתח', openLibrary:'פתח ספרייה', createProject:'צור פרויקט', editProject:'ערוך', renameProject:'שנה שם', deleteProject:'מחק',
       projectActions:'פעולות פרויקט', projectMore:'פעולות נוספות', newProjectTitle:'פרויקט חדש', editProjectTitle:'עריכת פרויקט', renameProjectTitle:'שינוי שם פרויקט', saveProject:'שמור',
       projectNameRequired:'חסר שם פרויקט', creatingProject:'יוצר...', createdProject:'נוצר ✓', savingProject:'שומר...', updatedProject:'עודכן ✓', deletingProject:'מוחק...', deletedProject:'נמחק ✓',
+      newLibraryTitle:'ספרייה חדשה', editLibraryTitle:'עריכת ספרייה', renameLibraryTitle:'שינוי שם ספרייה', saveLibrary:'שמור',
+      editLibrary:'ערוך', renameLibrary:'שנה שם', deleteLibrary:'מחק', libraryActions:'פעולות ספרייה', libraryMore:'פעולות נוספות לספרייה',
+      libraryTypeLabel:'מה סוג המקור?', libraryTypeSite:'אתר מידע', libraryTypeNetwork:'תיקייה ברשת', libraryTypeLocal:'תיקייה מקומית', libraryLocationLabel:'כתובת / נתיב',
+      libraryNameRequired:'חסר שם ספרייה', libraryLocationRequired:'חסרה כתובת או נתיב', creatingLibrary:'יוצר ספרייה...', createdLibrary:'הספרייה נוצרה ✓', savingLibrary:'שומר ספרייה...', updatedLibrary:'הספרייה עודכנה ✓', deletingLibrary:'מוחק ספרייה...', deletedLibrary:'הספרייה נמחקה ✓',
+      phLibraryName:'שם הספרייה', phLibraryNote:'הערה קצרה', phLibraryLocation:'כתובת או נתיב', phLibrarySite:'https://...', phLibraryNetwork:'\\\\server\\folder', phLibraryLocal:'C:\\folder\\project',
       noProjects:'אין עדיין פרויקטים', noLibraries:'אין עדיין ספריות', noProjectStatus:'אין פרויקט נבחר',
-      chatText:'אין עדיין הודעות. כתוב בקשה למודל כדי להתחיל.', chatDelete:'מחק הודעה',
+      chatText:'אין עדיין הודעות. כתוב בקשה למודל כדי להתחיל.', chatDelete:'מחק הודעה', imageAttached:'תמונה מצורפת', removeImage:'הסר תמונה',
+      modelKeyWarning:'המפתח נראה כמו טוקן GitHub. הזן כאן מפתח API של ספק המודל, ואת טוקן GitHub הזן בחיבור GitHub.', saveModelChanges:'שמור שינויי מודל', editModel:'ערוך חיבור',
       quickStats:'מצב מהיר', statusLabel:'סטטוס', miniStatusDefault:'אין פרויקט נבחר', versionLabel:'גרסה', langLabel:'שפה',
       settingsTitle:'⚙️ הגדרות', settingsHint:'כאן מנהלים את סביבת העבודה, בודקים את החיבורים ובוחרים את הפרויקט והספרייה הפעילים.',
       settingsCardVersion:'גרסת מערכת', settingsCardStatus:'פרויקט נבחר', settingsStatusDefault:'לא נבחר',
@@ -935,11 +983,17 @@
       topTitle:'Workspace', heroTitle:'A clean workspace for projects and models',
       heroText:'This is the new MVP: choose a model, choose a project, define a task, then let the model perform controlled actions on code repositories.',
       heroStart:'New project', heroDocs:'Open docs', heroConnect:'Connect model',
-      openProject:'Open project', createProject:'Create project', editProject:'Edit', renameProject:'Rename', deleteProject:'Delete',
+      openProject:'Open project', openLibrary:'Open library', createProject:'Create project', editProject:'Edit', renameProject:'Rename', deleteProject:'Delete',
       projectActions:'Project actions', projectMore:'More project actions', newProjectTitle:'New project', editProjectTitle:'Edit project', renameProjectTitle:'Rename project', saveProject:'Save',
       projectNameRequired:'Project name is required', creatingProject:'Creating...', createdProject:'Created ✓', savingProject:'Saving...', updatedProject:'Updated ✓', deletingProject:'Deleting...', deletedProject:'Deleted ✓',
+      newLibraryTitle:'New library', editLibraryTitle:'Edit library', renameLibraryTitle:'Rename library', saveLibrary:'Save',
+      editLibrary:'Edit', renameLibrary:'Rename', deleteLibrary:'Delete', libraryActions:'Library actions', libraryMore:'More library actions',
+      libraryTypeLabel:'What is the source type?', libraryTypeSite:'Information site', libraryTypeNetwork:'Network folder', libraryTypeLocal:'Local folder', libraryLocationLabel:'URL / path',
+      libraryNameRequired:'Library name is required', libraryLocationRequired:'URL or path is required', creatingLibrary:'Creating library...', createdLibrary:'Library created ✓', savingLibrary:'Saving library...', updatedLibrary:'Library updated ✓', deletingLibrary:'Deleting library...', deletedLibrary:'Library deleted ✓',
+      phLibraryName:'Library name', phLibraryNote:'Short note', phLibraryLocation:'URL or path', phLibrarySite:'https://...', phLibraryNetwork:'\\\\server\\folder', phLibraryLocal:'C:\\folder\\project',
       noProjects:'No projects yet', noLibraries:'No libraries yet', noProjectStatus:'No project selected',
-      chatText:'No messages yet. Write a request to the model to begin.', chatDelete:'Delete message',
+      chatText:'No messages yet. Write a request to the model to begin.', chatDelete:'Delete message', imageAttached:'Image attached', removeImage:'Remove image',
+      modelKeyWarning:'This key looks like a GitHub token. Enter the model provider API key here, and enter the GitHub token in GitHub connection.', saveModelChanges:'Save model changes', editModel:'Edit connection',
       quickStats:'Quick Status', statusLabel:'Status', miniStatusDefault:'No project selected', versionLabel:'Version', langLabel:'Language',
       settingsTitle:'⚙️ Settings', settingsHint:'Manage the workspace, check connections, and see the active project and library.',
       settingsCardVersion:'System version', settingsCardStatus:'Selected project', settingsStatusDefault:'Not selected',
@@ -1049,6 +1103,7 @@
       $('#helpFlow').textContent = t.helpFlowList.join('\n');
     }
     if(typeof window.syncProjectEditor === 'function') window.syncProjectEditor();
+    if(typeof window.syncLibraryEditor === 'function') window.syncLibraryEditor();
     if(typeof window.refreshWorkspaceUI === 'function') window.refreshWorkspaceUI();
   }
 
@@ -1076,12 +1131,19 @@
   // fetchJsonSafe, since the button it wires up previously had zero JS attached to it at all.
   (function(){
     const escHtml = s => (s||'').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-    function addBubble(cls, meta, text){
+    let imageData = null;
+    function addBubble(cls, meta, text, image){
       const thread = document.getElementById('chatThread');
       if(!thread) return null;
       const div = document.createElement('div');
       div.className = 'chatBubble' + (cls ? ' '+cls : '');
-      div.innerHTML = `<div class="meta">${escHtml(meta)}</div><div>${escHtml(text)}</div>`;
+      div.innerHTML = `<div class="meta">${escHtml(meta)}</div><div class="bubbleText">${escHtml(text)}</div>`;
+      if(image){
+        const img = document.createElement('img');
+        img.src = image; img.alt = uiLang==='en' ? 'Attached image' : 'תמונה מצורפת';
+        img.style.cssText = 'display:block;max-width:min(100%,420px);max-height:220px;margin-top:8px;border-radius:10px;border:1px solid var(--line)';
+        div.appendChild(img);
+      }
       const deleteBtn = document.createElement('button');
       deleteBtn.type = 'button';
       deleteBtn.className = 'chatDeleteBtn';
@@ -1104,35 +1166,66 @@
       const btn = document.getElementById('chatSendBtn');
       if(!input || !btn) return;
       const text = input.value.trim();
-      if(!text || btn.disabled) return;
+      if((!text && !imageData) || btn.disabled) return;
       const user = await window.refreshAuthState();
       if(!user){ window.requireLogin(); return; }
       input.value = '';
-      addBubble('user', uiLang==='en' ? 'You' : 'אתה', text);
+      const sentImage = imageData;
+      addBubble('user', uiLang==='en' ? 'You' : 'אתה', text || (uiLang==='en' ? 'Image' : 'תמונה'), sentImage);
+      clearImage();
       btn.disabled = true;
       const pending = addBubble('pending', uiLang==='en' ? 'Thinking…' : 'חושב…', '…');
       try{
-        const r = await fetch('/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ prompt: text }) });
+        const r = await fetch('/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ prompt: text, image: sentImage }) });
         const j = await r.json().catch(()=>({}));
         pending.classList.remove('pending');
         if(!r.ok || j.error){
           pending.classList.add('err');
           pending.querySelector('.meta').textContent = uiLang==='en' ? 'Error' : 'שגיאה';
-          pending.querySelector('div:last-child').textContent = (j && j.error) || ('HTTP '+r.status);
+          pending.querySelector('.bubbleText').textContent = (j && j.error) || ('HTTP '+r.status);
         } else {
           pending.querySelector('.meta').textContent = 'ON TracK';
-          pending.querySelector('div:last-child').textContent = j.reply || '';
+          pending.querySelector('.bubbleText').textContent = j.reply || '';
         }
       }catch(e){
         pending.classList.remove('pending');
         pending.classList.add('err');
         pending.querySelector('.meta').textContent = uiLang==='en' ? 'Error' : 'שגיאה';
-        pending.querySelector('div:last-child').textContent = e.message;
+        pending.querySelector('.bubbleText').textContent = e.message;
       }
       btn.disabled = false;
     }
+    function clearImage(){
+      imageData = null;
+      const input = document.getElementById('chatImageInput');
+      const preview = document.getElementById('chatImagePreview');
+      const thumb = document.getElementById('chatImageThumb');
+      if(input) input.value = '';
+      if(thumb) thumb.removeAttribute('src');
+      if(preview) preview.classList.remove('on');
+    }
     const btn = document.getElementById('chatSendBtn');
     const input = document.getElementById('mainPrompt');
+    const attach = document.getElementById('chatAttachBtn');
+    const imageInput = document.getElementById('chatImageInput');
+    if(attach && imageInput) attach.onclick = () => imageInput.click();
+    if(imageInput) imageInput.onchange = () => {
+      const file = imageInput.files?.[0];
+      if(!file) return;
+      if(!file.type.startsWith('image/')) return;
+      if(file.size > 6 * 1024 * 1024){ alert(uiLang==='en' ? 'Image is too large (maximum 6 MB).' : 'התמונה גדולה מדי (מקסימום 6MB).'); clearImage(); return; }
+      const reader = new FileReader();
+      reader.onload = () => {
+        imageData = String(reader.result || '');
+        const thumb = document.getElementById('chatImageThumb');
+        const preview = document.getElementById('chatImagePreview');
+        if(thumb) thumb.src = imageData;
+        if(preview) preview.classList.add('on');
+      };
+      reader.readAsDataURL(file);
+    };
+    const removeImage = document.getElementById('chatImageRemove');
+    if(removeImage) removeImage.onclick = clearImage;
     if(btn) btn.onclick = sendChatMessage;
     if(input) input.addEventListener('keydown', e => { if(e.key==='Enter'){ e.preventDefault(); sendChatMessage(); } });
   })();
@@ -1402,7 +1495,7 @@ function currentAgent(){ return selectedModelLabel(); }
 function connDot(ok){ return `<span class="cdot" style="background:${ok?'var(--pass)':'#c9ccdb'}"></span>`; }
   async function updateConnDots(){
     const m = modelsState.models.find(x=>x.id===modelsState.selectedId);
-    const modelOk = !!(m && (m.builtin || m.hasKey)); // built-in Claude is always available; external needs a key
+    const modelOk = !!(m && (m.builtin || (m.hasKey && !m.keyLooksLikeGithub))); // a GitHub token is never a model connection
     $('#modelBtn').innerHTML = connDot(modelOk)+' 🤖 '+esc(selectedModelLabel()||'בחירת מודל');
     setLed('#newModelLed', modelOk);
     // The prominent header trigger only makes sense for an external model that can be woken by API.
@@ -1461,10 +1554,10 @@ function renderModelList(){
     const sel = m.id===modelsState.selectedId;
     const meta = m.builtin ? 'מובנה' : (m.provider==='openai' ? ('חיצוני · '+(m.model||'')) : ('Gemini · '+(m.model||'')));
     return `<div class="modelRow${sel?' sel':''}">
-      <div class="modelInfo"><div class="modelName">${sel?'✅ ':''}${esc(m.label)}</div><div class="modelMeta">${esc(meta)}${m.hasKey?' · 🔑':''}</div></div>
+      <div class="modelInfo"><div class="modelName">${sel?'✅ ':''}${esc(m.label)}</div><div class="modelMeta">${esc(meta)}${m.hasKey?' · 🔑':''}${m.keyLooksLikeGithub?' · ⚠️ GitHub token':''}</div></div>
       <div class="modelActions">
         ${sel?'<span class="hint">נבחר</span>':`<button class="act" data-sel="${esc(m.id)}">בחר</button>`}
-        ${m.builtin?'':`<button class="icon" title="מחק" data-del="${esc(m.id)}">🗑️</button>`}
+        ${m.builtin?'':`<button class="act" title="ערוך חיבור" data-edit="${esc(m.id)}">ערוך</button><button class="icon" title="מחק" data-del="${esc(m.id)}">🗑️</button>`}
       </div>
     </div>`;
   }).join('');
@@ -1477,6 +1570,37 @@ function renderModelList(){
     await fetch('/api/models/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:b.dataset.del})});
     await loadModels(); refreshModelModal();
   });
+  box.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>startModelEdit(b.dataset.edit));
+}
+let modelEditId = null;
+function looksLikeGithubToken(value){ return /^(?:github_pat_|gh[psour]_)/i.test(String(value || '').trim()); }
+function updateModelKeyWarning(value){
+  const warning = $('#modelKeyWarning');
+  if(warning) warning.style.display = looksLikeGithubToken(value) ? 'block' : 'none';
+}
+function resetModelEditor(){
+  modelEditId = null;
+  $('#mNewLabel').value = ''; $('#mNewKey').value = ''; $('#mNewModel').value = '';
+  $('#mAdd').textContent = I18N[uiLang].addAndSelect;
+  $('#mEditCancel').style.display = 'none'; $('#mAddStatus').textContent = '';
+  updateModelKeyWarning(''); applyProviderUI();
+}
+function startModelEdit(id){
+  const m = modelsState.models.find(x => x.id === id);
+  if(!m || m.builtin) return;
+  modelEditId = m.id;
+  $('#mNewLabel').value = m.label || '';
+  $('#mNewProvider').value = m.provider === 'openai' ? 'openai' : 'gemini';
+  $('#mNewBaseUrl').value = m.baseUrl || '';
+  applyProviderUI();
+  const preset = [...$('#mNewModelSelect').options].find(o => o.value === (m.model || ''));
+  if(preset){ $('#mNewModelSelect').value = m.model; $('#mNewModel').style.display = 'none'; $('#mNewModel').value = ''; }
+  else { $('#mNewModelSelect').value = '__custom__'; $('#mNewModel').style.display = 'block'; $('#mNewModel').value = m.model || ''; }
+  $('#mNewKey').value = '';
+  $('#mAdd').textContent = I18N[uiLang].saveModelChanges;
+  $('#mEditCancel').style.display = '';
+  $('#mAddStatus').textContent = uiLang==='en' ? 'Editing connection. Leave the key empty to keep it.' : 'עריכת חיבור. השאר מפתח ריק כדי להשאיר את הקיים.';
+  $('#modelKeyWarning').style.display = m.keyLooksLikeGithub ? 'block' : 'none';
 }
 // "Favorites": a model removed via 🗑️ lands here (full config, including its key, kept
 // server-side) instead of being gone for good — one click restores it, no retyping.
@@ -1489,11 +1613,16 @@ function renderRecentModels(){
     const meta = m.provider==='openai' ? ('חיצוני · '+(m.model||'')) : ('Gemini · '+(m.model||''));
     return `<div class="modelRow">
       <div class="modelInfo"><div class="modelName">${esc(m.label)}</div><div class="modelMeta">${esc(meta)}${m.hasKey?' · 🔑':''}</div></div>
-      <div class="modelActions"><button class="act" data-reconnect="${esc(m.id)}">${I18N[uiLang].reconnectModel}</button></div>
+      <div class="modelActions"><button class="act" data-reconnect="${esc(m.id)}">${I18N[uiLang].reconnectModel}</button><button class="icon" title="מחק" data-del-recent="${esc(m.id)}">🗑️</button></div>
     </div>`;
   }).join('');
   box.querySelectorAll('[data-reconnect]').forEach(b=>b.onclick=async()=>{
     await fetch('/api/models/reconnect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:b.dataset.reconnect})});
+    await loadModels(); refreshModelModal();
+  });
+  box.querySelectorAll('[data-del-recent]').forEach(b=>b.onclick=async()=>{
+    if(!confirm(uiLang==='en' ? 'Delete this model permanently?' : 'למחוק את המודל לצמיתות?')) return;
+    await fetch('/api/models/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:b.dataset.delRecent})});
     await loadModels(); refreshModelModal();
   });
 }
@@ -1508,6 +1637,8 @@ function refreshModelModal(){
   $('#agentRunHint').style.display = ext ? 'block' : 'none';
   renderModelList();
   renderRecentModels();
+  const selected = modelsState.models.find(x=>x.id===modelsState.selectedId);
+  updateModelKeyWarning(selected?.keyLooksLikeGithub ? 'github_pat_' : '');
 }
 const modelModal=$('#modelModal');
 // Same fix as openGithubModal(): the modal must reload+re-render every time it opens, not
@@ -1620,7 +1751,24 @@ $('#mAdd').onclick=async()=>{
   const label=$('#mNewLabel').value.trim() || modelId;
   if(!label){ $('#mAddStatus').textContent='חסר שם תצוגה'; return; }
   if(!modelId){ $('#mAddStatus').textContent='בחר או הזן מזהה מודל'; return; }
+  if(looksLikeGithubToken($('#mNewKey').value)){
+    updateModelKeyWarning($('#mNewKey').value);
+    $('#mAddStatus').textContent = 'שגיאה: '+I18N[uiLang].modelKeyWarning;
+    return;
+  }
   $('#mAddStatus').textContent='שומר…';
+  if(modelEditId){
+    const body={ id:modelEditId, label, provider:$('#mNewProvider').value, model:modelId };
+    if($('#mNewProvider').value==='openai') body.baseUrl=$('#mNewBaseUrl').value.trim();
+    if($('#mNewKey').value.trim()) body.apiKey=$('#mNewKey').value.trim();
+    const r=await fetch('/api/models/update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const j=await r.json().catch(()=>({}));
+    if(j.error){ $('#mAddStatus').textContent='שגיאה: '+j.error; return; }
+    resetModelEditor();
+    $('#mAddStatus').textContent='עודכן ✓';
+    await loadModels(); refreshModelModal();
+    return;
+  }
   const body={ label, provider:$('#mNewProvider').value, model:modelId,
     apiKey:$('#mNewKey').value.trim()||undefined, select:true };
   if($('#mNewProvider').value==='openai') body.baseUrl=$('#mNewBaseUrl').value.trim();
@@ -1632,6 +1780,8 @@ $('#mAdd').onclick=async()=>{
   await loadModels(); refreshModelModal();
   setTimeout(()=>{ if($('#mAddStatus').textContent==='נוסף ✓') $('#mAddStatus').textContent=''; }, 2000);
 };
+$('#mEditCancel').onclick=resetModelEditor;
+$('#mNewKey').oninput=()=>updateModelKeyWarning($('#mNewKey').value);
 loadModels();
 
 // ---------- GitHub modal ----------
@@ -1932,6 +2082,7 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     projectEditorMode = 'create';
   }
   function openProjectEditor(mode, project){
+    closeLibraryEditor();
     projectEditorMode = mode;
     projectEditorId = project?.id || null;
     $('#projectNameInput').value = project?.name || '';
@@ -1942,6 +2093,40 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     if(editor){ editor.classList.add('on'); editor.setAttribute('aria-hidden','false'); }
     syncProjectEditor();
     $('#projectNameInput').focus();
+  }
+  let libraryEditorMode = 'create';
+  let libraryEditorId = null;
+  const LIBRARY_TYPES = {
+    'info-site': { icon:'🌐', placeholder:'phLibrarySite' },
+    'network-folder': { icon:'🗂️', placeholder:'phLibraryNetwork' },
+    'local-folder': { icon:'📁', placeholder:'phLibraryLocal' }
+  };
+  function libraryTypeMeta(type){ return LIBRARY_TYPES[type] || LIBRARY_TYPES['info-site']; }
+  function syncLibraryEditor(){
+    const title = $('#libraryEditorTitle');
+    const key = libraryEditorMode === 'edit' ? 'editLibraryTitle' : libraryEditorMode === 'rename' ? 'renameLibraryTitle' : 'newLibraryTitle';
+    if(title) title.textContent = I18N[uiLang][key];
+    const location = $('#libraryLocationInput');
+    const meta = libraryTypeMeta($('#libraryTypeSelect')?.value);
+    if(location) location.placeholder = I18N[uiLang][meta.placeholder] || I18N[uiLang].phLibraryLocation;
+  }
+  window.syncLibraryEditor = syncLibraryEditor;
+  function closeLibraryEditor(){
+    const editor = $('#libraryEditor');
+    if(editor){ editor.classList.remove('on'); editor.setAttribute('aria-hidden','true'); }
+    libraryEditorId = null; libraryEditorMode = 'create';
+  }
+  function openLibraryEditor(mode, library){
+    closeProjectEditor();
+    libraryEditorMode = mode; libraryEditorId = library?.id || null;
+    $('#libraryNameInput').value = library?.name || '';
+    $('#libraryTypeSelect').value = library?.type || 'info-site';
+    $('#libraryLocationInput').value = library?.location || '';
+    $('#libraryNoteInput').value = library?.note || '';
+    $('#libraryToolsStatus').textContent = '';
+    const editor = $('#libraryEditor');
+    if(editor){ editor.classList.add('on'); editor.setAttribute('aria-hidden','false'); }
+    syncLibraryEditor(); $('#libraryNameInput').focus();
   }
   function closeProjectMenus(){
     document.querySelectorAll('.projectMenu.on').forEach(menu=>menu.classList.remove('on'));
@@ -2008,7 +2193,7 @@ if(next) await fetch(B+"/api/update",{method:"POST",
               <span class="projectName">${esc(p.name)}</span><span class="projectState">${p.status==='active'?'●':'○'}</span>
             </button>
             <div class="projectMenuWrap">
-              <button type="button" class="projectMenuBtn" data-menu-toggle="${esc(p.id)}" data-i18n-title="projectMore" title="${I18N[uiLang].projectMore}">⋯</button>
+              <button type="button" class="projectMenuBtn" data-menu-toggle="${esc(p.id)}" data-i18n-title="projectMore" title="${I18N[uiLang].projectMore}"><span class="menuDots" aria-hidden="true">⋯</span></button>
               <div class="projectMenu" data-menu-for="${esc(p.id)}" aria-label="${I18N[uiLang].projectActions}">
                 <button type="button" data-project-action="edit" data-pid="${esc(p.id)}">${I18N[uiLang].editProject}</button>
                 <button type="button" data-project-action="rename" data-pid="${esc(p.id)}">${I18N[uiLang].renameProject}</button>
@@ -2047,14 +2232,39 @@ if(next) await fetch(B+"/api/update",{method:"POST",
       if(libraryList){
         const libraries = data.workspace?.libraries || [];
         libraryList.innerHTML = libraries.length ? libraries.map(l => `
-          <button class="sideLink ${data.selectedLibrary?.id===l.id?'on':''}" data-lid="${esc(l.id)}">
-            <span>${esc(l.name)}</span><span>↗</span>
-          </button>`).join('') : `<div class="emptyState"><span>${I18N[uiLang].noLibraries}</span></div>`;
-        libraryList.querySelectorAll('[data-lid]').forEach(btn => {
+          <div class="projectRow ${data.selectedLibrary?.id===l.id?'on':''}">
+            <button type="button" class="projectSelect" data-lid="${esc(l.id)}" title="${I18N[uiLang].openLibrary}">
+              <span class="libraryIdentity"><span class="libraryIcon" aria-hidden="true">${libraryTypeMeta(l.type).icon}</span><span class="projectName">${esc(l.name)}</span></span><span class="projectState">↗</span>
+            </button>
+            <div class="projectMenuWrap">
+              <button type="button" class="projectMenuBtn" data-library-menu-toggle="${esc(l.id)}" title="${I18N[uiLang].libraryMore}"><span class="menuDots" aria-hidden="true">⋯</span></button>
+              <div class="projectMenu" data-library-menu-for="${esc(l.id)}" aria-label="${I18N[uiLang].libraryActions}">
+                <button type="button" data-library-action="edit" data-lid="${esc(l.id)}">${I18N[uiLang].editLibrary}</button>
+                <button type="button" data-library-action="rename" data-lid="${esc(l.id)}">${I18N[uiLang].renameLibrary}</button>
+                <button type="button" class="danger" data-library-action="delete" data-lid="${esc(l.id)}">${I18N[uiLang].deleteLibrary}</button>
+              </div>
+            </div>
+          </div>`).join('') : `<div class="emptyState"><span>${I18N[uiLang].noLibraries}</span></div>`;
+        libraryList.querySelectorAll('.projectSelect[data-lid]').forEach(btn => {
           btn.onclick = async () => {
             const j = await (await fetch('/api/workspace/select',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({libraryId:btn.dataset.lid})})).json();
-            renderWorkspace();
-            updateMiniStatus(j);
+            closeLibraryEditor(); await renderWorkspace(); updateMiniStatus(j);
+          };
+        });
+        libraryList.querySelectorAll('[data-library-menu-toggle]').forEach(btn => {
+          btn.onclick = e => {
+            e.stopPropagation();
+            const menu = libraryList.querySelector(`[data-library-menu-for="${btn.dataset.libraryMenuToggle}"]`);
+            const isOpen = menu?.classList.contains('on'); closeProjectMenus();
+            if(menu && !isOpen){ menu.classList.add('on'); btn.classList.add('on'); }
+          };
+        });
+        libraryList.querySelectorAll('[data-library-action]').forEach(btn => {
+          btn.onclick = async e => {
+            e.stopPropagation(); closeProjectMenus();
+            const library = libraries.find(l=>l.id===btn.dataset.lid); if(!library) return;
+            if(btn.dataset.libraryAction === 'delete') await deleteLibrary(library);
+            else openLibraryEditor(btn.dataset.libraryAction, library);
           };
         });
       }
@@ -2128,6 +2338,41 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     closeProjectEditor();
     await renderWorkspace();
   }
+  async function createLibrary(){
+    const t = I18N[uiLang];
+    const name = $('#libraryNameInput')?.value.trim();
+    const type = $('#libraryTypeSelect')?.value || 'info-site';
+    const location = $('#libraryLocationInput')?.value.trim();
+    const note = $('#libraryNoteInput')?.value.trim();
+    if(!name){ $('#libraryToolsStatus').textContent=t.libraryNameRequired; return; }
+    if(!location){ $('#libraryToolsStatus').textContent=t.libraryLocationRequired; return; }
+    $('#libraryToolsStatus').textContent=t.creatingLibrary;
+    const j=await (await fetch('/api/workspace/libraries',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,type,location,note})})).json();
+    if(j.error){ $('#libraryToolsStatus').textContent=j.error; return; }
+    closeLibraryEditor(); await renderWorkspace();
+  }
+  async function updateLibrary(){
+    if(!libraryEditorId) return;
+    const t=I18N[uiLang];
+    const name=$('#libraryNameInput')?.value.trim();
+    const type=$('#libraryTypeSelect')?.value || 'info-site';
+    const location=$('#libraryLocationInput')?.value.trim();
+    const note=$('#libraryNoteInput')?.value.trim();
+    if(!name){ $('#libraryToolsStatus').textContent=t.libraryNameRequired; return; }
+    if(!location){ $('#libraryToolsStatus').textContent=t.libraryLocationRequired; return; }
+    $('#libraryToolsStatus').textContent=t.savingLibrary;
+    const j=await (await fetch('/api/workspace/libraries/update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:libraryEditorId,name,type,location,note})})).json();
+    if(j.error){ $('#libraryToolsStatus').textContent=j.error; return; }
+    closeLibraryEditor(); await renderWorkspace();
+  }
+  async function deleteLibrary(library){
+    if(!library) return;
+    const message=uiLang==='en' ? `Delete library "${library.name}"?` : `למחוק את הספרייה "${library.name}"?`;
+    if(!confirm(message)) return;
+    const j=await (await fetch('/api/workspace/libraries/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:library.id})})).json();
+    if(j.error){ $('#libraryToolsStatus').textContent=j.error; return; }
+    closeLibraryEditor(); await renderWorkspace();
+  }
   if($('#projectCreateBtn')) $('#projectCreateBtn').onclick=()=>openProjectEditor('create');
   if($('#projectSaveBtn')) $('#projectSaveBtn').onclick=()=>projectEditorMode === 'create' ? createProject() : updateProject();
   if($('#projectCancelBtn')) $('#projectCancelBtn').onclick=closeProjectEditor;
@@ -2137,6 +2382,10 @@ if(next) await fetch(B+"/api/update",{method:"POST",
   if($('#newHelpBtn')) $('#newHelpBtn').onclick=()=>modal.classList.add('on');
   if($('#newGithubBtn')) $('#newGithubBtn').onclick=()=>window.openGithubModal();
   if($('#newModelBtn')) $('#newModelBtn').onclick=()=>window.openModelModal();
+  if($('#libraryCreateBtn')) $('#libraryCreateBtn').onclick=()=>openLibraryEditor('create');
+  if($('#libraryTypeSelect')) $('#libraryTypeSelect').onchange=syncLibraryEditor;
+  if($('#librarySaveBtn')) $('#librarySaveBtn').onclick=()=>libraryEditorMode === 'create' ? createLibrary() : updateLibrary();
+  if($('#libraryCancelBtn')) $('#libraryCancelBtn').onclick=closeLibraryEditor;
   if(apiBtn && apiBtn.parentElement && !$('#helpBtn')){
     const b=document.createElement('button');
     b.className='flagbtn compact';
@@ -2144,7 +2393,7 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     b.textContent='❓ עזרה';
     apiBtn.parentElement.insertBefore(b, apiBtn);
   }
-  const appVersion='1.2.5';
+  const appVersion='1.2.6';
   $('#appVersion').textContent=appVersion;
   // Seeded here too: without a local server /api/state never answers, and this would
   // otherwise keep showing whatever literal the markup was last edited with.

@@ -241,13 +241,20 @@ let modelsConfig = loadModelsConfig();
 function saveModelsConfig() { fs.writeFileSync(MODELS_CONFIG_FILE, JSON.stringify(modelsConfig, null, 2)); }
 function reloadModelsConfig() { modelsConfig = loadModelsConfig(); }
 // Public view — never leak raw API keys to the browser.
+function modelKeyError(apiKey) {
+  if (/^(?:github_pat_|gh[psour]_)/i.test(String(apiKey || '').trim())) {
+    return 'This key looks like a GitHub token. Enter the model provider API key here, not the GitHub token.';
+  }
+  return null;
+}
+
 function publicModels() {
   return {
     selectedId: modelsConfig.selectedId,
     models: modelsConfig.models.map(m => ({
       id: m.id, label: m.label, builtin: !!m.builtin,
       provider: m.provider || null, baseUrl: m.baseUrl || null, model: m.model || null,
-      hasKey: !!m.apiKey
+      hasKey: !!m.apiKey, keyLooksLikeGithub: !!modelKeyError(m.apiKey)
     }))
   };
 }
@@ -650,6 +657,8 @@ function parseAction(text) {
   try { return JSON.parse(m[0]); } catch { return null; }
 }
 async function _callModelOnce(m, sys, user) {
+  const keyError = modelKeyError(m.apiKey);
+  if (keyError) throw new Error(keyError);
   if (m.provider === 'openai') {
     const r = await fetch(`${m.baseUrl}/chat/completions`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${m.apiKey}` },
@@ -1188,6 +1197,45 @@ const server = http.createServer(async (req, res) => {
       return res.end(JSON.stringify(projectSummary()));
     }
 
+    if (p === '/api/workspace/libraries' && req.method === 'POST') {
+      const b = await readBody(req);
+      const name = typeof b.name === 'string' ? b.name.trim() : '';
+      const type = ['info-site', 'network-folder', 'local-folder'].includes(b.type) ? b.type : 'info-site';
+      const location = typeof b.location === 'string' ? b.location.trim() : '';
+      if (!name || !location) { res.writeHead(400, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ error: 'library name and location are required' })); }
+      const ws = loadWorkspaceState();
+      const id = 'lib-' + Date.now();
+      ws.libraries.push({ id, name, type, location, note: typeof b.note === 'string' ? b.note.trim() : '' });
+      ws.selectedLibraryId = id;
+      saveWorkspaceState(ws);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify(projectSummary()));
+    }
+    if (p === '/api/workspace/libraries/update' && req.method === 'POST') {
+      const b = await readBody(req);
+      const ws = loadWorkspaceState();
+      const library = ws.libraries.find(lb => lb.id === b.id);
+      if (!library) { res.writeHead(404, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ error: 'library not found' })); }
+      if (typeof b.name === 'string' && b.name.trim()) library.name = b.name.trim();
+      if (['info-site', 'network-folder', 'local-folder'].includes(b.type)) library.type = b.type;
+      if (typeof b.location === 'string' && b.location.trim()) library.location = b.location.trim();
+      if (typeof b.note === 'string') library.note = b.note.trim();
+      saveWorkspaceState(ws);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify(projectSummary()));
+    }
+    if (p === '/api/workspace/libraries/delete' && req.method === 'POST') {
+      const b = await readBody(req);
+      const ws = loadWorkspaceState();
+      const index = ws.libraries.findIndex(lb => lb.id === b.id);
+      if (index < 0) { res.writeHead(404, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ error: 'library not found' })); }
+      ws.libraries.splice(index, 1);
+      if (ws.selectedLibraryId === b.id) ws.selectedLibraryId = ws.libraries[0]?.id || null;
+      saveWorkspaceState(ws);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify(projectSummary()));
+    }
+
     // --- static category / browser / resolution lists (for the composer dropdowns) ---
     if (p === '/api/categories' && req.method === 'GET') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -1350,6 +1398,11 @@ const server = http.createServer(async (req, res) => {
       if (b.provider === 'openai' || b.provider === 'gemini') llmConfig.provider = b.provider;
       if (typeof b.apiKey === 'string' && b.apiKey.trim()) llmConfig.apiKey = b.apiKey.trim();
       if (b.apiKey === null) llmConfig.apiKey = null;
+      const keyError = modelKeyError(llmConfig.apiKey);
+      if (keyError) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: keyError }));
+      }
       if (typeof b.model === 'string' && b.model.trim()) llmConfig.model = b.model.trim();
       if (typeof b.baseUrl === 'string' && b.baseUrl.trim()) llmConfig.baseUrl = b.baseUrl.trim().replace(/\/+$/, '');
       saveLlmConfig();
@@ -1390,6 +1443,11 @@ const server = http.createServer(async (req, res) => {
         model: (b.model || '').trim(),
         apiKey: (b.apiKey || '').trim() || null
       };
+      const keyError = modelKeyError(m.apiKey);
+      if (keyError) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: keyError }));
+      }
       modelsConfig.models.push(m);
       if (b.select) modelsConfig.selectedId = m.id;
       saveModelsConfig();
@@ -1408,6 +1466,11 @@ const server = http.createServer(async (req, res) => {
       if (typeof b.model === 'string') m.model = b.model.trim();
       if (typeof b.apiKey === 'string' && b.apiKey.trim()) m.apiKey = b.apiKey.trim();
       if (b.apiKey === null) m.apiKey = null;
+      const keyError = modelKeyError(m.apiKey);
+      if (keyError) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: keyError }));
+      }
       saveModelsConfig();
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ ok: true }));
@@ -1438,6 +1501,11 @@ const server = http.createServer(async (req, res) => {
       if (!m.apiKey) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify({ error: 'לא הוגדר מפתח API למודל הזה.' }));
+      }
+      const keyError = modelKeyError(m.apiKey);
+      if (keyError) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: keyError }));
       }
       try {
         if (m.provider === 'openai') {

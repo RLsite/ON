@@ -319,19 +319,33 @@ async function saveModelsConfig(env, uid, cfg) {
 }
 
 // Never leak raw API keys to the browser.
+function modelKeyError(apiKey) {
+  if (/^(?:github_pat_|gh[psour]_)/i.test(String(apiKey || '').trim())) {
+    return 'This key looks like a GitHub token. Enter the model provider API key here, not the GitHub token.';
+  }
+  return null;
+}
+
+function parseImagePart(dataUrl) {
+  if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) return null;
+  const m = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+  if (!m || m[2].length > 8 * 1024 * 1024) return null;
+  return { mime: m[1].toLowerCase(), data: m[2] };
+}
 function publicModels(cfg) {
   return {
     selectedId: cfg.selectedId,
     models: cfg.models.map(m => ({
       id: m.id, label: m.label, builtin: !!m.builtin,
       provider: m.provider || null, baseUrl: m.baseUrl || null, model: m.model || null,
-      hasKey: !!m.apiKey
+      hasKey: !!m.apiKey, keyLooksLikeGithub: !!modelKeyError(m.apiKey)
     })),
     // Removed external models, most-recent first — kept (including their key) so "reconnect"
     // is a single click instead of retyping everything. Capped at RECENT_LIMIT.
     recent: cfg.recent.map(m => ({
       id: m.id, label: m.label, provider: m.provider || null,
-      baseUrl: m.baseUrl || null, model: m.model || null, hasKey: !!m.apiKey
+      baseUrl: m.baseUrl || null, model: m.model || null, hasKey: !!m.apiKey,
+      keyLooksLikeGithub: !!modelKeyError(m.apiKey)
     }))
   };
 }
@@ -339,20 +353,27 @@ function publicModels(cfg) {
 // Shared provider call (OpenAI-compatible chat/completions, or Gemini generateContent).
 // Returns the raw text reply. Used by the cheap connection ping (testModel), the real chat
 // endpoint (handleChat), so there's one place that knows how to talk to each provider.
-async function callModel(m, prompt, maxTokens) {
+async function callModel(m, prompt, maxTokens, imagePart) {
+  const keyError = modelKeyError(m.apiKey);
+  if (keyError) throw new Error(keyError);
   if (m.provider === 'openai') {
+    const content = imagePart
+      ? [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: `data:${imagePart.mime};base64,${imagePart.data}` } }]
+      : prompt;
     const r = await fetch(`${m.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${m.apiKey}` },
-      body: JSON.stringify({ model: m.model, messages: [{ role: 'user', content: prompt }], max_tokens: maxTokens })
+      body: JSON.stringify({ model: m.model, messages: [{ role: 'user', content }], max_tokens: maxTokens })
     });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
     return (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '';
   }
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${m.model}:generateContent?key=${encodeURIComponent(m.apiKey)}`;
+  const parts = [{ text: prompt }];
+  if (imagePart) parts.push({ inline_data: { mime_type: imagePart.mime, data: imagePart.data } });
   const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: maxTokens } }) });
+    body: JSON.stringify({ contents: [{ parts }], generationConfig: { maxOutputTokens: maxTokens } }) });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
   return (j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts &&
@@ -367,6 +388,8 @@ async function testModel(m) {
       message: 'מודל מובנה (Claude) — רץ דרך סשן Claude Code שמושך את התור, לא דרך מפתח API. "מחובר" = יש סשן פעיל שעובד על התור.' };
   }
   if (!m.apiKey) return { error: 'לא הוגדר מפתח API למודל הזה.', status: 400 };
+  const keyError = modelKeyError(m.apiKey);
+  if (keyError) return { error: keyError, status: 400 };
   try {
     await callModel(m, 'ping', 1);
     return { ok: true, message: 'המודל הגיב בהצלחה — החיבור תקין.' };
@@ -403,6 +426,8 @@ async function handleModelsApi(request, env, path, uid) {
       model: (b.model || '').trim(),
       apiKey: (b.apiKey || '').trim() || null
     };
+    const keyError = modelKeyError(m.apiKey);
+    if (keyError) return json({ error: keyError }, 400);
     cfg.models.push(m);
     if (b.select) cfg.selectedId = m.id;
     await saveModelsConfig(env, uid, cfg);
@@ -421,6 +446,8 @@ async function handleModelsApi(request, env, path, uid) {
     if (typeof b.model === 'string') m.model = b.model.trim();
     if (typeof b.apiKey === 'string' && b.apiKey.trim()) m.apiKey = b.apiKey.trim();
     if (b.apiKey === null) m.apiKey = null;
+    const keyError = modelKeyError(m.apiKey);
+    if (keyError) return json({ error: keyError }, 400);
     await saveModelsConfig(env, uid, cfg);
     return json({ ok: true });
   }
@@ -429,13 +456,19 @@ async function handleModelsApi(request, env, path, uid) {
     const cfg = await loadModelsConfig(env, uid);
     const b = await request.json().catch(() => ({}));
     const m = cfg.models.find(x => x.id === b.id);
-    if (!m) return new Response('no such model', { status: 404 });
+    if (!m) {
+      const hadRecent = cfg.recent.some(x => x.id === b.id);
+      if (!hadRecent) return new Response('no such model', { status: 404 });
+      cfg.recent = cfg.recent.filter(x => x.id !== b.id);
+      await saveModelsConfig(env, uid, cfg);
+      return json({ ok: true, selectedId: cfg.selectedId });
+    }
     if (m.builtin) return new Response('cannot delete a built-in model', { status: 400 });
     cfg.models = cfg.models.filter(x => x.id !== b.id);
     if (cfg.selectedId === b.id) cfg.selectedId = cfg.models[0].id;
     // Archive it (full config, including the key) instead of discarding, so it can be
     // one-click restored from "recent" without retyping the label/provider/URL/model/key.
-    cfg.recent = [m, ...cfg.recent.filter(x => x.id !== m.id)].slice(0, RECENT_LIMIT);
+    cfg.recent = cfg.recent.filter(x => x.id !== m.id);
     await saveModelsConfig(env, uid, cfg);
     return json({ ok: true, selectedId: cfg.selectedId });
   }
@@ -614,6 +647,45 @@ async function handleWorkspaceApi(request, env, path, uid) {
     return json(workspaceSummary(ws));
   }
 
+  if (path === '/api/workspace/libraries' && method === 'POST') {
+    const b = await request.json().catch(() => ({}));
+    const name = typeof b.name === 'string' ? b.name.trim() : '';
+    const type = ['info-site', 'network-folder', 'local-folder'].includes(b.type) ? b.type : 'info-site';
+    const location = typeof b.location === 'string' ? b.location.trim() : '';
+    if (!name) return json({ error: 'Library name is required.' }, 400);
+    if (!location) return json({ error: 'URL or path is required.' }, 400);
+    const ws = await loadWorkspace(env, uid);
+    const id = 'lib-' + Date.now();
+    ws.libraries.push({ id, name, type, location, note: typeof b.note === 'string' ? b.note.trim() : '' });
+    ws.selectedLibraryId = id;
+    await saveWorkspace(env, uid, ws);
+    return json(workspaceSummary(ws));
+  }
+
+  if (path === '/api/workspace/libraries/update' && method === 'POST') {
+    const ws = await loadWorkspace(env, uid);
+    const b = await request.json().catch(() => ({}));
+    const library = ws.libraries.find(l => l.id === b.id);
+    if (!library) return json({ error: 'Library not found.' }, 404);
+    if (typeof b.name === 'string' && b.name.trim()) library.name = b.name.trim();
+    if (['info-site', 'network-folder', 'local-folder'].includes(b.type)) library.type = b.type;
+    if (typeof b.location === 'string' && b.location.trim()) library.location = b.location.trim();
+    if (typeof b.note === 'string') library.note = b.note.trim();
+    await saveWorkspace(env, uid, ws);
+    return json(workspaceSummary(ws));
+  }
+
+  if (path === '/api/workspace/libraries/delete' && method === 'POST') {
+    const ws = await loadWorkspace(env, uid);
+    const b = await request.json().catch(() => ({}));
+    const index = ws.libraries.findIndex(l => l.id === b.id);
+    if (index < 0) return json({ error: 'Library not found.' }, 404);
+    ws.libraries.splice(index, 1);
+    if (ws.selectedLibraryId === b.id) ws.selectedLibraryId = ws.libraries[0]?.id || null;
+    await saveWorkspace(env, uid, ws);
+    return json(workspaceSummary(ws));
+  }
+
   return json({ error: 'not found' }, 404);
 }
 
@@ -628,13 +700,16 @@ async function handleChat(request, env, uid) {
   if (!m) return json({ error: 'לא נבחר מודל.' }, 400);
   const b = await request.json().catch(() => ({}));
   const prompt = (b.prompt || '').trim();
+  const imagePart = parseImagePart(b.image);
   if (!prompt) return json({ error: 'ההודעה ריקה.' }, 400);
   if (m.builtin) {
     return json({ reply: 'מודל מובנה (Claude) לא עונה ישירות מכאן — הוא פועל דרך סשן Claude Code שמושך את התור. כדי לשוחח איתו, יש להשתמש בסשן Claude Code שלך.' });
   }
   if (!m.apiKey) return json({ error: 'לא הוגדר מפתח API למודל הנבחר. פתח "חיבור למודל" והוסף מפתח.' }, 400);
+  const keyError = modelKeyError(m.apiKey);
+  if (keyError) return json({ error: keyError }, 400);
   try {
-    const reply = await callModel(m, prompt, 1024);
+    const reply = await callModel(m, prompt, 1024, imagePart);
     return json({ reply: reply || '(תשובה ריקה מהמודל)' });
   } catch (e) {
     return json({ error: e.message }, 502);

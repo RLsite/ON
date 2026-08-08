@@ -1,7 +1,7 @@
 # ON TracK Project Info
 
-Version: `1.2.5`
-Status: `The chat composer is above the message history, newest messages appear first, and every message can be removed.`
+Version: `1.2.6`
+Status: `GitHub is the live project source; model connections are isolated from GitHub tokens.`
 
 ## Goal
 Build a web-first workspace where a chosen model can understand a project, connect to repositories, and perform approved actions in a controlled flow.
@@ -35,6 +35,14 @@ Build a web-first workspace where a chosen model can understand a project, conne
 - **Real per-user login.** Until now, GitHub config and model config lived in one global KV key each — shared by every single visitor to `on.rlapp.net`. Anyone who connected a token or an API key made it usable (and overwritable) by anyone else who opened the site; a second person on a second computer would just see the first person's connection. Added Google Sign-In (OAuth authorization-code flow, `/api/auth/login|callback|logout|me`, session cookie backed by a KV-stored session record with a 30-day TTL) and rekeyed all storage by the logged-in user's Google id: `github_config:<uid>` and `models_config:<uid>` instead of flat `config`/`models_config` keys (also gives a provider-prefixed naming scheme for whenever a second repo-hosting provider is added later). Every GitHub/model/chat endpoint now 401s without a valid session. The whole app sits behind a login gate (logo, one-line description, "Sign in with Google") — logging in reveals the real app, logging out brings the gate back immediately. Requires a Google Cloud OAuth Client (Client ID in `wrangler.jsonc` as a plain var; Client Secret set directly as a Cloudflare Worker Secret, never committed). Verified end-to-end with `wrangler dev --local` using two simulated sessions: each user's GitHub config and model list are fully invisible to the other, one user's save never affects the other's data, and logout immediately invalidates the session server-side (not just cookie-side). The actual Google consent-screen click-through can only be verified on the live domain, since the registered redirect URI is `https://on.rlapp.net/api/auth/callback` — Google won't redirect to a localhost dev server.
 - Connected the home-screen chat composer, which previously had no JavaScript wired to its send button at all (not even a failed network call). New `/api/chat` endpoint sends the typed prompt to the user's currently-selected external model (reusing the same provider-calling code as the connection-test ping) and the reply renders as a real chat exchange in the panel; a built-in (Claude) selection returns an explanatory message instead of attempting a call that has nothing to authenticate with from a Worker.
 - The project-management actions (open/create/rename/delete, added to the home screen's Projects panel) only worked locally — they called `/api/workspace/*`, which existed in `server.js` but was never ported to `worker.js`, so every click 404'd on the deployed site (same bug class as GitHub/models before those were ported). Added the missing `/api/workspace`, `/api/workspace/select`, `/api/workspace/projects`, `/api/workspace/projects/update`, `/api/workspace/projects/open`, `/api/workspace/projects/delete` endpoints to `worker.js`, per-user (`workspace_config:<uid>` in the same KV namespace), behind the same login gate as everything else. Also fixed two bugs found in the same review: (1) three of the four new button labels (open/rename/delete project) had Hebrew text that didn't match the i18n dictionary, so toggling language and back would silently change them; (2) project/library names were written into `innerHTML` without escaping, unlike every other user-supplied string rendered this way elsewhere in the file — a stored-XSS gap (a project named e.g. `<img src=x onerror=...>` would have executed). Verified end-to-end with `wrangler dev --local`: create/rename/open/delete round-trip correctly, two simulated users' project lists stay fully isolated, a non-string `name` in the request body returns a clean 400 instead of crashing the handler, and a malicious project name renders as inert text, not markup.
+
+## Recent Updates
+- Added typed library management with source icons and edit, rename, and delete actions.
+- Fixed the chat layout so the message panel uses the full remaining width when the Projects sidebar is resized.
+- Removed the visible Workspace title and placed the action icons in the top bar space.
+- Added optional image attachments for the home chat and multimodal model requests.
+- Added GitHub-token protection for model connections and model connection editing.
+- Model deletion is now permanent and no longer archives the deleted connection for display.
 
 ## In progress
 1. Make the home screen fully product-like
