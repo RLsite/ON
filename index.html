@@ -368,15 +368,28 @@
     </div>
     <div class="sideCard">
       <h3 data-i18n="sidebarProjects">פרויקטים</h3>
-      <button class="sideLink on"><span>ON TracK</span><span>●</span></button>
-      <button class="sideLink"><span data-i18n="sideProjSandbox">ארגז חול</span><span>○</span></button>
-      <button class="sideLink"><span data-i18n="sideProjResearch">מחקר</span><span>○</span></button>
+      <div class="projectTools" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px">
+        <input id="projectNameInput" class="fieldInput" data-i18n-placeholder="phProjectName" placeholder="שם הפרויקט החדש">
+        <input id="projectNoteInput" class="fieldInput" data-i18n-placeholder="phProjectNote" placeholder="הערה קצרה">
+        <select id="projectStatusSelect" class="fieldInput">
+          <option value="active">active</option>
+          <option value="idle">idle</option>
+          <option value="planning">planning</option>
+          <option value="paused">paused</option>
+        </select>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="act" id="projectOpenBtn" data-i18n="openProject">פתח</button>
+          <button class="add" id="projectCreateBtn" data-i18n="createProject">צור פרויקט</button>
+          <button class="miniBtn" id="projectRenameBtn" data-i18n="renameProject">שנה שם</button>
+          <button class="miniBtn" id="projectDeleteBtn" data-i18n="deleteProject">מחק</button>
+        </div>
+        <span class="hint" id="projectToolsStatus"></span>
+      </div>
+      <div id="projectList"></div>
     </div>
     <div class="sideCard">
       <h3 data-i18n="sidebarLibraries">ספריות</h3>
-      <button class="sideLink on"><span data-i18n="sideLibDocs">מסמכי פרויקט</span><span>01</span></button>
-      <button class="sideLink"><span data-i18n="sideLibDesign">מערכת עיצוב</span><span>02</span></button>
-      <button class="sideLink"><span data-i18n="sideLibAssets">נכסים משותפים</span><span>03</span></button>
+      <div id="libraryList"></div>
     </div>
   </aside>
   <main class="newMain">
@@ -850,6 +863,7 @@
       topTitle:'מרחב עבודה', heroTitle:'מסך עבודה נקי לפרויקטים ומודלים',
       heroText:'זהו ה-MVP החדש: בוחרים מודל, בוחרים פרויקט, מגדירים משימה, ואז נותנים למודל לבצע פעולות מבוקרות על מאגרי קוד.',
       heroStart:'פרויקט חדש', heroDocs:'פתח תיעוד', heroConnect:'חיבור למודל', docTitle:'מידע פרויקט',
+      openProject:'פתח פרויקט', createProject:'צור פרויקט', renameProject:'שנה שם פרויקט', deleteProject:'מחק פרויקט',
       doc1:'שלב 1: חיבור מודל.', doc2:'שלב 2: בחירת פרויקט.', doc3:'שלב 3: חיבור לריפו.', doc4:'שלב 4: המודל מבצע משימות מאושרות.',
       chatText:'אני רוצה לבנות מערכת שמקבלת פרויקט, מחברת מודל, ומבצעת פעולות מבוקרות על GitHub.',
       quickStats:'מצב מהיר', statusLabel:'סטטוס', miniStatusDefault:'התחלה חדשה', versionLabel:'גרסה', langLabel:'שפה',
@@ -926,6 +940,7 @@
       topTitle:'Workspace', heroTitle:'A clean workspace for projects and models',
       heroText:'This is the new MVP: choose a model, choose a project, define a task, then let the model perform controlled actions on code repositories.',
       heroStart:'New project', heroDocs:'Open docs', heroConnect:'Connect model', docTitle:'Project Info',
+      openProject:'Open project', createProject:'Create project', renameProject:'Rename project', deleteProject:'Delete project',
       doc1:'Step 1: connect a model.', doc2:'Step 2: choose a project.', doc3:'Step 3: connect a repo.', doc4:'Step 4: the model performs approved tasks.',
       chatText:'I want to build a system that receives a project, connects a model, and performs controlled actions on GitHub.',
       quickStats:'Quick Status', statusLabel:'Status', miniStatusDefault:'Fresh start', versionLabel:'Version', langLabel:'Language',
@@ -1888,6 +1903,9 @@ if(next) await fetch(B+"/api/update",{method:"POST",
       const projectList = $('#projectList');
       const libraryList = $('#libraryList');
       const docBody = $('#docBody');
+      if($('#projectNameInput') && !$('#projectNameInput').value.trim()) $('#projectNameInput').value = data.selectedProject?.name || '';
+      if($('#projectNoteInput') && !$('#projectNoteInput').value.trim()) $('#projectNoteInput').value = data.selectedProject?.note || '';
+      if($('#projectStatusSelect') && data.selectedProject?.status) $('#projectStatusSelect').value = data.selectedProject.status;
       if(projectList){
         projectList.innerHTML = (data.workspace?.projects || []).map(p => `
           <button class="sideLink ${data.selectedProject?.id===p.id?'on':''}" data-pid="${p.id}">
@@ -1895,7 +1913,7 @@ if(next) await fetch(B+"/api/update",{method:"POST",
           </button>`).join('');
         projectList.querySelectorAll('[data-pid]').forEach(btn => {
           btn.onclick = async () => {
-            const j = await (await fetch('/api/workspace/select',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projectId:btn.dataset.pid})})).json();
+            const j = await (await fetch('/api/workspace/projects/open',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:btn.dataset.pid})})).json();
             renderWorkspace();
             updateMiniStatus(j);
           };
@@ -1923,6 +1941,8 @@ if(next) await fetch(B+"/api/update",{method:"POST",
           <div class="heroStatRow"><span>ספרייה</span><b>${data.selectedLibrary?.name || ''}</b></div>
         `;
       }
+      const tools = $('#projectToolsStatus');
+      if(tools && data.selectedProject) tools.textContent = `${data.selectedProject.name} · ${data.selectedProject.status}`;
       updateMiniStatus(data);
     }catch{}
   }
@@ -1938,6 +1958,54 @@ if(next) await fetch(B+"/api/update",{method:"POST",
   if($('#settingsModelOpen')) $('#settingsModelOpen').onclick=()=>{ closeSettings(); window.openModelModal(); };
   if($('#settingsGithubOpen')) $('#settingsGithubOpen').onclick=()=>{ closeSettings(); window.openGithubModal(); };
   if($('#settingsApiOpen')) $('#settingsApiOpen').onclick=()=>{ closeSettings(); $('#apiModal').classList.add('on'); };
+  async function openSelectedProject(){
+    const data = await (await fetch('/api/workspace')).json();
+    if(data.selectedProject){
+      const j = await (await fetch('/api/workspace/projects/open',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:data.selectedProject.id})})).json();
+      renderWorkspace();
+      updateMiniStatus(j);
+    }
+  }
+  async function createProject(){
+    const name = $('#projectNameInput')?.value.trim();
+    const note = $('#projectNoteInput')?.value.trim();
+    const status = $('#projectStatusSelect')?.value || 'idle';
+    if(!name){ $('#projectToolsStatus').textContent = 'חסר שם פרויקט'; return; }
+    $('#projectToolsStatus').textContent = 'יוצר...';
+    const j = await (await fetch('/api/workspace/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,note,status})})).json();
+    if(j.error){ $('#projectToolsStatus').textContent = j.error; return; }
+    $('#projectToolsStatus').textContent = 'נוצר ✓';
+    await renderWorkspace();
+  }
+  async function renameProject(){
+    const data = await (await fetch('/api/workspace')).json();
+    const selected = data.selectedProject;
+    if(!selected) return;
+    const name = $('#projectNameInput')?.value.trim();
+    const note = $('#projectNoteInput')?.value.trim();
+    const status = $('#projectStatusSelect')?.value || selected.status;
+    if(!name){ $('#projectToolsStatus').textContent = 'חסר שם פרויקט'; return; }
+    $('#projectToolsStatus').textContent = 'שומר...';
+    const j = await (await fetch('/api/workspace/projects/update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:selected.id,name,note,status})})).json();
+    if(j.error){ $('#projectToolsStatus').textContent = j.error; return; }
+    $('#projectToolsStatus').textContent = 'עודכן ✓';
+    await renderWorkspace();
+  }
+  async function deleteProject(){
+    const data = await (await fetch('/api/workspace')).json();
+    const selected = data.selectedProject;
+    if(!selected) return;
+    if(!confirm(`למחוק את הפרויקט "${selected.name}"?`)) return;
+    $('#projectToolsStatus').textContent = 'מוחק...';
+    const j = await (await fetch('/api/workspace/projects/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:selected.id})})).json();
+    if(j.error){ $('#projectToolsStatus').textContent = j.error; return; }
+    $('#projectToolsStatus').textContent = 'נמחק ✓';
+    await renderWorkspace();
+  }
+  if($('#projectOpenBtn')) $('#projectOpenBtn').onclick=openSelectedProject;
+  if($('#projectCreateBtn')) $('#projectCreateBtn').onclick=createProject;
+  if($('#projectRenameBtn')) $('#projectRenameBtn').onclick=renameProject;
+  if($('#projectDeleteBtn')) $('#projectDeleteBtn').onclick=deleteProject;
   if($('#githubDockBtn')) $('#githubDockBtn').onclick=()=>window.openGithubModal();
   if($('#modelDockBtn')) $('#modelDockBtn').onclick=()=>window.openModelModal();
   if(newSettingsBtn) newSettingsBtn.onclick=()=>openSettings();
@@ -2473,4 +2541,3 @@ refresh().then(loop);
 </script>
 </body>
 </html>
-

@@ -23,6 +23,7 @@ const CHECKS_FILE = path.join(DATA_DIR, 'checks.json');
 const LLM_CONFIG_FILE = path.join(DATA_DIR, 'llm-config.json');
 const GITHUB_CONFIG_FILE = path.join(DATA_DIR, 'github-config.json');
 const PROJECT_STATE_FILE = path.join(DATA_DIR, 'project-state.json');
+const WORKSPACE_STATE_FILE = path.join(DATA_DIR, 'workspace-state.json');
 const HTML_FILE = path.join(__dirname, 'index.html');
 const PROJECT_INFO_FILE = path.join(__dirname, '..', 'PROJECT_INFO.md');
 
@@ -159,7 +160,7 @@ const DEFAULT_PROJECT_STATE = {
 };
 const DEFAULT_WORKSPACE = {
   projects: [
-    { id: 'ontrack', name: 'ON TracK', status: 'active', note: 'Main workspace' },
+    { id: 'ontrack', name: 'ON TracK', status: 'active', note: 'Main workspace', description: 'Primary project workspace' },
     { id: 'sandbox', name: 'Sandbox', status: 'idle', note: 'Experiment space' },
     { id: 'research', name: 'Research', status: 'idle', note: 'Ideas and notes' }
   ],
@@ -171,9 +172,23 @@ const DEFAULT_WORKSPACE = {
   selectedProjectId: 'ontrack',
   selectedLibraryId: 'docs'
 };
-let workspaceState = { ...DEFAULT_WORKSPACE };
-function loadWorkspaceState() { return { ...DEFAULT_WORKSPACE, ...workspaceState }; }
-function saveWorkspaceState() {}
+function loadWorkspaceState() {
+  try {
+    const c = JSON.parse(fs.readFileSync(WORKSPACE_STATE_FILE, 'utf8'));
+    const ws = {
+      ...DEFAULT_WORKSPACE,
+      ...c,
+      projects: Array.isArray(c.projects) ? c.projects : DEFAULT_WORKSPACE.projects,
+      libraries: Array.isArray(c.libraries) ? c.libraries : DEFAULT_WORKSPACE.libraries
+    };
+    if (!ws.projects.some(p => p.id === ws.selectedProjectId)) ws.selectedProjectId = ws.projects[0]?.id || null;
+    if (!ws.libraries.some(l => l.id === ws.selectedLibraryId)) ws.selectedLibraryId = ws.libraries[0]?.id || null;
+    return ws;
+  } catch {
+    return { ...DEFAULT_WORKSPACE };
+  }
+}
+function saveWorkspaceState(ws) { fs.writeFileSync(WORKSPACE_STATE_FILE, JSON.stringify(ws, null, 2)); }
 function loadProjectState() {
   try {
     const c = JSON.parse(fs.readFileSync(PROJECT_STATE_FILE, 'utf8'));
@@ -1097,12 +1112,95 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === '/api/workspace/select' && req.method === 'POST') {
       const b = await readBody(req);
-      if (typeof b.projectId === 'string' && workspaceState.projects.some(pj => pj.id === b.projectId)) {
-        workspaceState.selectedProjectId = b.projectId;
+      const ws = loadWorkspaceState();
+      if (typeof b.projectId === 'string' && ws.projects.some(pj => pj.id === b.projectId)) ws.selectedProjectId = b.projectId;
+      if (typeof b.libraryId === 'string' && ws.libraries.some(lb => lb.id === b.libraryId)) ws.selectedLibraryId = b.libraryId;
+      saveWorkspaceState(ws);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify(projectSummary()));
+    }
+    if (p === '/api/workspace/projects' && req.method === 'POST') {
+      const b = await readBody(req);
+      const name = typeof b.name === 'string' ? b.name.trim() : '';
+      if (!name) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'missing name' }));
       }
-      if (typeof b.libraryId === 'string' && workspaceState.libraries.some(lb => lb.id === b.libraryId)) {
-        workspaceState.selectedLibraryId = b.libraryId;
+      const ws = loadWorkspaceState();
+      const id = (typeof b.id === 'string' && b.id.trim())
+        ? b.id.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-')
+        : ('proj-' + Date.now());
+      if (ws.projects.some(pj => pj.id === id)) {
+        res.writeHead(409, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'project already exists' }));
       }
+      ws.projects.push({
+        id,
+        name,
+        status: typeof b.status === 'string' && b.status.trim() ? b.status.trim() : 'idle',
+        note: typeof b.note === 'string' ? b.note.trim() : '',
+        description: typeof b.description === 'string' ? b.description.trim() : ''
+      });
+      ws.selectedProjectId = id;
+      saveWorkspaceState(ws);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify(projectSummary()));
+    }
+    if (p === '/api/workspace/projects/update' && req.method === 'POST') {
+      const b = await readBody(req);
+      const ws = loadWorkspaceState();
+      const id = typeof b.id === 'string' ? b.id.trim() : '';
+      const project = ws.projects.find(pj => pj.id === id);
+      if (!project) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'project not found' }));
+      }
+      if (typeof b.name === 'string' && b.name.trim()) project.name = b.name.trim();
+      if (typeof b.status === 'string' && b.status.trim()) project.status = b.status.trim();
+      if (typeof b.note === 'string') project.note = b.note.trim();
+      if (typeof b.description === 'string') project.description = b.description.trim();
+      if (typeof b.projectId === 'string' && b.projectId.trim()) {
+        const nextId = b.projectId.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
+        if (nextId !== project.id && !ws.projects.some(pj => pj.id === nextId)) {
+          project.id = nextId;
+          ws.selectedProjectId = nextId;
+        }
+      }
+      saveWorkspaceState(ws);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify(projectSummary()));
+    }
+    if (p === '/api/workspace/projects/open' && req.method === 'POST') {
+      const b = await readBody(req);
+      const ws = loadWorkspaceState();
+      const project = ws.projects.find(pj => pj.id === b.id);
+      if (!project) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'project not found' }));
+      }
+      ws.selectedProjectId = project.id;
+      saveWorkspaceState(ws);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify(projectSummary()));
+    }
+    if (p === '/api/workspace/projects/delete' && req.method === 'POST') {
+      const b = await readBody(req);
+      const ws = loadWorkspaceState();
+      const id = typeof b.id === 'string' ? b.id.trim() : '';
+      const index = ws.projects.findIndex(pj => pj.id === id);
+      if (index < 0) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'project not found' }));
+      }
+      if (ws.projects.length <= 1) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'cannot delete the last project' }));
+      }
+      ws.projects.splice(index, 1);
+      if (ws.selectedProjectId === id) {
+        ws.selectedProjectId = ws.projects[0].id;
+      }
+      saveWorkspaceState(ws);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify(projectSummary()));
     }
