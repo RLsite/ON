@@ -10,6 +10,7 @@
 //   session:<sessionId>        ephemeral login session -> {uid, email, name, picture}
 //   github_config:<uid>        per-user GitHub owner/repo/token
 //   models_config:<uid>        per-user model list + selection + "recently connected"
+//   workspace_config:<uid>     per-user projects + libraries
 // Before login existed, github_config/models_config were single global keys shared by every
 // visitor — anyone who connected a token made it usable by anyone else who opened the site.
 // Scoping every key by uid is the actual fix, not just a nicety.
@@ -468,6 +469,133 @@ async function handleModelsApi(request, env, path, uid) {
 }
 
 // ---------------------------------------------------------------------------
+// Workspace: the projects/libraries a user organizes their work around. Same
+// shape and endpoints as server.js's local-only version, ported to per-user KV
+// so it actually works on the deployed site instead of 404ing.
+// ---------------------------------------------------------------------------
+
+const DEFAULT_WORKSPACE = {
+  projects: [
+    { id: 'ontrack', name: 'ON TracK', status: 'active', note: 'Main workspace', description: 'Primary project workspace' }
+  ],
+  libraries: [
+    { id: 'docs', name: 'Project Docs', note: 'Specs and guides' }
+  ],
+  selectedProjectId: 'ontrack',
+  selectedLibraryId: 'docs'
+};
+
+async function loadWorkspace(env, uid) {
+  const raw = await env.GH_CONFIG.get('workspace_config:' + uid);
+  let ws = null;
+  if (raw) { try { ws = JSON.parse(raw); } catch {} }
+  if (!ws || !Array.isArray(ws.projects) || !ws.projects.length) {
+    ws = { ...DEFAULT_WORKSPACE, projects: DEFAULT_WORKSPACE.projects.map(p => ({ ...p })), libraries: DEFAULT_WORKSPACE.libraries.map(l => ({ ...l })) };
+  }
+  if (!Array.isArray(ws.libraries) || !ws.libraries.length) ws.libraries = DEFAULT_WORKSPACE.libraries.map(l => ({ ...l }));
+  if (!ws.projects.some(p => p.id === ws.selectedProjectId)) ws.selectedProjectId = ws.projects[0]?.id || null;
+  if (!ws.libraries.some(l => l.id === ws.selectedLibraryId)) ws.selectedLibraryId = ws.libraries[0]?.id || null;
+  return ws;
+}
+
+async function saveWorkspace(env, uid, ws) {
+  await env.GH_CONFIG.put('workspace_config:' + uid, JSON.stringify(ws));
+}
+
+function workspaceSummary(ws) {
+  return {
+    workspace: ws,
+    selectedProject: ws.projects.find(p => p.id === ws.selectedProjectId) || ws.projects[0] || null,
+    selectedLibrary: ws.libraries.find(l => l.id === ws.selectedLibraryId) || ws.libraries[0] || null
+  };
+}
+
+function slugifyId(raw) {
+  return raw.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
+}
+
+async function handleWorkspaceApi(request, env, path, uid) {
+  const method = request.method;
+
+  if (path === '/api/workspace' && method === 'GET') {
+    return json(workspaceSummary(await loadWorkspace(env, uid)));
+  }
+
+  if (path === '/api/workspace/select' && method === 'POST') {
+    const ws = await loadWorkspace(env, uid);
+    const b = await request.json().catch(() => ({}));
+    if (typeof b.projectId === 'string' && ws.projects.some(p => p.id === b.projectId)) ws.selectedProjectId = b.projectId;
+    if (typeof b.libraryId === 'string' && ws.libraries.some(l => l.id === b.libraryId)) ws.selectedLibraryId = b.libraryId;
+    await saveWorkspace(env, uid, ws);
+    return json(workspaceSummary(ws));
+  }
+
+  if (path === '/api/workspace/projects' && method === 'POST') {
+    const b = await request.json().catch(() => ({}));
+    const name = typeof b.name === 'string' ? b.name.trim() : '';
+    if (!name) return json({ error: 'חסר שם פרויקט' }, 400);
+    const ws = await loadWorkspace(env, uid);
+    const id = (typeof b.id === 'string' && b.id.trim()) ? slugifyId(b.id) : ('proj-' + Date.now());
+    if (ws.projects.some(p => p.id === id)) return json({ error: 'פרויקט עם המזהה הזה כבר קיים' }, 409);
+    ws.projects.push({
+      id, name,
+      status: typeof b.status === 'string' && b.status.trim() ? b.status.trim() : 'idle',
+      note: typeof b.note === 'string' ? b.note.trim() : '',
+      description: typeof b.description === 'string' ? b.description.trim() : ''
+    });
+    ws.selectedProjectId = id;
+    await saveWorkspace(env, uid, ws);
+    return json(workspaceSummary(ws));
+  }
+
+  if (path === '/api/workspace/projects/update' && method === 'POST') {
+    const ws = await loadWorkspace(env, uid);
+    const b = await request.json().catch(() => ({}));
+    const id = typeof b.id === 'string' ? b.id.trim() : '';
+    const project = ws.projects.find(p => p.id === id);
+    if (!project) return json({ error: 'הפרויקט לא נמצא' }, 404);
+    if (typeof b.name === 'string' && b.name.trim()) project.name = b.name.trim();
+    if (typeof b.status === 'string' && b.status.trim()) project.status = b.status.trim();
+    if (typeof b.note === 'string') project.note = b.note.trim();
+    if (typeof b.description === 'string') project.description = b.description.trim();
+    if (typeof b.projectId === 'string' && b.projectId.trim()) {
+      const nextId = slugifyId(b.projectId);
+      if (nextId !== project.id && !ws.projects.some(p => p.id === nextId)) {
+        project.id = nextId;
+        ws.selectedProjectId = nextId;
+      }
+    }
+    await saveWorkspace(env, uid, ws);
+    return json(workspaceSummary(ws));
+  }
+
+  if (path === '/api/workspace/projects/open' && method === 'POST') {
+    const ws = await loadWorkspace(env, uid);
+    const b = await request.json().catch(() => ({}));
+    const project = ws.projects.find(p => p.id === b.id);
+    if (!project) return json({ error: 'הפרויקט לא נמצא' }, 404);
+    ws.selectedProjectId = project.id;
+    await saveWorkspace(env, uid, ws);
+    return json(workspaceSummary(ws));
+  }
+
+  if (path === '/api/workspace/projects/delete' && method === 'POST') {
+    const ws = await loadWorkspace(env, uid);
+    const b = await request.json().catch(() => ({}));
+    const id = typeof b.id === 'string' ? b.id.trim() : '';
+    const index = ws.projects.findIndex(p => p.id === id);
+    if (index < 0) return json({ error: 'הפרויקט לא נמצא' }, 404);
+    if (ws.projects.length <= 1) return json({ error: 'לא ניתן למחוק את הפרויקט האחרון' }, 400);
+    ws.projects.splice(index, 1);
+    if (ws.selectedProjectId === id) ws.selectedProjectId = ws.projects[0].id;
+    await saveWorkspace(env, uid, ws);
+    return json(workspaceSummary(ws));
+  }
+
+  return json({ error: 'not found' }, 404);
+}
+
+// ---------------------------------------------------------------------------
 // Home-screen chat: sends the prompt to the user's own selected model.
 // ---------------------------------------------------------------------------
 
@@ -500,13 +628,14 @@ export default {
 
     if (path.startsWith('/api/auth/')) return handleAuth(request, env, url, path);
 
-    const needsAuth = path.startsWith('/api/github/') || path.startsWith('/api/models') || path === '/api/chat';
+    const needsAuth = path.startsWith('/api/github/') || path.startsWith('/api/models') || path === '/api/chat' || path.startsWith('/api/workspace');
     if (needsAuth) {
       const user = await getSession(env, request);
       if (!user) return json({ error: 'לא מחובר. יש להתחבר עם Google כדי להשתמש בתכונה הזו.', loginRequired: true }, 401);
       if (path.startsWith('/api/github/')) return handleGithubApi(request, env, path, user.uid);
       if (path.startsWith('/api/models')) return handleModelsApi(request, env, path, user.uid);
       if (path === '/api/chat') return handleChat(request, env, user.uid);
+      if (path.startsWith('/api/workspace')) return handleWorkspaceApi(request, env, path, user.uid);
     }
 
     return env.ASSETS.fetch(request);

@@ -20,6 +20,17 @@
     --shadow-sm:0 1px 2px rgba(15,23,42,.05), 0 1px 3px rgba(15,23,42,.04);
     --shadow-md:0 8px 24px rgba(15,23,42,.08), 0 2px 6px rgba(15,23,42,.05);
   }
+  body[data-theme="dark"]{
+    --bg:#0b1220; --panel:#111827; --panel2:#172033; --line:#253047;
+    --txt:#e5eefc; --muted:#9ca3af; --accent:#60a5fa; --accent2:#3b82f6; --accent-tint:#17284a;
+    --open:#94a3b8; --prog:#f59e0b; --partial:#fb923c; --done:#34d399; --flag:#fb7185; --hold:#a78bfa;
+    --pass:#34d399; --fail:#fb7185;
+    --pass-tint:#0f2a22; --fail-tint:#2a1117; --hold-tint:#20183b; --await-tint:#2a2113; --await-line:#f59e0b;
+    --viz-grid:#152338; --viz-axis:#26344f;
+    --shadow-sm:0 1px 2px rgba(0,0,0,.24), 0 1px 3px rgba(0,0,0,.16);
+    --shadow-md:0 8px 24px rgba(0,0,0,.30), 0 2px 6px rgba(0,0,0,.16);
+    color-scheme: dark;
+  }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--txt);
     font-family:"Fira Sans","Segoe UI",system-ui,Arial,sans-serif;line-height:1.6}
@@ -478,6 +489,7 @@
       <div class="dockTitle">User workspace</div>
       <div class="dockActions">
         <button class="dockBtn langToggle" id="langBtn">עברית / EN</button>
+        <button class="dockBtn" id="themeBtn" title="Toggle light / dark">כהה</button>
         <button class="dockBtn" id="settingsBtn">הגדרות</button>
         <button class="dockBtn" id="helpBtn">עזרה</button>
         <button class="dockBtn" id="githubDockBtn">חיבור ל GITHUB</button>
@@ -863,7 +875,7 @@
       topTitle:'מרחב עבודה', heroTitle:'מסך עבודה נקי לפרויקטים ומודלים',
       heroText:'זהו ה-MVP החדש: בוחרים מודל, בוחרים פרויקט, מגדירים משימה, ואז נותנים למודל לבצע פעולות מבוקרות על מאגרי קוד.',
       heroStart:'פרויקט חדש', heroDocs:'פתח תיעוד', heroConnect:'חיבור למודל', docTitle:'מידע פרויקט',
-      openProject:'פתח פרויקט', createProject:'צור פרויקט', renameProject:'שנה שם פרויקט', deleteProject:'מחק פרויקט',
+      openProject:'פתח', createProject:'צור פרויקט', renameProject:'שנה שם', deleteProject:'מחק',
       doc1:'שלב 1: חיבור מודל.', doc2:'שלב 2: בחירת פרויקט.', doc3:'שלב 3: חיבור לריפו.', doc4:'שלב 4: המודל מבצע משימות מאושרות.',
       chatText:'אני רוצה לבנות מערכת שמקבלת פרויקט, מחברת מודל, ומבצעת פעולות מבוקרות על GitHub.',
       quickStats:'מצב מהיר', statusLabel:'סטטוס', miniStatusDefault:'התחלה חדשה', versionLabel:'גרסה', langLabel:'שפה',
@@ -871,6 +883,7 @@
       settingsCardVersion:'גרסת פרויקט', settingsCardStatus:'מצב נוכחי', settingsStatusDefault:'ממתין',
       settingsCardGoal:'מטרת עבודה', settingsCardShortcut:'קיצור דרך', settingsShortcutHint:'פתח עזרה, מודל, GitHub או API לפי הצורך.',
       titleSettings:'הגדרות', titleHelp:'עזרה', titleModel:'חיבור למודל', titleGithub:'חיבור ל GitHub',
+      titleTheme:'החלף תצוגה',
       helpTitle:'❓ עזרה וסטטוס פרויקט', helpVersionLabel:'גרסה:',
       helpIntro:'זהו כלי בדיקות (QA) מקומי שנבנה כדי להפוך לעבודה מסודרת מול מודל שתבחר.\n        המטרה היא לעבוד בשלבים: לבחור מודל, לחבר פרויקט מקומי, להגדיר תכנית, ואז לעבור לביצוע מבוקר.',
       helpDoneLabel:'מה בוצע', helpTodoLabel:'מה נשאר', helpFlowLabel:'איך עובדים עכשיו', helpPathLabel:'קובץ מידע',
@@ -948,6 +961,7 @@
       settingsCardVersion:'Project Version', settingsCardStatus:'Current Status', settingsStatusDefault:'Waiting',
       settingsCardGoal:'Work Goal', settingsCardShortcut:'Shortcut', settingsShortcutHint:'Open help, model, GitHub, or API as needed.',
       titleSettings:'Settings', titleHelp:'Help', titleModel:'Connect Model', titleGithub:'Connect GitHub',
+      titleTheme:'Toggle theme',
       helpTitle:'❓ Help & Project Status', helpVersionLabel:'Version:',
       helpIntro:'This is a local QA tool built to turn testing into organized work with a model of your choice.\n        The goal is to work in stages: choose a model, connect a local project, define a plan, then move to controlled execution.',
       helpDoneLabel:'Done', helpTodoLabel:'Remaining', helpFlowLabel:'How it works now', helpPathLabel:'Info file',
@@ -1908,8 +1922,8 @@ if(next) await fetch(B+"/api/update",{method:"POST",
       if($('#projectStatusSelect') && data.selectedProject?.status) $('#projectStatusSelect').value = data.selectedProject.status;
       if(projectList){
         projectList.innerHTML = (data.workspace?.projects || []).map(p => `
-          <button class="sideLink ${data.selectedProject?.id===p.id?'on':''}" data-pid="${p.id}">
-            <span>${p.name}</span><span>${p.status==='active'?'●':'○'}</span>
+          <button class="sideLink ${data.selectedProject?.id===p.id?'on':''}" data-pid="${esc(p.id)}">
+            <span>${esc(p.name)}</span><span>${p.status==='active'?'●':'○'}</span>
           </button>`).join('');
         projectList.querySelectorAll('[data-pid]').forEach(btn => {
           btn.onclick = async () => {
@@ -1921,8 +1935,8 @@ if(next) await fetch(B+"/api/update",{method:"POST",
       }
       if(libraryList){
         libraryList.innerHTML = (data.workspace?.libraries || []).map(l => `
-          <button class="sideLink ${data.selectedLibrary?.id===l.id?'on':''}" data-lid="${l.id}">
-            <span>${l.name}</span><span>↗</span>
+          <button class="sideLink ${data.selectedLibrary?.id===l.id?'on':''}" data-lid="${esc(l.id)}">
+            <span>${esc(l.name)}</span><span>↗</span>
           </button>`).join('');
         libraryList.querySelectorAll('[data-lid]').forEach(btn => {
           btn.onclick = async () => {
@@ -1935,10 +1949,10 @@ if(next) await fetch(B+"/api/update",{method:"POST",
       if(docBody && data.selectedProject){
         const p = data.selectedProject;
         docBody.innerHTML = `
-          <div class="heroStatRow"><span>פרויקט</span><b>${p.name}</b></div>
-          <div class="heroStatRow"><span>סטטוס</span><b>${p.status}</b></div>
-          <div class="heroStatRow"><span>הערה</span><b>${p.note || ''}</b></div>
-          <div class="heroStatRow"><span>ספרייה</span><b>${data.selectedLibrary?.name || ''}</b></div>
+          <div class="heroStatRow"><span>פרויקט</span><b>${esc(p.name)}</b></div>
+          <div class="heroStatRow"><span>סטטוס</span><b>${esc(p.status)}</b></div>
+          <div class="heroStatRow"><span>הערה</span><b>${esc(p.note || '')}</b></div>
+          <div class="heroStatRow"><span>ספרייה</span><b>${esc(data.selectedLibrary?.name || '')}</b></div>
         `;
       }
       const tools = $('#projectToolsStatus');
@@ -1952,6 +1966,19 @@ if(next) await fetch(B+"/api/update",{method:"POST",
   }
   if($('#settingsBtn')) $('#settingsBtn').onclick=openSettings;
   if($('#newLangBtn')) $('#newLangBtn').onclick=()=>applyLanguage(uiLang === 'en' ? 'he' : 'en');
+  const themeBtn=$('#themeBtn');
+  function applyTheme(theme){
+    const next = theme === 'dark' ? 'dark' : 'light';
+    document.body.dataset.theme = next;
+    localStorage.setItem('ontrack-theme', next);
+    if(themeBtn){
+      themeBtn.textContent = next === 'dark' ? 'בהיר' : 'כהה';
+      themeBtn.title = uiLang === 'en'
+        ? (next === 'dark' ? 'Switch to light mode' : 'Switch to dark mode')
+        : (next === 'dark' ? 'עבור למצב בהיר' : 'עבור למצב כהה');
+    }
+  }
+  if(themeBtn) themeBtn.onclick=()=>applyTheme(document.body.dataset.theme === 'dark' ? 'light' : 'dark');
   if($('#settingsClose')) $('#settingsClose').onclick=closeSettings;
   if(settingsModal) settingsModal.onclick=e=>{ if(e.target===settingsModal) closeSettings(); };
   if($('#settingsHelpOpen')) $('#settingsHelpOpen').onclick=()=>{ closeSettings(); modal.classList.add('on'); };
@@ -2101,6 +2128,7 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     }catch{}
   })();
   applyLanguage(uiLang);
+  applyTheme(localStorage.getItem('ontrack-theme') || 'light');
   renderWorkspace();
 })();
 
