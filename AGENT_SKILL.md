@@ -6,7 +6,7 @@ The ON TracK agent is a guarded bridge between a selected model, a project, and 
 
 ## Planned Agent Contract
 
-The Worker-side validation and approval scaffold is prepared, but model access to private repository content remains disabled until the user explicitly authorizes that data flow.
+The Worker stores a separate approval for each Google account and the exact selected model. Repository data is sent to the model only while that account-bound approval is enabled.
 
 - `github.list_files` is read-only.
 - `github.read_file` is read-only.
@@ -14,10 +14,11 @@ The Worker-side validation and approval scaffold is prepared, but model access t
 - `github.create_pull_request` is proposed together with file changes.
 - Write plans are stored for a short period and require explicit user approval.
 - Approved changes are written to a new `ontrack/agent-*` branch, never directly to the default branch.
+- Changing the selected model invalidates the previous Agent approval until the user confirms the new destination.
 
 ## Data Boundary
 
-The GitHub token stays in the Cloudflare Worker. Repository metadata or file contents must only be sent to an external model after the user explicitly authorizes that data flow. Without that authorization, the model can still answer general questions but cannot inspect or modify private repository files.
+The GitHub token stays in the Cloudflare Worker. Repository metadata or file contents are sent to the exact model recorded in the per-user approval. Without that authorization, the model can still answer general questions but cannot inspect or modify private repository files.
 
 ## Local Skill Folders
 

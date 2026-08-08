@@ -332,6 +332,12 @@
   .chatPanel,.sideCard{background:var(--panel);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow-sm)}
   .sideCard{padding:14px}
   .quickStatusCard{margin-top:auto}
+  .agentAccessCard{border-color:var(--line)}
+  .agentAccessDot{width:9px;height:9px;border-radius:50%;background:#c9ccdb;flex:none}
+  .agentAccessDot.ok{background:#2fae66}.agentAccessDot.fail{background:#e35b5b}
+  .agentConsentRow{display:flex;align-items:flex-start;gap:8px;margin-top:10px;color:var(--txt);font-size:12.5px;line-height:1.45;cursor:pointer}
+  .agentConsentRow input{width:16px;height:16px;flex:none;margin:2px 0 0}
+  .agentAccessMeta{margin-top:7px;direction:ltr;text-align:left;overflow-wrap:anywhere}
   .sideCardHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
   .sideCard h3{margin:0;font-size:13px;color:var(--accent2);text-transform:uppercase;letter-spacing:.12em}
   .projectAddBtn{width:30px;height:30px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--accent);font:inherit;font-size:21px;line-height:1;cursor:pointer;display:grid;place-items:center;transition:.15s}
@@ -482,10 +488,22 @@
         </div>
         <div id="libraryList"></div>
       </div>
+      <div class="sideCard agentAccessCard">
+        <div class="sideCardHead">
+          <h3 data-i18n="agentAccessTitle">Agent</h3>
+          <span class="agentAccessDot" id="agentAccessDot"></span>
+        </div>
+        <div class="hint" id="agentAccessText" data-i18n="agentAccessOff">המודל לא מקבל גישה לפרויקט.</div>
+        <label class="agentConsentRow">
+          <input type="checkbox" id="agentConsentToggle">
+          <span data-i18n="agentConsentLabel">אפשר למודל לקרוא ולפעול ב־GitHub וב־Skills</span>
+        </label>
+        <div class="hint agentAccessMeta" id="agentAccessMeta"></div>
+      </div>
       <div class="sideCard quickStatusCard">
         <h3 data-i18n="quickStats">מצב מהיר</h3>
         <div class="heroStatRow"><span data-i18n="statusLabel">סטטוס</span><b id="miniStatus" data-i18n="miniStatusDefault">אין פרויקט נבחר</b></div>
-        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">1.2.8 ↻</button></div>
+        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">1.4.0 ↻</button></div>
         <div class="heroStatRow"><span data-i18n="langLabel">שפה</span><b id="langValue">עברית</b></div>
       </div>
     <div class="sidebarResizer" id="sidebarResizer" role="separator" aria-orientation="vertical" aria-label="שינוי רוחב אזור הפרויקטים"></div>
@@ -617,7 +635,7 @@
         <b data-i18n="helpTitle">❓ עזרה ל־ON TracK</b>
         <button class="icon" id="helpClose">✕</button>
       </div>
-      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">1.3.0</b></div>
+      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">1.4.0</b></div>
       <p class="hint" style="line-height:1.7;margin-top:0" data-i18n="helpIntro">ON TracK מחבר בין מודל שבחרת לבין פרויקט ומקורות קוד. המודל מקבל בקשות ומבצע פעולות רק דרך החיבורים וההרשאות שהגדרת.</p>
       <div class="helpList">
         <div class="hint" data-i18n="helpStepOne">1. צור או בחר פרויקט בצד.</div>
@@ -930,7 +948,7 @@
       libraryNameRequired:'חסר שם ספרייה', libraryLocationRequired:'חסרה כתובת או נתיב', creatingLibrary:'יוצר ספרייה...', createdLibrary:'הספרייה נוצרה ✓', savingLibrary:'שומר ספרייה...', updatedLibrary:'הספרייה עודכנה ✓', deletingLibrary:'מוחק ספרייה...', deletedLibrary:'הספרייה נמחקה ✓',
       phLibraryName:'שם הספרייה', phLibraryNote:'הערה קצרה', phLibraryLocation:'כתובת או נתיב', phLibrarySite:'https://...', phLibraryNetwork:'\\\\server\\folder', phLibraryLocal:'C:\\folder\\project',
       noProjects:'אין עדיין פרויקטים', noLibraries:'אין עדיין ספריות', noProjectStatus:'אין פרויקט נבחר',
-      chatHistoryTitle:'שיחה', clearChat:'נקה שיחה', chatText:'אין עדיין הודעות. כתוב בקשה למודל כדי להתחיל.', chatDelete:'מחק הודעה', imageAttached:'תמונה מצורפת', removeImage:'הסר תמונה',
+      chatHistoryTitle:'שיחה', clearChat:'נקה שיחה', agentAccessTitle:'Agent', agentAccessOff:'המודל לא מקבל גישה לפרויקט.', agentConsentLabel:'אפשר למודל לקרוא ולפעול ב־GitHub וב־Skills', agentAccessOn:'גישה מאושרת למודל הנבחר', agentConsentConfirm:'האם לאשר למודל הנבחר לשלוח אליו מטא־דטה ותוכן קבצים מהריפו וה־Skills?', agentConsentSaved:'ההרשאה נשמרה בשרת ✓', agentConsentRevoked:'ההרשאה בוטלה', agentConsentNeedsModel:'בחר מודל חיצוני לפני מתן הרשאה.', agentConsentMismatch:'ההרשאה שייכת למודל אחר. אשר מחדש.', chatText:'אין עדיין הודעות. כתוב בקשה למודל כדי להתחיל.', chatDelete:'מחק הודעה', imageAttached:'תמונה מצורפת', removeImage:'הסר תמונה',
       modelKeyWarning:'המפתח נראה כמו טוקן GitHub. הזן כאן מפתח API של ספק המודל, ואת טוקן GitHub הזן בחיבור GitHub.', saveModelChanges:'שמור שינויי מודל', editModel:'ערוך חיבור',
       quickStats:'מצב מהיר', statusLabel:'סטטוס', miniStatusDefault:'אין פרויקט נבחר', versionLabel:'גרסה', langLabel:'שפה',
       settingsTitle:'⚙️ הגדרות', settingsHint:'כאן מנהלים את סביבת העבודה, בודקים את החיבורים ובוחרים את הפרויקט והספרייה הפעילים.',
@@ -1018,7 +1036,7 @@
       libraryNameRequired:'Library name is required', libraryLocationRequired:'URL or path is required', creatingLibrary:'Creating library...', createdLibrary:'Library created ✓', savingLibrary:'Saving library...', updatedLibrary:'Library updated ✓', deletingLibrary:'Deleting library...', deletedLibrary:'Library deleted ✓',
       phLibraryName:'Library name', phLibraryNote:'Short note', phLibraryLocation:'URL or path', phLibrarySite:'https://...', phLibraryNetwork:'\\\\server\\folder', phLibraryLocal:'C:\\folder\\project',
       noProjects:'No projects yet', noLibraries:'No libraries yet', noProjectStatus:'No project selected',
-      chatHistoryTitle:'Conversation', clearChat:'Clear conversation', chatText:'No messages yet. Write a request to the model to begin.', chatDelete:'Delete message', imageAttached:'Image attached', removeImage:'Remove image',
+      chatHistoryTitle:'Conversation', clearChat:'Clear conversation', agentAccessTitle:'Agent', agentAccessOff:'The model cannot access the project.', agentConsentLabel:'Allow the model to read and act on GitHub and Skills', agentAccessOn:'Access approved for the selected model', agentConsentConfirm:'Allow the selected model to receive repository metadata and file contents from GitHub and Skills?', agentConsentSaved:'Permission saved on the server ✓', agentConsentRevoked:'Permission revoked', agentConsentNeedsModel:'Select an external model before granting access.', agentConsentMismatch:'This permission belongs to another model. Approve again.', chatText:'No messages yet. Write a request to the model to begin.', chatDelete:'Delete message', imageAttached:'Image attached', removeImage:'Remove image',
       modelKeyWarning:'This key looks like a GitHub token. Enter the model provider API key here, and enter the GitHub token in GitHub connection.', saveModelChanges:'Save model changes', editModel:'Edit connection',
       quickStats:'Quick Status', statusLabel:'Status', miniStatusDefault:'No project selected', versionLabel:'Version', langLabel:'Language',
       settingsTitle:'⚙️ Settings', settingsHint:'Manage the workspace, check connections, and see the active project and library.',
@@ -1330,6 +1348,50 @@
     if(input) input.addEventListener('keydown', e => { if(e.key==='Enter'){ e.preventDefault(); sendChatMessage(); } });
   })();
 
+  // Per-user Agent permission. The Worker binds this record to the Google user and to the
+  // exact selected model, so one account's approval never authorizes another account.
+  (function agentAccessInit(){
+    const toggle=document.getElementById('agentConsentToggle');
+    const dot=document.getElementById('agentAccessDot');
+    const text=document.getElementById('agentAccessText');
+    const meta=document.getElementById('agentAccessMeta');
+    let state=null;
+    function render(){
+      if(!toggle) return;
+      const selected=state?.selectedModel;
+      const active=!!(state?.enabled && state?.matchesSelectedModel);
+      toggle.checked=active;
+      toggle.disabled=!!(!selected || selected.builtin);
+      dot?.classList.toggle('ok',active); dot?.classList.toggle('fail',!!state?.enabled && !active);
+      if(text) text.textContent=active ? I18N[uiLang].agentAccessOn : (!selected || selected.builtin ? I18N[uiLang].agentConsentNeedsModel : state?.enabled ? I18N[uiLang].agentConsentMismatch : I18N[uiLang].agentAccessOff);
+      if(meta) meta.textContent=selected ? `${selected.label}${selected.model?' · '+selected.model:''}` : '';
+    }
+    async function load(){
+      try{
+        const r=await fetch('/api/agent/status');
+        if(!r.ok){ state=null; render(); return; }
+        state=await r.json(); render();
+      }catch{ state=null; render(); }
+    }
+    async function change(){
+      if(!state?.selectedModel || state.selectedModel.builtin){ render(); return; }
+      const desired=toggle.checked;
+      if(desired && !confirm(I18N[uiLang].agentConsentConfirm)){ toggle.checked=false; return; }
+      toggle.disabled=true;
+      try{
+        const body={enabled:desired,modelId:desired?state.selectedModel.id:null,scopes:desired?['repo_metadata','file_contents','skill_contents']:[]};
+        const r=await fetch('/api/agent/consent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+        const j=await r.json().catch(()=>({}));
+        if(!r.ok||j.error) throw new Error(j.error||('HTTP '+r.status));
+        state={...state,...j,matchesSelectedModel:desired};
+        if(meta) meta.textContent=(state.selectedModel?.label||'')+(desired?' · '+I18N[uiLang].agentConsentSaved:' · '+I18N[uiLang].agentConsentRevoked);
+      }catch(e){ alert(e.message); }
+      render();
+    }
+    window.loadAgentAccess=load;
+    if(toggle) toggle.onchange=change;
+  })();
+
   // Login (Sign in with Google) — GitHub/model/chat all 401 without a session, since their
   // storage is now scoped per-user server-side. Re-checked (not just cached) every time one of
   // those three is opened/used, so a login/logout in another tab is picked up immediately.
@@ -1372,6 +1434,7 @@
         chatHistoryLoaded = true;
         window.loadChatHistory?.();
       }
+      if(currentUser) window.loadAgentAccess?.();
       if(!currentUser) chatHistoryLoaded = false;
       return currentUser;
     }
@@ -1690,12 +1753,12 @@ function renderModelList(){
   }).join('');
   box.querySelectorAll('[data-sel]').forEach(b=>b.onclick=async()=>{
     await fetch('/api/models/select',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:b.dataset.sel})});
-    await loadModels(); refreshModelModal();
+    await loadModels(); refreshModelModal(); window.loadAgentAccess?.();
   });
   box.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
     if(!confirm('למחוק את המודל?')) return;
     await fetch('/api/models/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:b.dataset.del})});
-    await loadModels(); refreshModelModal();
+    await loadModels(); refreshModelModal(); window.loadAgentAccess?.();
   });
   box.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>startModelEdit(b.dataset.edit));
 }
@@ -1745,7 +1808,7 @@ function renderRecentModels(){
   }).join('');
   box.querySelectorAll('[data-reconnect]').forEach(b=>b.onclick=async()=>{
     await fetch('/api/models/reconnect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:b.dataset.reconnect})});
-    await loadModels(); refreshModelModal();
+    await loadModels(); refreshModelModal(); window.loadAgentAccess?.();
   });
   box.querySelectorAll('[data-del-recent]').forEach(b=>b.onclick=async()=>{
     if(!confirm(uiLang==='en' ? 'Delete this model permanently?' : 'למחוק את המודל לצמיתות?')) return;
@@ -2521,7 +2584,7 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     b.textContent='❓ עזרה';
     apiBtn.parentElement.insertBefore(b, apiBtn);
   }
-  const appVersion='1.3.0';
+  const appVersion='1.4.0';
   $('#appVersion').textContent=appVersion;
   // Seeded here too: without a local server /api/state never answers, and this would
   // otherwise keep showing whatever literal the markup was last edited with.

@@ -359,7 +359,7 @@ async function loadAgentRepoContext(config) {
   };
 }
 
-function agentSystemPrompt(githubConnected, repoContext) {
+function agentSystemPrompt(githubConnected, repoContext, dataSharingAuthorized) {
   const repoText = repoContext
     ? JSON.stringify(repoContext)
     : 'null';
@@ -367,6 +367,7 @@ function agentSystemPrompt(githubConnected, repoContext) {
 The server, not you, holds the GitHub token. Never ask for, reveal, invent, or echo a token.
 You do not browse GitHub directly. You may request only the tools listed below; ON executes them.
 GitHub connected: ${githubConnected ? 'yes' : 'no'}.
+Private repository data sharing authorized for this session: ${dataSharingAuthorized ? 'yes' : 'no'}.
 Repository context (safe metadata only): ${repoText}
 
 Available tools:
@@ -384,7 +385,7 @@ Return JSON only, with this shape:
 For an answer: {"kind":"answer","reply":"...","actions":[]}
 For work: {"kind":"plan","reply":"Short explanation in the user's language","actions":[{"tool":"github.read_file","path":"..."}]}
 Use the user's language. Keep replies concise. A write_file action must contain the full intended file content and a short commit message.
-${githubConnected ? '' : 'GitHub is not connected. Explain that clearly and do not create GitHub actions.'}`;
+${githubConnected && dataSharingAuthorized ? '' : 'Repository access is not authorized for this request. Explain that clearly and do not create GitHub actions.'}`;
 }
 
 function agentWriteTool(tool) {
@@ -523,6 +524,8 @@ async function handleAgentApproval(request, env, uid) {
   await env.GH_CONFIG.delete(key);
   let stored;
   try { stored = JSON.parse(raw); } catch { return json({ error: 'Invalid agent plan.' }, 400); }
+  const consent = await loadAgentConsent(env, uid);
+  if (!consent.enabled) return json({ error: 'Agent repository access is disabled. Enable it again and send the request again.' }, 403);
   const config = await loadGithubConfig(env, uid);
   if (!config.enabled || !config.owner || !config.repo || !config.token) return json({ error: 'GitHub is not connected for this account.' }, 400);
   try {
@@ -531,6 +534,59 @@ async function handleAgentApproval(request, env, uid) {
   } catch (e) {
     return json({ error: e.message || 'GitHub write failed.' }, e.status === 401 || e.status === 403 ? 502 : 502);
   }
+}
+
+async function loadAgentConsent(env, uid) {
+  const raw = await env.GH_CONFIG.get('agent_consent:' + uid);
+  if (!raw) return { enabled: false, updated: null, modelId: null, scopes: [] };
+  try {
+    const value = JSON.parse(raw);
+    return { enabled: !!value.enabled, updated: value.updated || null, approvedAt: value.approvedAt || null, modelId: value.modelId || null, provider: value.provider || null, model: value.model || null, label: value.label || null, scopes: Array.isArray(value.scopes) ? value.scopes : [] };
+  } catch { return { enabled: false, updated: null, modelId: null, scopes: [] }; }
+}
+
+async function handleAgentApi(request, env, path, uid) {
+  if (path === '/api/agent/status' && request.method === 'GET') {
+    const consent = await loadAgentConsent(env, uid);
+    const github = await loadGithubConfig(env, uid);
+    const models = await loadModelsConfig(env, uid);
+    const selectedModel = models.models.find(item => item.id === models.selectedId) || null;
+    const workspace = await loadWorkspace(env, uid);
+    return json({
+      enabled: consent.enabled,
+      updated: consent.updated,
+      approvedAt: consent.approvedAt,
+      consentModelId: consent.modelId,
+      consentLabel: consent.label,
+      scopes: consent.scopes,
+      selectedModel: selectedModel ? { id: selectedModel.id, label: selectedModel.label, builtin: !!selectedModel.builtin, provider: selectedModel.provider || null, model: selectedModel.model || null } : null,
+      matchesSelectedModel: !!(consent.enabled && selectedModel && consent.modelId === selectedModel.id),
+      githubConfigured: !!(github.enabled && github.owner && github.repo && github.token),
+      repository: github.owner && github.repo ? `${github.owner}/${github.repo}` : null,
+      skillFolders: workspace.libraries.filter(item => item.type === 'skill-folder').map(item => ({ id: item.id, name: item.name, location: item.location }))
+    });
+  }
+  if (path === '/api/agent/consent' && request.method === 'POST') {
+    const body = await request.json().catch(() => ({}));
+    const enabled = body.enabled === true;
+    const models = await loadModelsConfig(env, uid);
+    const selectedModel = models.models.find(item => item.id === models.selectedId) || null;
+    if (enabled && (!selectedModel || selectedModel.builtin || selectedModel.id !== body.modelId)) {
+      return json({ error: 'Select the external model you want to authorize, then try again.' }, 400);
+    }
+    const scopes = enabled && Array.isArray(body.scopes) ? body.scopes.filter(item => ['repo_metadata', 'file_contents', 'skill_contents'].includes(item)) : [];
+    if (enabled && !scopes.includes('repo_metadata')) return json({ error: 'Repository metadata permission is required.' }, 400);
+    const now = new Date().toISOString();
+    const value = enabled ? {
+      enabled: true, updated: now, approvedAt: now,
+      modelId: selectedModel.id, label: selectedModel.label,
+      provider: selectedModel.provider || null, model: selectedModel.model || null,
+      scopes
+    } : { enabled: false, updated: now, approvedAt: null, modelId: null, label: null, provider: null, model: null, scopes: [] };
+    await env.GH_CONFIG.put('agent_consent:' + uid, JSON.stringify(value));
+    return json({ ok: true, ...value });
+  }
+  return json({ error: 'not found' }, 404);
 }
 
 // ---------------------------------------------------------------------------
@@ -1024,7 +1080,7 @@ async function handleLegacyChat(request, env, uid) {
   }
 }
 
-async function handleChat(request, env, uid) {
+async function handlePlainChat(request, env, uid) {
   if (request.method !== 'POST') return json({ error: 'not found' }, 404);
   const cfg = await loadModelsConfig(env, uid);
   const m = cfg.models.find(x => x.id === cfg.selectedId);
@@ -1048,6 +1104,69 @@ async function handleChat(request, env, uid) {
   }
 }
 
+async function handleChat(request, env, uid) {
+  if (request.method !== 'POST') return json({ error: 'not found' }, 404);
+  const cfg = await loadModelsConfig(env, uid);
+  const m = cfg.models.find(x => x.id === cfg.selectedId);
+  if (!m) return json({ error: 'No model is selected.' }, 400);
+  const body = await request.json().catch(() => ({}));
+  const prompt = (body.prompt || '').trim();
+  const imagePart = parseImagePart(body.image);
+  if (!prompt) return chatJson(env, uid, { prompt: '', error: 'The message is empty.', imageAttached: !!imagePart }, { error: 'The message is empty.' }, 400);
+  if (m.builtin) {
+    const reply = 'The built-in Claude model runs through a Claude Code session, not through this provider API.';
+    return chatJson(env, uid, { prompt, reply, imageAttached: !!imagePart }, { reply });
+  }
+  if (!m.apiKey) return chatJson(env, uid, { prompt, error: 'No API key is configured for the selected model.', imageAttached: !!imagePart }, { error: 'No API key is configured for the selected model.' }, 400);
+  const keyError = modelKeyError(m.apiKey);
+  if (keyError) return chatJson(env, uid, { prompt, error: keyError, imageAttached: !!imagePart }, { error: keyError }, 400);
+  try {
+    const consent = await loadAgentConsent(env, uid);
+    const github = await loadGithubConfig(env, uid);
+    const hasGithubFields = !!(github.enabled && github.owner && github.repo && github.token);
+    const consentMatchesModel = !!(consent.enabled && consent.modelId === m.id && consent.scopes.includes('repo_metadata'));
+    let repoContext = null;
+    if (consentMatchesModel && hasGithubFields) {
+      try { repoContext = await loadAgentRepoContext(github); } catch {}
+    }
+    const githubReady = !!(consentMatchesModel && hasGithubFields && repoContext);
+    const systemPrompt = agentSystemPrompt(githubReady, repoContext, consentMatchesModel);
+    let rawReply = await callModel(m, prompt, 1800, imagePart, systemPrompt);
+    let plan = normalizeAgentPlan(rawReply);
+    let readResults = [];
+    if (plan && !validateAgentPlan(plan, githubReady)) {
+      const readActions = plan.actions.filter(action => action.tool === 'github.list_files' || action.tool === 'github.read_file');
+      if (readActions.length && repoContext) {
+        readResults = await executeAgentReadActions(github, readActions, repoContext.defaultBranch);
+        const followReply = await callModel(m, agentToolResultsPrompt(readResults), 2200, null, systemPrompt);
+        rawReply = followReply || rawReply;
+        plan = normalizeAgentPlan(rawReply) || plan;
+      }
+    }
+    const planError = plan ? validateAgentPlan(plan, githubReady) : null;
+    if (planError) {
+      const reply = plan.reply || rawReply || 'Agent access is not enabled for this request.';
+      return chatJson(env, uid, { prompt, reply, imageAttached: !!imagePart }, { reply, agentAccessRequired: true });
+    }
+    if (plan && plan.kind === 'plan') {
+      const publicPlan = publicAgentPlan(plan);
+      const writeActions = plan.actions.filter(action => agentWriteTool(action.tool));
+      if (writeActions.length) {
+        const planId = crypto.randomUUID();
+        await env.GH_CONFIG.put(`agent_plan:${uid}:${planId}`, JSON.stringify({ prompt, modelId: m.id, plan }), { expirationTtl: 900 });
+        const reply = plan.reply || 'I prepared an action plan for your approval.';
+        return chatJson(env, uid, { prompt, reply, plan: publicPlan, planId, imageAttached: !!imagePart }, { reply, plan: publicPlan, planId, approvalRequired: true });
+      }
+      const reply = plan.reply || (readResults.length ? 'I read the requested repository information.' : rawReply);
+      return chatJson(env, uid, { prompt, reply, plan: publicPlan, imageAttached: !!imagePart }, { reply, results: readResults, plan: publicPlan });
+    }
+    const reply = plan?.reply || rawReply || '(empty model response)';
+    return chatJson(env, uid, { prompt, reply, imageAttached: !!imagePart }, { reply });
+  } catch (e) {
+    return chatJson(env, uid, { prompt, error: e.message, imageAttached: !!imagePart }, { error: e.message }, 502);
+  }
+}
+
 // ---------------------------------------------------------------------------
 
 export default {
@@ -1065,6 +1184,7 @@ export default {
       if (path.startsWith('/api/models')) return handleModelsApi(request, env, path, user.uid);
       if (path === '/api/chat') return handleChat(request, env, user.uid);
       if (path === '/api/chat/history' || path === '/api/chat/clear' || path === '/api/chat/delete') return handleChatHistory(request, env, user.uid, path);
+      if (path === '/api/agent/status' || path === '/api/agent/consent') return handleAgentApi(request, env, path, user.uid);
       if (path === '/api/agent/approve') return handleAgentApproval(request, env, user.uid);
       if (path.startsWith('/api/workspace')) return handleWorkspaceApi(request, env, path, user.uid);
     }
