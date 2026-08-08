@@ -346,7 +346,7 @@
       <section class="docPanel">
         <div class="docHeader">
           <div class="docTitle" data-i18n="docTitle">Project Info</div>
-          <span class="hint">v0.2.0</span>
+          <span class="hint" id="docVersion">v0.4.1</span>
         </div>
         <div class="docBody" id="docBody">
           <ul>
@@ -421,7 +421,7 @@
         <div class="settingsGrid">
           <div class="settingCard">
             <b>גרסת פרויקט</b>
-            <div class="hint" id="settingsVersion">0.1.0</div>
+            <div class="hint" id="settingsVersion">0.4.1</div>
           </div>
           <div class="settingCard">
             <b>מצב נוכחי</b>
@@ -474,7 +474,7 @@
         <b>❓ עזרה וסטטוס פרויקט</b>
         <button class="icon" id="helpClose">✕</button>
       </div>
-      <div class="hint" style="margin-bottom:12px">גרסה: <b id="appVersion">0.1.0</b></div>
+      <div class="hint" style="margin-bottom:12px">גרסה: <b id="appVersion">0.4.1</b></div>
       <p class="hint" style="line-height:1.7;margin-top:0">
         זהו QA dashboard מקומי שנבנה כדי להפוך לעבודה מסודרת מול מודל שתבחר.
         המטרה היא לעבוד בשלבים: לבחור מודל, לחבר פרויקט מקומי, להגדיר תכנית, ואז לעבור לביצוע מבוקר.
@@ -1460,6 +1460,7 @@ if(next) await fetch(B+"/api/update",{method:"POST",
   }
   const appVersion='0.4.1';
   $('#appVersion').textContent=appVersion;
+  if($('#docVersion')) $('#docVersion').textContent='v'+appVersion;
   document.title='ON TracK';
   $('#helpDone').textContent=[
     '• הדשבורד המקומי רץ ומציג checks, results, report view ו-thread.',
