@@ -1,33 +1,30 @@
 # ON TracK Project Info
 
-Version: `0.2.0`
-Status: `Step 1 - New workspace shell`
+Version: `0.3.0`
+Status: `Web tool cleanup in progress`
 
 ## Goal
-Build a local-first workspace where a chosen model can understand a project, connect to repositories, and perform approved actions in a controlled flow.
+Build a web-first workspace where a chosen model can understand a project, connect to repositories, and perform approved actions in a controlled flow.
 
-## What is already done
-- Local project copied into `ON TracK`
-- GitHub repository created and seeded
-- New workspace shell started
-- Top actions added: Settings, Help, GitHub, Model
-- Left rail added for Projects and Libraries
-- Bilingual direction started: Hebrew and English
+## Done
+- GitHub repository seeded
+- Clean web shell started
+- Top actions added
+- Left rail added
+- Hebrew and English support started
 
-## Current step
-1. Finish the clean home screen
-2. Remove the remaining QA-first visual noise
-3. Make the workspace feel like a new product
+## In progress
+1. Make the home screen fully product-like
+2. Finish the bilingual interface
+3. Build real project and library data
 
-## Next steps
-1. Build the project picker and libraries view
-2. Add a real project overview panel
-3. Add model connection flow
-4. Add GitHub connection flow
-5. Add execution approval flow
-6. Connect model actions to repository operations
+## Next
+1. Add a project picker
+2. Add a repository connection flow
+3. Add model execution approval
+4. Add controlled actions on GitHub
 
 ## Notes
-- This project is local-first for now.
-- The new UI should stay simple, calm, and product-like.
-- The old QA dashboard is kept only as background logic until the new shell is complete.
+- Local-first now, deployable later
+- Keep the UI calm and simple
+- Remove any remaining QA-specific leftovers as they appear
