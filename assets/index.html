@@ -371,7 +371,7 @@
       <aside class="sideCard">
         <h3 data-i18n="quickStats">Quick Status</h3>
         <div class="heroStatRow"><span data-i18n="statusLabel">Status</span><b id="miniStatus">Fresh start</b></div>
-        <div class="heroStatRow"><span data-i18n="versionLabel">Version</span><b>0.4.0</b></div>
+        <div class="heroStatRow"><span data-i18n="versionLabel">Version</span><b>0.4.1</b></div>
         <div class="heroStatRow"><span data-i18n="langLabel">Language</span><b id="langLabel">Hebrew</b></div>
       </aside>
     </div>
@@ -732,6 +732,16 @@
 </div>
 
 <script>
+// The settings/help/model/GitHub/preview/API/new-request popups were originally built for
+// the old QA dashboard shell (".oldApp"), which is now hidden ("display:none") while the new
+// clean home screen is under construction. A hidden ancestor hides its descendants no matter
+// what CSS state a modal itself has, so those popups could never actually appear from the new
+// UI's buttons. Re-parent them to <body> once, up front, so they render as normal fixed-position
+// overlays regardless of the legacy shell's visibility.
+(function relocateModalsOutOfHiddenShell(){
+  ['settingsModal','helpModal','modelModal','githubModal','previewModal','apiModal','newCheckModal']
+    .forEach(id => { const el = document.getElementById(id); if (el) document.body.appendChild(el); });
+})();
 const ST = {
   open:      {icon:'⬜', label:'לא בוצע'},
   in_progress:{icon:'⏳', label:'בעבודה'},
@@ -1448,7 +1458,7 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     b.textContent='❓ עזרה';
     apiBtn.parentElement.insertBefore(b, apiBtn);
   }
-  const appVersion='0.4.0';
+  const appVersion='0.4.1';
   $('#appVersion').textContent=appVersion;
   document.title='ON TracK';
   $('#helpDone').textContent=[

@@ -129,7 +129,7 @@ function saveGhConfig() { fs.writeFileSync(GITHUB_CONFIG_FILE, JSON.stringify(gh
 function reloadGhConfig() { ghConfig = loadGhConfig(); }
 
 const DEFAULT_PROJECT_STATE = {
-  version: '0.4.0',
+  version: '0.4.1',
   title: 'QA Project',
   status: 'MVP in progress',
   goal: 'Build a structured local workspace for model-assisted project work.',

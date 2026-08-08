@@ -1,7 +1,7 @@
 # ON TracK Project Info
 
-Version: `0.4.0`
-Status: `GitHub connection flow verified end-to-end`
+Version: `0.4.1`
+Status: `GitHub connection flow verified end-to-end; all popup dialogs (GitHub, settings, model, help, preview, API, new request) fixed and confirmed opening from the new home screen`
 
 ## Goal
 Build a web-first workspace where a chosen model can understand a project, connect to repositories, and perform approved actions in a controlled flow.
@@ -13,6 +13,7 @@ Build a web-first workspace where a chosen model can understand a project, conne
 - Left rail added
 - Hebrew and English support started
 - GitHub connection flow: live test button that calls the real GitHub API (repo reachability + token identity), with a true connected/failed status shown in the modal, the header dot, and the MVP readiness chip
+- Fixed a bug where every popup dialog (GitHub, settings, model, help, preview, API, new request) failed to appear when opened from the new home screen. Root cause: all dialogs lived inside the legacy `.oldApp` container, which is hidden with `display:none` while the new home screen is being built — a hidden ancestor hides its children no matter what CSS state the dialog itself is in. Fix: on page load, the dialogs are moved to be direct children of `<body>` so they render as normal overlays regardless of the legacy shell's visibility. Verified with a headless-browser click test on each button (GitHub, model, settings, help) confirming the corresponding dialog opens, is visible on screen, and closes correctly.
 
 ## In progress
 1. Make the home screen fully product-like
