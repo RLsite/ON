@@ -514,7 +514,7 @@
       <div class="sideCard quickStatusCard">
         <h3 data-i18n="quickStats">מצב מהיר</h3>
         <div class="heroStatRow"><span data-i18n="statusLabel">סטטוס</span><b id="miniStatus" data-i18n="miniStatusDefault">אין פרויקט נבחר</b></div>
-        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">1.4.2 ↻</button></div>
+        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">1.4.3 ↻</button></div>
         <div class="heroStatRow"><span data-i18n="langLabel">שפה</span><b id="langValue">עברית</b></div>
       </div>
     <div class="sidebarResizer" id="sidebarResizer" role="separator" aria-orientation="vertical" aria-label="שינוי רוחב אזור הפרויקטים"></div>
@@ -646,7 +646,7 @@
         <b data-i18n="helpTitle">❓ עזרה ל־ON TracK</b>
         <button class="icon" id="helpClose">✕</button>
       </div>
-      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">1.4.2</b></div>
+      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">1.4.3</b></div>
       <p class="hint" style="line-height:1.7;margin-top:0" data-i18n="helpIntro">ON TracK מחבר בין מודל שבחרת לבין פרויקט ומקורות קוד. המודל מקבל בקשות ומבצע פעולות רק דרך החיבורים וההרשאות שהגדרת.</p>
       <div class="helpList">
         <div class="hint" data-i18n="helpStepOne">1. צור או בחר פרויקט בצד.</div>
@@ -1249,9 +1249,10 @@
     function appendAgentPlan(bubble, plan, planId){
       if(!bubble || !plan) return;
       const box = document.createElement('div');
-      box.className = 'agentPlan';
-      const title = uiLang==='en' ? 'Action plan' : 'תוכנית פעולה';
-      const approval = uiLang==='en' ? 'Approval required before GitHub changes' : 'נדרש אישור לפני שינוי ב־GitHub';
+      const requiresApproval = !!planId || (plan.actions || []).some(action => ['github.write_file','github.apply_patch','github.create_pull_request'].includes(action.tool));
+      box.className = 'agentPlan' + (requiresApproval ? '' : ' readOnly');
+      const title = requiresApproval ? (uiLang==='en' ? 'Action plan' : 'תוכנית פעולה') : (uiLang==='en' ? 'Read-only actions' : 'פעולות קריאה');
+      const approval = requiresApproval ? (uiLang==='en' ? 'Approval required before GitHub changes' : 'נדרש אישור לפני שינוי ב־GitHub') : (uiLang==='en' ? 'Files can be read without approval; no changes were made.' : 'קריאת קבצים בלבד — אין צורך באישור ולא בוצע שינוי.');
       box.innerHTML = `<div class="agentPlanTitle">${title}</div><div class="agentPlanHint">${approval}</div>`;
       (plan.actions || []).forEach(action=>{
         const row = document.createElement('div');
@@ -2637,7 +2638,7 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     b.textContent='❓ עזרה';
     apiBtn.parentElement.insertBefore(b, apiBtn);
   }
-  const appVersion='1.4.2';
+  const appVersion='1.4.3';
   $('#appVersion').textContent=appVersion;
   // Seeded here too: without a local server /api/state never answers, and this would
   // otherwise keep showing whatever literal the markup was last edited with.

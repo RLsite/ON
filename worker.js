@@ -1226,9 +1226,19 @@ async function handleChat(request, env, uid) {
       const readActions = plan.actions.filter(action => action.tool === 'github.list_files' || action.tool === 'github.read_file');
       if (readActions.length && repoContext) {
         readResults = await executeAgentReadActions(github, readActions, repoContext.defaultBranch);
-        const followReply = await callModel(m, agentToolResultsPrompt(readResults), 3200, null, systemPrompt);
-        rawReply = followReply || rawReply;
-        plan = normalizeAgentPlan(rawReply) || plan;
+        let followReply = await callModel(m, agentToolResultsPrompt(readResults), 3200, null, systemPrompt);
+        let followPlan = normalizeAgentPlan(followReply);
+        if (!followPlan) {
+          const repairedFollowReply = await callModel(m, agentRepairPrompt(followReply), 1200, null, systemPrompt);
+          followPlan = normalizeAgentPlan(repairedFollowReply);
+          if (followPlan) followReply = repairedFollowReply;
+        }
+        if (followPlan) {
+          rawReply = followReply;
+          plan = followPlan;
+        } else {
+          rawReply = followReply || rawReply;
+        }
       }
     }
     const planError = plan ? validateAgentPlan(plan, githubReady) : null;
