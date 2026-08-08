@@ -382,7 +382,7 @@
       <section class="docPanel">
         <div class="docHeader">
           <div class="docTitle" data-i18n="docTitle">מידע פרויקט</div>
-          <span class="hint" id="docVersion">v0.5.0</span>
+          <span class="hint" id="docVersion">v0.6.0</span>
         </div>
         <div class="docBody" id="docBody">
           <ul>
@@ -407,7 +407,7 @@
       <aside class="sideCard">
         <h3 data-i18n="quickStats">מצב מהיר</h3>
         <div class="heroStatRow"><span data-i18n="statusLabel">סטטוס</span><b id="miniStatus" data-i18n="miniStatusDefault">התחלה חדשה</b></div>
-        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">0.5.0 ↻</button></div>
+        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">0.6.0 ↻</button></div>
         <div class="heroStatRow"><span data-i18n="langLabel">שפה</span><b id="langValue">עברית</b></div>
       </aside>
     </div>
@@ -457,7 +457,7 @@
         <div class="settingsGrid">
           <div class="settingCard">
             <b data-i18n="settingsCardVersion">גרסת פרויקט</b>
-            <div class="hint" id="settingsVersion">0.5.0</div>
+            <div class="hint" id="settingsVersion">0.6.0</div>
           </div>
           <div class="settingCard">
             <b data-i18n="settingsCardStatus">מצב נוכחי</b>
@@ -510,7 +510,7 @@
         <b data-i18n="helpTitle">❓ עזרה וסטטוס פרויקט</b>
         <button class="icon" id="helpClose">✕</button>
       </div>
-      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">0.5.0</b></div>
+      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">0.6.0</b></div>
       <p class="hint" style="line-height:1.7;margin-top:0" data-i18n="helpIntro">
         זהו כלי בדיקות (QA) מקומי שנבנה כדי להפוך לעבודה מסודרת מול מודל שתבחר.
         המטרה היא לעבוד בשלבים: לבחור מודל, לחבר פרויקט מקומי, להגדיר תכנית, ואז לעבור לביצוע מבוקר.
@@ -1746,7 +1746,7 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     b.textContent='❓ עזרה';
     apiBtn.parentElement.insertBefore(b, apiBtn);
   }
-  const appVersion='0.5.0';
+  const appVersion='0.6.0';
   $('#appVersion').textContent=appVersion;
   if($('#docVersion')) $('#docVersion').textContent='v'+appVersion;
   // Seeded here too: without a local server /api/state never answers, and this would
