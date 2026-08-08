@@ -5,12 +5,9 @@ const path = require('path');
 
 const root = path.join(__dirname, '..');
 const dist = path.join(root, 'dist');
-const FILES = ['index.html', 'assets/index.html'];
-
+// The app is served at "/" directly — the root redirect stub the repo carries for
+// GitHub Pages is not copied, so there is no extra page load on the way in.
 fs.rmSync(dist, { recursive: true, force: true });
-for (const rel of FILES) {
-  const dest = path.join(dist, rel);
-  fs.mkdirSync(path.dirname(dest), { recursive: true });
-  fs.copyFileSync(path.join(root, rel), dest);
-}
-console.log('built dist/ with ' + FILES.length + ' files');
+fs.mkdirSync(dist, { recursive: true });
+fs.copyFileSync(path.join(root, 'assets/index.html'), path.join(dist, 'index.html'));
+console.log('built dist/index.html');
