@@ -319,7 +319,7 @@
   .sidebarResizer:hover::after,.sidebarResizer:active::after{height:72px;background:var(--accent)}
   body.isResizing,body.isResizing *{cursor:col-resize !important;user-select:none !important}
   .newMain{min-width:0;display:flex;flex-direction:column}
-  .newTop{display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:16px 18px;border-bottom:1px solid var(--line);background:rgba(255,253,249,.8);backdrop-filter:blur(10px);position:sticky;top:0;z-index:10}
+  .newTop{display:flex;align-items:center;justify-content:flex-start;gap:12px;padding:16px 18px;border-bottom:1px solid var(--line);background:rgba(255,253,249,.8);backdrop-filter:blur(10px);position:sticky;top:0;z-index:10}
   body[data-theme="dark"] .newTop{background:rgba(23,20,18,.9)}
   .newTop .title{font-size:18px;font-weight:800}
   .newTop .actions{display:flex;gap:8px;flex-wrap:wrap}
@@ -464,7 +464,7 @@
       <div class="sideCard quickStatusCard">
         <h3 data-i18n="quickStats">מצב מהיר</h3>
         <div class="heroStatRow"><span data-i18n="statusLabel">סטטוס</span><b id="miniStatus" data-i18n="miniStatusDefault">אין פרויקט נבחר</b></div>
-        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">1.2.7 ↻</button></div>
+        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">1.2.8 ↻</button></div>
         <div class="heroStatRow"><span data-i18n="langLabel">שפה</span><b id="langValue">עברית</b></div>
       </div>
     <div class="sidebarResizer" id="sidebarResizer" role="separator" aria-orientation="vertical" aria-label="שינוי רוחב אזור הפרויקטים"></div>
@@ -592,7 +592,7 @@
         <b data-i18n="helpTitle">❓ עזרה ל־ON TracK</b>
         <button class="icon" id="helpClose">✕</button>
       </div>
-      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">1.2.7</b></div>
+      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">1.2.8</b></div>
       <p class="hint" style="line-height:1.7;margin-top:0" data-i18n="helpIntro">ON TracK מחבר בין מודל שבחרת לבין פרויקט ומקורות קוד. המודל מקבל בקשות ומבצע פעולות רק דרך החיבורים וההרשאות שהגדרת.</p>
       <div class="helpList">
         <div class="hint" data-i18n="helpStepOne">1. צור או בחר פרויקט בצד.</div>
@@ -2392,7 +2392,7 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     b.textContent='❓ עזרה';
     apiBtn.parentElement.insertBefore(b, apiBtn);
   }
-  const appVersion='1.2.7';
+  const appVersion='1.2.8';
   $('#appVersion').textContent=appVersion;
   // Seeded here too: without a local server /api/state never answers, and this would
   // otherwise keep showing whatever literal the markup was last edited with.
