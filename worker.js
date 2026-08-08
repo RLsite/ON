@@ -475,26 +475,48 @@ async function handleModelsApi(request, env, path, uid) {
 // ---------------------------------------------------------------------------
 
 const DEFAULT_WORKSPACE = {
-  projects: [
-    { id: 'ontrack', name: 'ON TracK', status: 'active', note: 'Main workspace', description: 'Primary project workspace' }
-  ],
-  libraries: [
-    { id: 'docs', name: 'Project Docs', note: 'Specs and guides' }
-  ],
-  selectedProjectId: 'ontrack',
-  selectedLibraryId: 'docs'
+  projects: [],
+  libraries: [],
+  selectedProjectId: null,
+  selectedLibraryId: null
 };
+
+function emptyWorkspace() {
+  return { projects: [], libraries: [], selectedProjectId: null, selectedLibraryId: null };
+}
+
+function isSeedProject(p) {
+  return p && (
+    (p.id === 'ontrack' && p.name === 'ON TracK' && p.note === 'Main workspace') ||
+    (p.id === 'sandbox' && p.name === 'Sandbox' && p.note === 'Experiment space') ||
+    (p.id === 'research' && p.name === 'Research' && p.note === 'Ideas and notes')
+  );
+}
+
+function isSeedLibrary(l) {
+  return l && (
+    (l.id === 'docs' && l.name === 'Project Docs' && l.note === 'Specs and guides') ||
+    (l.id === 'design' && l.name === 'Design System') ||
+    (l.id === 'assets' && l.name === 'Shared Assets')
+  );
+}
 
 async function loadWorkspace(env, uid) {
   const raw = await env.GH_CONFIG.get('workspace_config:' + uid);
   let ws = null;
   if (raw) { try { ws = JSON.parse(raw); } catch {} }
-  if (!ws || !Array.isArray(ws.projects) || !ws.projects.length) {
-    ws = { ...DEFAULT_WORKSPACE, projects: DEFAULT_WORKSPACE.projects.map(p => ({ ...p })), libraries: DEFAULT_WORKSPACE.libraries.map(l => ({ ...l })) };
-  }
-  if (!Array.isArray(ws.libraries) || !ws.libraries.length) ws.libraries = DEFAULT_WORKSPACE.libraries.map(l => ({ ...l }));
+  let changed = false;
+  if (!ws || typeof ws !== 'object') { ws = emptyWorkspace(); changed = !!raw; }
+  if (!Array.isArray(ws.projects)) { ws.projects = []; changed = true; }
+  if (!Array.isArray(ws.libraries)) { ws.libraries = []; changed = true; }
+  const projectsBefore = ws.projects.length;
+  const librariesBefore = ws.libraries.length;
+  ws.projects = ws.projects.filter(p => !isSeedProject(p));
+  ws.libraries = ws.libraries.filter(l => !isSeedLibrary(l));
+  changed = changed || projectsBefore !== ws.projects.length || librariesBefore !== ws.libraries.length;
   if (!ws.projects.some(p => p.id === ws.selectedProjectId)) ws.selectedProjectId = ws.projects[0]?.id || null;
   if (!ws.libraries.some(l => l.id === ws.selectedLibraryId)) ws.selectedLibraryId = ws.libraries[0]?.id || null;
+  if (changed) await saveWorkspace(env, uid, ws);
   return ws;
 }
 

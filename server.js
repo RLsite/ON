@@ -131,46 +131,19 @@ function saveGhConfig() { fs.writeFileSync(GITHUB_CONFIG_FILE, JSON.stringify(gh
 function reloadGhConfig() { ghConfig = loadGhConfig(); }
 
 const DEFAULT_PROJECT_STATE = {
-  version: '0.5.0',
-  title: 'QA Project',
-  status: 'MVP in progress',
-  goal: 'Build a structured local workspace for model-assisted project work.',
-  completed: [
-    'Local QA dashboard running',
-    'Model selection UI',
-    'GitHub configuration UI',
-    'Local repo configuration',
-    'Preview/browser capture',
-    'Live interactive check flow',
-    'MVP readiness banner',
-    'Project info file',
-    'Help modal',
-  ],
-  nextSteps: [
-    'Project planning flow',
-    'Approval step before execution',
-    'Persistent milestones',
-    'Execution log',
-    'Safer project actions'
-  ],
-  notes: [
-    'Local-first product',
-    'Choose model -> choose project folder -> plan -> approve -> execute'
-  ]
+  version: '1.2.4',
+  title: '',
+  status: '',
+  goal: '',
+  completed: [],
+  nextSteps: [],
+  notes: []
 };
 const DEFAULT_WORKSPACE = {
-  projects: [
-    { id: 'ontrack', name: 'ON TracK', status: 'active', note: 'Main workspace', description: 'Primary project workspace' },
-    { id: 'sandbox', name: 'Sandbox', status: 'idle', note: 'Experiment space' },
-    { id: 'research', name: 'Research', status: 'idle', note: 'Ideas and notes' }
-  ],
-  libraries: [
-    { id: 'docs', name: 'Project Docs', note: 'Specs and guides' },
-    { id: 'design', name: 'Design System', note: 'UI patterns and tokens' },
-    { id: 'assets', name: 'Shared Assets', note: 'Reusable files' }
-  ],
-  selectedProjectId: 'ontrack',
-  selectedLibraryId: 'docs'
+  projects: [],
+  libraries: [],
+  selectedProjectId: null,
+  selectedLibraryId: null
 };
 function loadWorkspaceState() {
   try {
@@ -181,6 +154,16 @@ function loadWorkspaceState() {
       projects: Array.isArray(c.projects) ? c.projects : DEFAULT_WORKSPACE.projects,
       libraries: Array.isArray(c.libraries) ? c.libraries : DEFAULT_WORKSPACE.libraries
     };
+    ws.projects = ws.projects.filter(p => !(
+      (p.id === 'ontrack' && p.name === 'ON TracK' && p.note === 'Main workspace') ||
+      (p.id === 'sandbox' && p.name === 'Sandbox' && p.note === 'Experiment space') ||
+      (p.id === 'research' && p.name === 'Research' && p.note === 'Ideas and notes')
+    ));
+    ws.libraries = ws.libraries.filter(l => !(
+      (l.id === 'docs' && l.name === 'Project Docs' && l.note === 'Specs and guides') ||
+      (l.id === 'design' && l.name === 'Design System') ||
+      (l.id === 'assets' && l.name === 'Shared Assets')
+    ));
     if (!ws.projects.some(p => p.id === ws.selectedProjectId)) ws.selectedProjectId = ws.projects[0]?.id || null;
     if (!ws.libraries.some(l => l.id === ws.selectedLibraryId)) ws.selectedLibraryId = ws.libraries[0]?.id || null;
     return ws;
