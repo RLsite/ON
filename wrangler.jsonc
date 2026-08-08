@@ -13,9 +13,7 @@
     "binding": "ASSETS"
   },
   // Durable storage for the GitHub owner/repo/token, since Workers have no filesystem.
-  // Replace "REPLACE_WITH_KV_NAMESPACE_ID" with the id from creating the namespace
-  // (Cloudflare Dashboard -> Workers & Pages -> KV -> Create a namespace -> name it GH_CONFIG).
   "kv_namespaces": [
-    { "binding": "GH_CONFIG", "id": "REPLACE_WITH_KV_NAMESPACE_ID" }
+    { "binding": "GH_CONFIG", "id": "e62b4f5845a949d4aa4d96989e1cff0c" }
   ]
 }
