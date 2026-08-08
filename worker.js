@@ -1,37 +1,178 @@
-// Cloudflare Worker backing the GitHub connection UI on the deployed site. Everything except
-// /api/github/* falls through to the static build in dist/ (env.ASSETS) — this Worker does not
-// attempt to port server.js's local-machine-only features (folder browsing, starting a local dev
-// server, driving a local Chrome for previews): those need real filesystem/process/browser access
-// that an edge Worker structurally cannot have, so they stay local-only by design, not by omission.
+// Cloudflare Worker backing the GitHub/model connections on the deployed site, gated behind
+// real per-user login (Sign in with Google) — everything except /api/auth/* and the static
+// build requires a session. This Worker does not attempt to port server.js's local-machine-only
+// features (folder browsing, starting a local dev server, driving a local Chrome for previews):
+// those need real filesystem/process/browser access an edge Worker structurally cannot have, so
+// they stay local-only by design, not by omission.
 //
-// Config (owner/repo/token) lives in KV instead of a local JSON file, since Workers have no
-// persistent filesystem — same shape as server.js's qa-data/github-config.json, just durable
-// somewhere a stateless edge function can reach it. Requires a KV namespace bound as GH_CONFIG
-// (see wrangler.jsonc).
+// All durable state lives in one KV namespace (GH_CONFIG binding — the name predates the model/
+// auth additions but nothing depends on it) under distinct key prefixes:
+//   session:<sessionId>        ephemeral login session -> {uid, email, name, picture}
+//   github_config:<uid>        per-user GitHub owner/repo/token
+//   models_config:<uid>        per-user model list + selection + "recently connected"
+// Before login existed, github_config/models_config were single global keys shared by every
+// visitor — anyone who connected a token made it usable by anyone else who opened the site.
+// Scoping every key by uid is the actual fix, not just a nicety.
 
-const CONFIG_KEY = 'config';
-const DEFAULT_CONFIG = { enabled: false, owner: null, repo: null, token: null };
+// ---------------------------------------------------------------------------
+// Cookies (Workers' fetch API has no built-in cookie jar — small manual helpers)
+// ---------------------------------------------------------------------------
 
-async function loadConfig(env) {
-  const raw = await env.GH_CONFIG.get(CONFIG_KEY);
-  if (!raw) return { ...DEFAULT_CONFIG };
+function parseCookies(request) {
+  const header = request.headers.get('Cookie') || '';
+  const out = {};
+  header.split(';').forEach(pair => {
+    const idx = pair.indexOf('=');
+    if (idx === -1) return;
+    const k = pair.slice(0, idx).trim();
+    const v = pair.slice(idx + 1).trim();
+    if (k) out[k] = decodeURIComponent(v);
+  });
+  return out;
+}
+
+function setCookie(name, value, { maxAge, path = '/' } = {}) {
+  let c = `${name}=${encodeURIComponent(value)}; Path=${path}; SameSite=Lax; Secure; HttpOnly`;
+  if (maxAge != null) c += `; Max-Age=${maxAge}`;
+  return c;
+}
+
+function clearCookie(name, path = '/') {
+  return `${name}=; Path=${path}; Max-Age=0; SameSite=Lax; Secure; HttpOnly`;
+}
+
+function json(data, status = 200, extraHeaders) {
+  const headers = new Headers(extraHeaders || {});
+  headers.set('Content-Type', 'application/json');
+  return new Response(JSON.stringify(data), { status, headers });
+}
+
+// ---------------------------------------------------------------------------
+// Sessions — a session is an opaque id mapping to {uid, email, name, picture} in KV,
+// with its own TTL so a stale login eventually expires server-side too, not just the cookie.
+// ---------------------------------------------------------------------------
+
+const SESSION_COOKIE = 'on_session';
+const SESSION_TTL = 60 * 60 * 24 * 30; // 30 days
+
+async function createSession(env, user) {
+  const sessionId = crypto.randomUUID();
+  await env.GH_CONFIG.put('session:' + sessionId, JSON.stringify(user), { expirationTtl: SESSION_TTL });
+  return sessionId;
+}
+
+async function getSession(env, request) {
+  const sid = parseCookies(request)[SESSION_COOKIE];
+  if (!sid) return null;
+  const raw = await env.GH_CONFIG.get('session:' + sid);
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch { return null; }
+}
+
+async function destroySession(env, request) {
+  const sid = parseCookies(request)[SESSION_COOKIE];
+  if (sid) await env.GH_CONFIG.delete('session:' + sid);
+}
+
+// ---------------------------------------------------------------------------
+// Google OAuth (authorization-code flow, server-side token exchange)
+// ---------------------------------------------------------------------------
+
+async function handleAuth(request, env, url, path) {
+  const method = request.method;
+
+  if (path === '/api/auth/login' && method === 'GET') {
+    if (!env.GOOGLE_CLIENT_ID) return new Response('Google login is not configured (missing GOOGLE_CLIENT_ID).', { status: 500 });
+    const state = crypto.randomUUID();
+    const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+    authUrl.searchParams.set('client_id', env.GOOGLE_CLIENT_ID);
+    authUrl.searchParams.set('redirect_uri', url.origin + '/api/auth/callback');
+    authUrl.searchParams.set('response_type', 'code');
+    authUrl.searchParams.set('scope', 'openid email profile');
+    authUrl.searchParams.set('state', state);
+    authUrl.searchParams.set('access_type', 'online');
+    authUrl.searchParams.set('prompt', 'select_account');
+    const headers = new Headers({ Location: authUrl.toString() });
+    // Short-lived, path-scoped CSRF token — compared against ?state on the way back.
+    headers.append('Set-Cookie', setCookie('oauth_state', state, { maxAge: 300, path: '/api/auth' }));
+    return new Response(null, { status: 302, headers });
+  }
+
+  if (path === '/api/auth/callback' && method === 'GET') {
+    const code = url.searchParams.get('code');
+    const state = url.searchParams.get('state');
+    const savedState = parseCookies(request)['oauth_state'];
+    if (!code || !state || state !== savedState) {
+      return new Response('Invalid or expired login attempt — please try signing in again.', { status: 400 });
+    }
+    try {
+      const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          code,
+          client_id: env.GOOGLE_CLIENT_ID,
+          client_secret: env.GOOGLE_CLIENT_SECRET,
+          redirect_uri: url.origin + '/api/auth/callback',
+          grant_type: 'authorization_code'
+        })
+      });
+      const tokenJson = await tokenRes.json();
+      if (!tokenRes.ok || !tokenJson.access_token) {
+        throw new Error(tokenJson.error_description || tokenJson.error || ('token exchange failed (HTTP ' + tokenRes.status + ')'));
+      }
+      const userRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: 'Bearer ' + tokenJson.access_token }
+      });
+      const userJson = await userRes.json();
+      if (!userRes.ok || !userJson.sub) throw new Error('failed to fetch Google user info');
+      const user = {
+        uid: 'google:' + userJson.sub,
+        email: userJson.email || null,
+        name: userJson.name || null,
+        picture: userJson.picture || null
+      };
+      const sessionId = await createSession(env, user);
+      const headers = new Headers({ Location: '/' });
+      headers.append('Set-Cookie', setCookie(SESSION_COOKIE, sessionId, { maxAge: SESSION_TTL }));
+      headers.append('Set-Cookie', clearCookie('oauth_state', '/api/auth'));
+      return new Response(null, { status: 302, headers });
+    } catch (e) {
+      return new Response('Google login failed: ' + e.message, { status: 502 });
+    }
+  }
+
+  if (path === '/api/auth/logout' && method === 'POST') {
+    await destroySession(env, request);
+    return json({ ok: true }, 200, { 'Set-Cookie': clearCookie(SESSION_COOKIE) });
+  }
+
+  if (path === '/api/auth/me' && method === 'GET') {
+    const user = await getSession(env, request);
+    if (!user) return json({ loggedIn: false });
+    return json({ loggedIn: true, email: user.email, name: user.name, picture: user.picture });
+  }
+
+  return json({ error: 'not found' }, 404);
+}
+
+// ---------------------------------------------------------------------------
+// GitHub connection — per-user config, same GitHub-facing logic as before.
+// ---------------------------------------------------------------------------
+
+const DEFAULT_GITHUB_CONFIG = { enabled: false, owner: null, repo: null, token: null };
+
+async function loadGithubConfig(env, uid) {
+  const raw = await env.GH_CONFIG.get('github_config:' + uid);
+  if (!raw) return { ...DEFAULT_GITHUB_CONFIG };
   try {
     const c = JSON.parse(raw);
-    return {
-      enabled: !!c.enabled,
-      owner: c.owner || null,
-      repo: c.repo || null,
-      token: c.token || null
-    };
-  } catch { return { ...DEFAULT_CONFIG }; }
+    return { enabled: !!c.enabled, owner: c.owner || null, repo: c.repo || null, token: c.token || null };
+  } catch { return { ...DEFAULT_GITHUB_CONFIG }; }
 }
 
-async function saveConfig(env, config) {
-  await env.GH_CONFIG.put(CONFIG_KEY, JSON.stringify(config));
-}
-
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+async function saveGithubConfig(env, uid, config) {
+  await env.GH_CONFIG.put('github_config:' + uid, JSON.stringify(config));
 }
 
 function ghHeaders(config) {
@@ -77,36 +218,36 @@ async function connectionStatus(config) {
   }
 }
 
-async function handleApi(request, env, path) {
+async function handleGithubApi(request, env, path, uid) {
   const method = request.method;
 
   // Read: never expose the raw token, only whether one is set.
   if (path === '/api/github/config' && method === 'GET') {
-    const config = await loadConfig(env);
+    const config = await loadGithubConfig(env, uid);
     return json({ enabled: config.enabled, hasToken: !!config.token, owner: config.owner, repo: config.repo });
   }
 
   if (path === '/api/github/config' && method === 'POST') {
-    const config = await loadConfig(env);
+    const config = await loadGithubConfig(env, uid);
     const b = await request.json().catch(() => ({}));
     if (typeof b.enabled === 'boolean') config.enabled = b.enabled;
     if (typeof b.owner === 'string' && b.owner.trim()) config.owner = b.owner.trim();
     if (typeof b.repo === 'string' && b.repo.trim()) config.repo = b.repo.trim();
     if (typeof b.token === 'string' && b.token.trim()) config.token = b.token.trim();
     if (b.token === null) config.token = null;
-    await saveConfig(env, config);
+    await saveGithubConfig(env, uid, config);
     return json({ ok: true, enabled: config.enabled, hasToken: !!config.token });
   }
 
   // GET = cheap poll (header dot / MVP chip), POST = forced fresh check after Save+Test.
   // Both behave identically here since this Worker doesn't cache; see note in connectionStatus.
   if (path === '/api/github/status' && (method === 'GET' || method === 'POST')) {
-    const config = await loadConfig(env);
+    const config = await loadGithubConfig(env, uid);
     return json(await connectionStatus(config));
   }
 
   if (path === '/api/github/issues' && method === 'GET') {
-    const config = await loadConfig(env);
+    const config = await loadGithubConfig(env, uid);
     if (!config.enabled || !config.owner || !config.repo) {
       return json({ error: 'חיבור GitHub אינו פעיל, או שחסר owner/repo.' }, 400);
     }
@@ -123,7 +264,7 @@ async function handleApi(request, env, path) {
   }
 
   if (path === '/api/github/create-issue' && method === 'POST') {
-    const config = await loadConfig(env);
+    const config = await loadGithubConfig(env, uid);
     if (!config.enabled || !config.owner || !config.repo || !config.token) {
       return json({ error: 'חיבור GitHub אינו פעיל, או שחסר owner/repo/token.' }, 400);
     }
@@ -148,11 +289,9 @@ async function handleApi(request, env, path) {
 }
 
 // ---------------------------------------------------------------------------
-// Model connection — same treatment as GitHub above, reusing the same GH_CONFIG
-// KV namespace under a different key (no second namespace to create/bind).
+// Model connection — per-user config, same GH_CONFIG namespace under a different key prefix.
 // ---------------------------------------------------------------------------
 
-const MODELS_KEY = 'models_config';
 const BUILTIN_MODELS = [
   { id: 'claude-sonnet', label: 'Claude Sonnet', builtin: true },
   { id: 'claude-opus', label: 'Claude Opus', builtin: true },
@@ -162,8 +301,8 @@ const BUILTIN_MODELS = [
 // Cap on the "recently disconnected" favorites list (see /api/models/delete and /reconnect).
 const RECENT_LIMIT = 5;
 
-async function loadModelsConfig(env) {
-  const raw = await env.GH_CONFIG.get(MODELS_KEY);
+async function loadModelsConfig(env, uid) {
+  const raw = await env.GH_CONFIG.get('models_config:' + uid);
   let cfg = null;
   if (raw) { try { cfg = JSON.parse(raw); } catch {} }
   if (!cfg || !Array.isArray(cfg.models)) cfg = { models: BUILTIN_MODELS.map(m => ({ ...m })), selectedId: 'claude-sonnet' };
@@ -174,8 +313,8 @@ async function loadModelsConfig(env) {
   return cfg;
 }
 
-async function saveModelsConfig(env, cfg) {
-  await env.GH_CONFIG.put(MODELS_KEY, JSON.stringify(cfg));
+async function saveModelsConfig(env, uid, cfg) {
+  await env.GH_CONFIG.put('models_config:' + uid, JSON.stringify(cfg));
 }
 
 // Never leak raw API keys to the browser.
@@ -196,6 +335,29 @@ function publicModels(cfg) {
   };
 }
 
+// Shared provider call (OpenAI-compatible chat/completions, or Gemini generateContent).
+// Returns the raw text reply. Used by the cheap connection ping (testModel), the real chat
+// endpoint (handleChat), so there's one place that knows how to talk to each provider.
+async function callModel(m, prompt, maxTokens) {
+  if (m.provider === 'openai') {
+    const r = await fetch(`${m.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${m.apiKey}` },
+      body: JSON.stringify({ model: m.model, messages: [{ role: 'user', content: prompt }], max_tokens: maxTokens })
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
+    return (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '';
+  }
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${m.model}:generateContent?key=${encodeURIComponent(m.apiKey)}`;
+  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: maxTokens } }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
+  return (j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts &&
+    j.candidates[0].content.parts[0] && j.candidates[0].content.parts[0].text) || '';
+}
+
 // Real minimal ping to the provider so "connected" means the key actually works, not just
 // that a value is present — mirrors server.js's /api/models/test.
 async function testModel(m) {
@@ -205,45 +367,31 @@ async function testModel(m) {
   }
   if (!m.apiKey) return { error: 'לא הוגדר מפתח API למודל הזה.', status: 400 };
   try {
-    if (m.provider === 'openai') {
-      const r = await fetch(`${m.baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${m.apiKey}` },
-        body: JSON.stringify({ model: m.model, messages: [{ role: 'user', content: 'ping' }], max_tokens: 1 })
-      });
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
-    } else {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${m.model}:generateContent?key=${encodeURIComponent(m.apiKey)}`;
-      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: 'ping' }] }] }) });
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
-    }
+    await callModel(m, 'ping', 1);
     return { ok: true, message: 'המודל הגיב בהצלחה — החיבור תקין.' };
   } catch (e) {
     return { error: e.message, status: 502 };
   }
 }
 
-async function handleModelsApi(request, env, path) {
+async function handleModelsApi(request, env, path, uid) {
   const method = request.method;
 
   if (path === '/api/models' && method === 'GET') {
-    return json(publicModels(await loadModelsConfig(env)));
+    return json(publicModels(await loadModelsConfig(env, uid)));
   }
 
   if (path === '/api/models/select' && method === 'POST') {
-    const cfg = await loadModelsConfig(env);
+    const cfg = await loadModelsConfig(env, uid);
     const b = await request.json().catch(() => ({}));
     if (!cfg.models.some(m => m.id === b.id)) return new Response('no such model', { status: 404 });
     cfg.selectedId = b.id;
-    await saveModelsConfig(env, cfg);
+    await saveModelsConfig(env, uid, cfg);
     return json({ ok: true, selectedId: cfg.selectedId });
   }
 
   if (path === '/api/models/add' && method === 'POST') {
-    const cfg = await loadModelsConfig(env);
+    const cfg = await loadModelsConfig(env, uid);
     const b = await request.json().catch(() => ({}));
     const label = (b.label || '').trim();
     if (!label) return new Response('missing label', { status: 400 });
@@ -256,12 +404,12 @@ async function handleModelsApi(request, env, path) {
     };
     cfg.models.push(m);
     if (b.select) cfg.selectedId = m.id;
-    await saveModelsConfig(env, cfg);
+    await saveModelsConfig(env, uid, cfg);
     return json({ ok: true, id: m.id });
   }
 
   if (path === '/api/models/update' && method === 'POST') {
-    const cfg = await loadModelsConfig(env);
+    const cfg = await loadModelsConfig(env, uid);
     const b = await request.json().catch(() => ({}));
     const m = cfg.models.find(x => x.id === b.id);
     if (!m) return new Response('no such model', { status: 404 });
@@ -272,12 +420,12 @@ async function handleModelsApi(request, env, path) {
     if (typeof b.model === 'string') m.model = b.model.trim();
     if (typeof b.apiKey === 'string' && b.apiKey.trim()) m.apiKey = b.apiKey.trim();
     if (b.apiKey === null) m.apiKey = null;
-    await saveModelsConfig(env, cfg);
+    await saveModelsConfig(env, uid, cfg);
     return json({ ok: true });
   }
 
   if (path === '/api/models/delete' && method === 'POST') {
-    const cfg = await loadModelsConfig(env);
+    const cfg = await loadModelsConfig(env, uid);
     const b = await request.json().catch(() => ({}));
     const m = cfg.models.find(x => x.id === b.id);
     if (!m) return new Response('no such model', { status: 404 });
@@ -287,14 +435,14 @@ async function handleModelsApi(request, env, path) {
     // Archive it (full config, including the key) instead of discarding, so it can be
     // one-click restored from "recent" without retyping the label/provider/URL/model/key.
     cfg.recent = [m, ...cfg.recent.filter(x => x.id !== m.id)].slice(0, RECENT_LIMIT);
-    await saveModelsConfig(env, cfg);
+    await saveModelsConfig(env, uid, cfg);
     return json({ ok: true, selectedId: cfg.selectedId });
   }
 
   // Restores a previously-removed external model from "recent" back into the active list,
   // with a fresh id (the old one may already be reused) and selects it — no retyping needed.
   if (path === '/api/models/reconnect' && method === 'POST') {
-    const cfg = await loadModelsConfig(env);
+    const cfg = await loadModelsConfig(env, uid);
     const b = await request.json().catch(() => ({}));
     const idx = cfg.recent.findIndex(x => x.id === b.id);
     if (idx === -1) return new Response('no such recent model', { status: 404 });
@@ -303,12 +451,12 @@ async function handleModelsApi(request, env, path) {
     const m = { ...old, id: 'ext-' + Date.now() };
     cfg.models.push(m);
     cfg.selectedId = m.id;
-    await saveModelsConfig(env, cfg);
+    await saveModelsConfig(env, uid, cfg);
     return json({ ok: true, id: m.id, selectedId: cfg.selectedId });
   }
 
   if (path === '/api/models/test' && method === 'POST') {
-    const cfg = await loadModelsConfig(env);
+    const cfg = await loadModelsConfig(env, uid);
     const b = await request.json().catch(() => ({}));
     const m = cfg.models.find(x => x.id === (b.id || cfg.selectedId));
     if (!m) return new Response('no such model', { status: 404 });
@@ -319,11 +467,48 @@ async function handleModelsApi(request, env, path) {
   return json({ error: 'not found' }, 404);
 }
 
+// ---------------------------------------------------------------------------
+// Home-screen chat: sends the prompt to the user's own selected model.
+// ---------------------------------------------------------------------------
+
+async function handleChat(request, env, uid) {
+  if (request.method !== 'POST') return json({ error: 'not found' }, 404);
+  const cfg = await loadModelsConfig(env, uid);
+  const m = cfg.models.find(x => x.id === cfg.selectedId);
+  if (!m) return json({ error: 'לא נבחר מודל.' }, 400);
+  const b = await request.json().catch(() => ({}));
+  const prompt = (b.prompt || '').trim();
+  if (!prompt) return json({ error: 'ההודעה ריקה.' }, 400);
+  if (m.builtin) {
+    return json({ reply: 'מודל מובנה (Claude) לא עונה ישירות מכאן — הוא פועל דרך סשן Claude Code שמושך את התור. כדי לשוחח איתו, יש להשתמש בסשן Claude Code שלך.' });
+  }
+  if (!m.apiKey) return json({ error: 'לא הוגדר מפתח API למודל הנבחר. פתח "חיבור למודל" והוסף מפתח.' }, 400);
+  try {
+    const reply = await callModel(m, prompt, 1024);
+    return json({ reply: reply || '(תשובה ריקה מהמודל)' });
+  } catch (e) {
+    return json({ error: e.message }, 502);
+  }
+}
+
+// ---------------------------------------------------------------------------
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (url.pathname.startsWith('/api/github/')) return handleApi(request, env, url.pathname);
-    if (url.pathname.startsWith('/api/models')) return handleModelsApi(request, env, url.pathname);
+    const path = url.pathname;
+
+    if (path.startsWith('/api/auth/')) return handleAuth(request, env, url, path);
+
+    const needsAuth = path.startsWith('/api/github/') || path.startsWith('/api/models') || path === '/api/chat';
+    if (needsAuth) {
+      const user = await getSession(env, request);
+      if (!user) return json({ error: 'לא מחובר. יש להתחבר עם Google כדי להשתמש בתכונה הזו.', loginRequired: true }, 401);
+      if (path.startsWith('/api/github/')) return handleGithubApi(request, env, path, user.uid);
+      if (path.startsWith('/api/models')) return handleModelsApi(request, env, path, user.uid);
+      if (path === '/api/chat') return handleChat(request, env, user.uid);
+    }
+
     return env.ASSETS.fetch(request);
   }
 };

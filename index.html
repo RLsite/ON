@@ -326,17 +326,37 @@
   .chatPanel{padding:16px;display:flex;flex-direction:column;gap:12px}
   .chatBubble{border:1px solid var(--line);background:var(--panel2);border-radius:18px;padding:14px 16px}
   .chatBubble .meta{margin-top:0}
+  #chatThread{display:flex;flex-direction:column;gap:10px}
+  .chatBubble.user{background:var(--accent-tint);border-color:var(--accent)}
+  .chatBubble.pending .meta{opacity:.7}
+  .chatBubble.err{background:var(--fail-tint);border-color:var(--fail)}
   .composerBar{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:22px;padding:12px 14px;box-shadow:var(--shadow-sm)}
   .composerBar input{border:none;outline:none;background:transparent;flex:1;font:inherit;font-size:15px;color:var(--txt)}
   .roundBtn{width:44px;height:44px;border-radius:50%;border:none;background:#111827;color:#fff;cursor:pointer}
   .miniBtn{border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:10px 12px;cursor:pointer;font:inherit}
   .miniBtn.iconBtn{position:relative;display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;padding:0;font-size:18px;line-height:1}
+  #authBtn img{width:100%;height:100%;border-radius:50%;object-fit:cover}
   .ledDot{position:absolute;top:6px;inset-inline-end:6px;width:8px;height:8px;border-radius:50%;background:#c9ccdb;border:1.5px solid var(--panel);box-shadow:0 0 0 1px rgba(0,0,0,.05)}
   .ledDot.ok{background:#2fae66}
   .ledDot.fail{background:#e35b5b}
+  .loginGate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px}
+  .loginGateCard{background:var(--panel);border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow-sm);padding:40px 36px;max-width:380px;width:100%;text-align:center}
+  .gateLogo{width:72px;height:72px;border-radius:20px;object-fit:cover;margin-bottom:16px}
+  .gateTitle{font-size:22px;font-weight:800;margin-bottom:10px}
+  .gateDesc{color:var(--muted);font-size:14px;line-height:1.6;margin-bottom:24px}
+  .gateLoginBtn{width:100%;padding:13px 20px;border-radius:14px;border:1px solid var(--line);background:#fff;font:inherit;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:var(--shadow-sm)}
+  .gateLoginBtn:hover{border-color:var(--accent);color:var(--accent)}
 </style>
 </head>
 <body>
+<div id="loginGate" class="loginGate">
+  <div class="loginGateCard">
+    <img id="gateLogo" class="gateLogo" alt="ON TracK">
+    <div class="gateTitle">ON TracK</div>
+    <p class="gateDesc" data-i18n="gateDesc">מרחב עבודה שבו מודל שבחרת מבין את הפרויקט שלך, מתחבר לריפו ב-GitHub, ומבצע פעולות מאושרות מטעמך.</p>
+    <button id="gateLoginBtn" class="gateLoginBtn" data-i18n="gateSignIn">🔐 התחבר עם Google</button>
+  </div>
+</div>
 <div class="newShell">
   <aside class="newSidebar">
     <div class="railBrand">
@@ -363,6 +383,7 @@
     <div class="newTop">
       <div class="title" data-i18n="topTitle">מרחב עבודה</div>
       <div class="actions">
+        <button class="miniBtn iconBtn" id="authBtn" title="התחבר עם Google">👤</button>
         <button class="miniBtn iconBtn" id="newLangBtn" title="English / עברית">🌐</button>
         <button class="miniBtn iconBtn" id="newSettingsBtn" data-i18n-title="titleSettings" title="הגדרות">⚙️</button>
         <button class="miniBtn iconBtn" id="newHelpBtn" data-i18n-title="titleHelp" title="עזרה">❓</button>
@@ -383,7 +404,7 @@
       <section class="docPanel">
         <div class="docHeader">
           <div class="docTitle" data-i18n="docTitle">מידע פרויקט</div>
-          <span class="hint" id="docVersion">v0.8.1</span>
+          <span class="hint" id="docVersion">v0.9.0</span>
         </div>
         <div class="docBody" id="docBody">
           <ul>
@@ -395,20 +416,22 @@
         </div>
       </section>
       <section class="chatPanel">
-        <div class="chatBubble">
-          <div class="meta">ON TracK</div>
-          <div data-i18n="chatText">אני רוצה לבנות מערכת שמקבלת פרויקט, מחברת מודל, ומבצעת פעולות מבוקרות על GitHub.</div>
+        <div id="chatThread">
+          <div class="chatBubble">
+            <div class="meta">ON TracK</div>
+            <div data-i18n="chatText">אני רוצה לבנות מערכת שמקבלת פרויקט, מחברת מודל, ומבצעת פעולות מבוקרות על GitHub.</div>
+          </div>
         </div>
         <div class="composerBar">
           <button class="miniBtn">+</button>
           <input type="text" id="mainPrompt" data-i18n-placeholder="composerPlaceholder" placeholder="כתוב מה תרצה שהמודל יעשה..." />
-          <button class="roundBtn">↑</button>
+          <button class="roundBtn" id="chatSendBtn">↑</button>
         </div>
       </section>
       <aside class="sideCard">
         <h3 data-i18n="quickStats">מצב מהיר</h3>
         <div class="heroStatRow"><span data-i18n="statusLabel">סטטוס</span><b id="miniStatus" data-i18n="miniStatusDefault">התחלה חדשה</b></div>
-        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">0.8.1 ↻</button></div>
+        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">0.9.0 ↻</button></div>
         <div class="heroStatRow"><span data-i18n="langLabel">שפה</span><b id="langValue">עברית</b></div>
       </aside>
     </div>
@@ -458,7 +481,7 @@
         <div class="settingsGrid">
           <div class="settingCard">
             <b data-i18n="settingsCardVersion">גרסת פרויקט</b>
-            <div class="hint" id="settingsVersion">0.8.1</div>
+            <div class="hint" id="settingsVersion">0.9.0</div>
           </div>
           <div class="settingCard">
             <b data-i18n="settingsCardStatus">מצב נוכחי</b>
@@ -511,7 +534,7 @@
         <b data-i18n="helpTitle">❓ עזרה וסטטוס פרויקט</b>
         <button class="icon" id="helpClose">✕</button>
       </div>
-      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">0.8.1</b></div>
+      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">0.9.0</b></div>
       <p class="hint" style="line-height:1.7;margin-top:0" data-i18n="helpIntro">
         זהו כלי בדיקות (QA) מקומי שנבנה כדי להפוך לעבודה מסודרת מול מודל שתבחר.
         המטרה היא לעבוד בשלבים: לבחור מודל, לחבר פרויקט מקומי, להגדיר תכנית, ואז לעבור לביצוע מבוקר.
@@ -821,6 +844,7 @@
   // exactly, since that default IS the Hebrew text — this dictionary only needs to add "en".
   const I18N = {
     he: {
+      gateDesc:'מרחב עבודה שבו מודל שבחרת מבין את הפרויקט שלך, מתחבר לריפו ב-GitHub, ומבצע פעולות מאושרות מטעמך.', gateSignIn:'🔐 התחבר עם Google',
       subtitle:'מרחב עבודה לפרויקטים מבוססי מודל', sidebarProjects:'פרויקטים', sideProjSandbox:'ארגז חול', sideProjResearch:'מחקר',
       sidebarLibraries:'ספריות', sideLibDocs:'מסמכי פרויקט', sideLibDesign:'מערכת עיצוב', sideLibAssets:'נכסים משותפים',
       topTitle:'מרחב עבודה', heroTitle:'מסך עבודה נקי לפרויקטים ומודלים',
@@ -896,6 +920,7 @@
       modelCustomOption:'מותאם אישית…'
     },
     en: {
+      gateDesc:'A workspace where a model you choose understands your project, connects to a GitHub repo, and performs approved actions on your behalf.', gateSignIn:'🔐 Sign in with Google',
       subtitle:'Workspace for model-driven projects', sidebarProjects:'Projects', sideProjSandbox:'Sandbox', sideProjResearch:'Research',
       sidebarLibraries:'Libraries', sideLibDocs:'Project Docs', sideLibDesign:'Design System', sideLibAssets:'Shared Assets',
       topTitle:'Workspace', heroTitle:'A clean workspace for projects and models',
@@ -1000,6 +1025,7 @@
     // refresh them if the modal has already been populated once and language changes later.
     if(typeof applyProviderUI === 'function' && document.getElementById('mNewModelSelect')?.options.length) applyProviderUI();
     if(typeof renderRecentModels === 'function' && document.getElementById('modelRecentWrap')?.style.display==='block') renderRecentModels();
+    if(typeof window.renderAuthBtn === 'function') window.renderAuthBtn();
     if(document.getElementById('helpDone')) {
       const t = I18N[uiLang];
       $('#helpDone').textContent = t.helpDoneList.join('\n');
@@ -1025,6 +1051,122 @@
     }
     return { response: r, data };
   }
+
+  // Home-screen composer: sends the prompt to the currently selected external model via
+  // /api/chat and appends the exchange to #chatThread. Kept self-contained (its own escape
+  // helper, no dependency on section-local esc()/$ shortcuts) and placed at top level next to
+  // fetchJsonSafe, since the button it wires up previously had zero JS attached to it at all.
+  (function(){
+    const escHtml = s => (s||'').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    function addBubble(cls, meta, text){
+      const thread = document.getElementById('chatThread');
+      if(!thread) return null;
+      const div = document.createElement('div');
+      div.className = 'chatBubble' + (cls ? ' '+cls : '');
+      div.innerHTML = `<div class="meta">${escHtml(meta)}</div><div>${escHtml(text)}</div>`;
+      thread.appendChild(div);
+      div.scrollIntoView({ block: 'end', behavior: 'smooth' });
+      return div;
+    }
+    async function sendChatMessage(){
+      const input = document.getElementById('mainPrompt');
+      const btn = document.getElementById('chatSendBtn');
+      if(!input || !btn) return;
+      const text = input.value.trim();
+      if(!text || btn.disabled) return;
+      const user = await window.refreshAuthState();
+      if(!user){ window.requireLogin(); return; }
+      input.value = '';
+      addBubble('user', uiLang==='en' ? 'You' : 'אתה', text);
+      btn.disabled = true;
+      const pending = addBubble('pending', uiLang==='en' ? 'Thinking…' : 'חושב…', '…');
+      try{
+        const r = await fetch('/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ prompt: text }) });
+        const j = await r.json().catch(()=>({}));
+        pending.classList.remove('pending');
+        if(!r.ok || j.error){
+          pending.classList.add('err');
+          pending.querySelector('.meta').textContent = uiLang==='en' ? 'Error' : 'שגיאה';
+          pending.querySelector('div:last-child').textContent = (j && j.error) || ('HTTP '+r.status);
+        } else {
+          pending.querySelector('.meta').textContent = 'ON TracK';
+          pending.querySelector('div:last-child').textContent = j.reply || '';
+        }
+      }catch(e){
+        pending.classList.remove('pending');
+        pending.classList.add('err');
+        pending.querySelector('.meta').textContent = uiLang==='en' ? 'Error' : 'שגיאה';
+        pending.querySelector('div:last-child').textContent = e.message;
+      }
+      btn.disabled = false;
+    }
+    const btn = document.getElementById('chatSendBtn');
+    const input = document.getElementById('mainPrompt');
+    if(btn) btn.onclick = sendChatMessage;
+    if(input) input.addEventListener('keydown', e => { if(e.key==='Enter'){ e.preventDefault(); sendChatMessage(); } });
+  })();
+
+  // Login (Sign in with Google) — GitHub/model/chat all 401 without a session, since their
+  // storage is now scoped per-user server-side. Re-checked (not just cached) every time one of
+  // those three is opened/used, so a login/logout in another tab is picked up immediately.
+  (function(){
+    let currentUser = null;
+    // Reuse the favicon's own data URI for the gate logo too, instead of a third copy of the image.
+    const gateLogo = document.getElementById('gateLogo');
+    const iconLink = document.querySelector('link[rel="icon"]');
+    if (gateLogo && iconLink) gateLogo.src = iconLink.href;
+
+    function renderAuthBtn(){
+      const authBtn = document.getElementById('authBtn');
+      const gate = document.getElementById('loginGate');
+      const shell = document.querySelector('.newShell');
+      if(authBtn){
+        if(currentUser){
+          authBtn.title = currentUser.name || currentUser.email || (uiLang==='en' ? 'Signed in' : 'מחובר');
+          authBtn.innerHTML = currentUser.picture ? `<img src="${currentUser.picture}" alt="">` : '👤';
+        } else {
+          authBtn.title = uiLang==='en' ? 'Sign in with Google' : 'התחבר עם Google';
+          authBtn.innerHTML = '👤';
+        }
+      }
+      // The whole app sits behind this gate — GitHub/model/chat all need a per-user session
+      // anyway, and a locked-but-visible home screen just invites clicking around into dead
+      // ends. Shown by default in the markup so there is no flash of the app before the first
+      // /api/auth/me resolves; JS only ever needs to hide it, never show it on first paint.
+      if(gate) gate.style.display = currentUser ? 'none' : 'flex';
+      if(shell) shell.style.display = currentUser ? '' : 'none';
+    }
+    async function refreshAuthState(){
+      try{
+        const r = await fetch('/api/auth/me');
+        const j = await r.json();
+        currentUser = j.loggedIn ? j : null;
+      }catch{ currentUser = null; }
+      renderAuthBtn();
+      return currentUser;
+    }
+    window.refreshAuthState = refreshAuthState;
+    window.renderAuthBtn = renderAuthBtn;
+    window.requireLogin = function(){
+      alert(uiLang==='en' ? 'Please sign in with Google first.' : 'צריך להתחבר עם Google קודם.');
+    };
+    const authBtn = document.getElementById('authBtn');
+    if(authBtn) authBtn.onclick = async () => {
+      if(currentUser){
+        const who = currentUser.email || currentUser.name || '';
+        const msg = uiLang==='en' ? ('Sign out'+(who?' of '+who:'')+'?') : ('להתנתק'+(who?' מ-'+who:'')+'?');
+        if(!confirm(msg)) return;
+        await fetch('/api/auth/logout', { method:'POST' });
+        currentUser = null;
+        renderAuthBtn();
+      } else {
+        location.href = '/api/auth/login';
+      }
+    };
+    const gateLoginBtn = document.getElementById('gateLoginBtn');
+    if(gateLoginBtn) gateLoginBtn.onclick = () => { location.href = '/api/auth/login'; };
+    refreshAuthState();
+  })();
 
 // The settings/help/model/GitHub/preview/API/new-request popups were originally built for
 // the old QA dashboard shell (".oldApp"), which is now hidden ("display:none") while the new
@@ -1272,7 +1414,13 @@ function connDot(ok){ return `<span class="cdot" style="background:${ok?'var(--p
     }catch{}
   }
   async function loadModels(){
-    try{ modelsState = await (await fetch('/api/models')).json(); }catch{ modelsState={models:[],selectedId:null}; }
+    try{
+      const r = await fetch('/api/models');
+      // Anonymous visitors legitimately 401 here (models are per-account since login was
+      // added) — that's a valid, expected response shape ({error, loginRequired}), not a
+      // malformed one, so it must be handled here rather than falling into the catch below.
+      modelsState = r.ok ? await r.json() : {models:[],selectedId:null};
+    }catch{ modelsState={models:[],selectedId:null}; }
     updateConnDots();
   }
 function renderModelList(){
@@ -1335,6 +1483,8 @@ const modelModal=$('#modelModal');
 // just once at page load, or a model added/edited elsewhere never shows up. Exposed on window
 // because the real top-bar button and the Settings shortcut live in a different section.
 async function openModelModal(){
+  const user = await window.refreshAuthState();
+  if(!user){ window.requireLogin(); return; }
   modelModal.classList.add('on');
   await loadModels();
   refreshModelModal();
@@ -1544,6 +1694,8 @@ loadModels();
   // because every button that can open this modal (icon in the top bar, the Settings shortcut)
   // lives in a different IIFE and can't reach a plain local function here.
   async function openGithubModal(){
+    const user = await window.refreshAuthState();
+    if(!user){ window.requireLogin(); return; }
     modal.classList.add('on');
     const { data: c } = await fetchJsonSafe('/api/github/config');
     $('#ghEnabled').checked = !!(c && c.enabled);
@@ -1802,7 +1954,7 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     b.textContent='❓ עזרה';
     apiBtn.parentElement.insertBefore(b, apiBtn);
   }
-  const appVersion='0.8.1';
+  const appVersion='0.9.0';
   $('#appVersion').textContent=appVersion;
   if($('#docVersion')) $('#docVersion').textContent='v'+appVersion;
   // Seeded here too: without a local server /api/state never answers, and this would

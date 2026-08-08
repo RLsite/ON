@@ -15,5 +15,12 @@
   // Durable storage for the GitHub owner/repo/token, since Workers have no filesystem.
   "kv_namespaces": [
     { "binding": "GH_CONFIG", "id": "e62b4f5845a949d4aa4d96989e1cff0c" }
-  ]
+  ],
+  // Not secret — a Google OAuth Client ID is sent in the browser's redirect URL by design.
+  // GOOGLE_CLIENT_SECRET is NOT here: it must be set as a Cloudflare Worker Secret
+  // (Dashboard -> Workers & Pages -> on -> Settings -> Variables and secrets -> Add ->
+  // type "Secret", name it exactly GOOGLE_CLIENT_SECRET), never committed to the repo.
+  "vars": {
+    "GOOGLE_CLIENT_ID": "305824554178-lo2jkmujfab3i4p52dpvcv65lmj6vtb5.apps.googleusercontent.com"
+  }
 }
