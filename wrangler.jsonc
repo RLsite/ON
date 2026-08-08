@@ -1,0 +1,9 @@
+{
+  "name": "on-track",
+  "compatibility_date": "2025-01-01",
+  // Only dist/ is uploaded. Pointing this at the repo root makes wrangler try to
+  // upload node_modules, which exceeds the 25 MiB per-asset limit.
+  "assets": {
+    "directory": "./dist"
+  }
+}
