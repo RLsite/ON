@@ -341,27 +341,26 @@
       <div class="brandMark">O</div>
       <div>
         <div class="brandName">ON TracK</div>
-        <div class="brandSub" data-i18n="subtitle">Workspace for model-driven projects</div>
+        <div class="brandSub">מרחב עבודה לפרויקטים מבוססי מודל</div>
       </div>
     </div>
     <div class="sideCard">
-      <h3 data-i18n="sidebarProjects">Projects</h3>
+      <h3>פרויקטים</h3>
       <button class="sideLink on"><span>ON TracK</span><span>●</span></button>
-      <button class="sideLink"><span>Sandbox</span><span>○</span></button>
-      <button class="sideLink"><span>Research</span><span>○</span></button>
+      <button class="sideLink"><span>ארגז חול</span><span>○</span></button>
+      <button class="sideLink"><span>מחקר</span><span>○</span></button>
     </div>
     <div class="sideCard">
-      <h3 data-i18n="sidebarLibraries">Libraries</h3>
-      <button class="sideLink on"><span>Project Docs</span><span>01</span></button>
-      <button class="sideLink"><span>Design System</span><span>02</span></button>
-      <button class="sideLink"><span>Shared Assets</span><span>03</span></button>
+      <h3>ספריות</h3>
+      <button class="sideLink on"><span>מסמכי פרויקט</span><span>01</span></button>
+      <button class="sideLink"><span>מערכת עיצוב</span><span>02</span></button>
+      <button class="sideLink"><span>נכסים משותפים</span><span>03</span></button>
     </div>
   </aside>
   <main class="newMain">
     <div class="newTop">
-      <div class="title" data-i18n="topTitle">Workspace</div>
+      <div class="title">מרחב עבודה</div>
       <div class="actions">
-        <button class="miniBtn iconBtn" id="newLangBtn" title="עברית / EN">🌐</button>
         <button class="miniBtn iconBtn" id="newSettingsBtn" title="הגדרות">⚙️</button>
         <button class="miniBtn iconBtn" id="newHelpBtn" title="עזרה">❓</button>
         <button class="miniBtn iconBtn" id="newGithubBtn" title="חיבור ל GitHub">🔗<span class="ledDot" id="newGithubLed"></span></button>
@@ -370,44 +369,44 @@
     </div>
     <div class="newContent">
       <section class="heroPanel">
-        <h2 data-i18n="heroTitle">A clean workspace for model-driven projects</h2>
-        <p data-i18n="heroText">This is the new MVP shell: choose a model, choose a project, define the task, and let the model perform controlled actions on repositories.</p>
+        <h2>מסך עבודה נקי לפרויקטים ומודלים</h2>
+        <p>זהו ה-MVP החדש: בוחרים מודל, בוחרים פרויקט, מגדירים משימה, ואז נותנים למודל לבצע פעולות מבוקרות על מאגרי קוד.</p>
         <div class="heroActions">
-          <button class="add" id="heroStart" data-i18n="heroStart">Start new project</button>
-          <button class="act" id="heroDocs" data-i18n="heroDocs">Open docs</button>
-          <button class="act" id="heroConnect" data-i18n="heroConnect">Connect model</button>
+          <button class="add" id="heroStart">פרויקט חדש</button>
+          <button class="act" id="heroDocs">פתח תיעוד</button>
+          <button class="act" id="heroConnect">חיבור למודל</button>
         </div>
       </section>
       <section class="docPanel">
         <div class="docHeader">
-          <div class="docTitle" data-i18n="docTitle">Project Info</div>
+          <div class="docTitle">מידע פרויקט</div>
           <span class="hint" id="docVersion">v0.5.0</span>
         </div>
         <div class="docBody" id="docBody">
           <ul>
-            <li data-i18n="doc1">Step 1: choose language and layout.</li>
-            <li data-i18n="doc2">Step 2: connect a model.</li>
-            <li data-i18n="doc3">Step 3: connect a repository.</li>
-            <li data-i18n="doc4">Step 4: let the model act on approved tasks.</li>
+            <li>שלב 1: חיבור מודל.</li>
+            <li>שלב 2: בחירת פרויקט.</li>
+            <li>שלב 3: חיבור לריפו.</li>
+            <li>שלב 4: המודל מבצע משימות מאושרות.</li>
           </ul>
         </div>
       </section>
       <section class="chatPanel">
         <div class="chatBubble">
           <div class="meta">ON TracK</div>
-          <div data-i18n="chatText">I want to build a system that receives a project, connects a model, and performs controlled actions on GitHub.</div>
+          <div>אני רוצה לבנות מערכת שמקבלת פרויקט, מחברת מודל, ומבצעת פעולות מבוקרות על GitHub.</div>
         </div>
         <div class="composerBar">
           <button class="miniBtn">+</button>
-          <input type="text" id="mainPrompt" placeholder="Write what you want the model to do..." />
+          <input type="text" id="mainPrompt" placeholder="כתוב מה תרצה שהמודל יעשה..." />
           <button class="roundBtn">↑</button>
         </div>
       </section>
       <aside class="sideCard">
-        <h3 data-i18n="quickStats">Quick Status</h3>
-        <div class="heroStatRow"><span data-i18n="statusLabel">Status</span><b id="miniStatus">Fresh start</b></div>
-        <div class="heroStatRow"><span data-i18n="versionLabel">Version</span><button type="button" class="verBtn" id="verBtn" title="לחץ לבדיקת גרסה מול השרת">0.5.0 ↻</button></div>
-        <div class="heroStatRow"><span data-i18n="langLabel">Language</span><b id="langLabel">Hebrew</b></div>
+        <h3>מצב מהיר</h3>
+        <div class="heroStatRow"><span>סטטוס</span><b id="miniStatus">התחלה חדשה</b></div>
+        <div class="heroStatRow"><span>גרסה</span><button type="button" class="verBtn" id="verBtn" title="לחץ לבדיקת גרסה מול השרת">0.5.0 ↻</button></div>
+        <div class="heroStatRow"><span>שפה</span><b>עברית</b></div>
       </aside>
     </div>
   </main>
@@ -509,9 +508,9 @@
         <b>❓ עזרה וסטטוס פרויקט</b>
         <button class="icon" id="helpClose">✕</button>
       </div>
-      <div class="hint" style="margin-bottom:12px">גרסה: <b id="appVersion">0.1.0</b></div>
+      <div class="hint" style="margin-bottom:12px">גרסה: <b id="appVersion">0.5.0</b></div>
       <p class="hint" style="line-height:1.7;margin-top:0">
-        זהו QA dashboard מקומי שנבנה כדי להפוך לעבודה מסודרת מול מודל שתבחר.
+        זהו כלי בדיקות (QA) מקומי שנבנה כדי להפוך לעבודה מסודרת מול מודל שתבחר.
         המטרה היא לעבוד בשלבים: לבחור מודל, לחבר פרויקט מקומי, להגדיר תכנית, ואז לעבור לביצוע מבוקר.
       </p>
       <label>מה בוצע</label>
@@ -538,7 +537,7 @@
   <div class="mvpBanner" id="mvpBanner">
     <span class="mvpTitle">מוכנות MVP</span>
     <span class="mvpChip off" id="mvpModel"><span class="dot"></span><span>מודל</span></span>
-    <span class="mvpChip off" id="mvpPreview"><span class="dot"></span><span>Preview</span></span>
+    <span class="mvpChip off" id="mvpPreview"><span class="dot"></span><span>תצוגה מקדימה</span></span>
     <span class="mvpChip off" id="mvpGithub"><span class="dot"></span><span>GitHub</span></span>
     <span class="mvpChip off" id="mvpQueue"><span class="dot"></span><span>תור בדיקות</span></span>
   </div>
@@ -612,11 +611,11 @@
           <input type="checkbox" id="ghEnabled" style="width:16px;height:16px">
           חיבור GitHub פעיל
         </label>
-        <label>Owner (משתמש/ארגון)</label>
+        <label>בעלים (משתמש/ארגון)</label>
         <input type="text" id="ghOwner" placeholder="לדוגמה: harel" style="direction:ltr;text-align:left">
         <label>שם הריפו</label>
         <input type="text" id="ghRepo" placeholder="לדוגמה: my-project" style="direction:ltr;text-align:left">
-        <label>Personal Access Token</label>
+        <label>טוקן גישה אישי</label>
         <input type="password" id="ghToken" placeholder="ghp_…">
         <div class="hint" id="ghTokenStatus" style="margin-top:4px"></div>
         <div id="ghTokenSaved" style="display:none;margin-top:6px;font-size:13px;color:#3a9c75;font-weight:700">✓ טוקן שמור — לא צריך להזין שוב</div>
@@ -1472,82 +1471,8 @@ if(next) await fetch(B+"/api/update",{method:"POST",
   const modal=$('#helpModal');
   const apiBtn=$('#apiBtn');
   const settingsModal=$('#settingsModal');
-  const langBtn=$('#langBtn');
   const closeSettings=()=>settingsModal.classList.remove('on');
   const openSettings=()=>settingsModal.classList.add('on');
-  const I18N = {
-    he: {
-      settingsBtn: 'הגדרות',
-      helpBtn: 'עזרה',
-      githubDockBtn: 'חיבור ל GITHUB',
-      modelDockBtn: 'חיבור למודל',
-      settingsTitle: '⚙️ הגדרות פרויקט',
-      settingsHint: 'מסך בקרה מהיר ל־ON TracK. מכאן עוברים למסך המודל, החיבור ל־GitHub, או לתיעוד הפרויקט.',
-      projectVersion: 'גרסת פרויקט',
-      currentStatus: 'מצב נוכחי',
-      workGoal: 'מטרת עבודה',
-      shortcut: 'קיצור דרך',
-      shortcutHint: 'פתח עזרה, מודל, GitHub או API לפי הצורך.',
-      pageTitle: 'מרחב עבודה',
-      newRequest: '➕ בקשה חדשה',
-      modelBtn: '🤖 בחירת מודל',
-      startServer: '🟢 הפעל שרת'
-    },
-    en: {
-      settingsBtn: 'Settings',
-      helpBtn: 'Help',
-      githubDockBtn: 'Connect GitHub',
-      modelDockBtn: 'Connect Model',
-      settingsTitle: '⚙️ Project Settings',
-      settingsHint: 'Quick control panel for ON TracK. Jump to the model, GitHub, or project docs from here.',
-      projectVersion: 'Project Version',
-      currentStatus: 'Current Status',
-      workGoal: 'Work Goal',
-      shortcut: 'Shortcut',
-      shortcutHint: 'Open help, model, GitHub, or API as needed.',
-      pageTitle: 'Workspace',
-      newRequest: '➕ New Request',
-      modelBtn: '🤖 Choose Model',
-      startServer: '🟢 Start Server'
-    }
-  };
-  let uiLang = localStorage.getItem('ontrack-lang') || 'he';
-  function applyLanguage(lang){
-    uiLang = lang === 'en' ? 'en' : 'he';
-    localStorage.setItem('ontrack-lang', uiLang);
-    document.documentElement.lang = uiLang;
-    document.documentElement.dir = uiLang === 'en' ? 'ltr' : 'rtl';
-    document.querySelectorAll('[data-i18n]').forEach(el=>{
-      const key = el.getAttribute('data-i18n');
-      if(I18N[uiLang] && I18N[uiLang][key]) el.textContent = I18N[uiLang][key];
-    });
-    if($('#settingsBtn')) $('#settingsBtn').textContent = I18N[uiLang].settingsBtn;
-    if($('#helpBtn')) $('#helpBtn').textContent = I18N[uiLang].helpBtn;
-    if($('#githubDockBtn')) $('#githubDockBtn').textContent = I18N[uiLang].githubDockBtn;
-    if($('#modelDockBtn')) $('#modelDockBtn').textContent = I18N[uiLang].modelDockBtn;
-    if($('#newCheckBtn')) $('#newCheckBtn').textContent = I18N[uiLang].newRequest;
-    if($('#modelBtn')) $('#modelBtn').textContent = I18N[uiLang].modelBtn;
-    if($('#lsHeaderBtn')) $('#lsHeaderBtn').textContent = I18N[uiLang].startServer;
-    if($('#langBtn')) $('#langBtn').textContent = uiLang === 'en' ? 'English / HE' : 'עברית / EN';
-    if($('#newLangBtn')) $('#newLangBtn').title = uiLang === 'en' ? 'English / HE' : 'עברית / EN';
-    if($('#newSettingsBtn')) $('#newSettingsBtn').title = I18N[uiLang].settingsBtn;
-    if($('#newHelpBtn')) $('#newHelpBtn').title = I18N[uiLang].helpBtn;
-    if($('#newGithubBtn')) $('#newGithubBtn').title = I18N[uiLang].githubDockBtn;
-    if($('#newModelBtn')) $('#newModelBtn').title = I18N[uiLang].modelDockBtn;
-    if($('#heroStart')) $('#heroStart').textContent = uiLang === 'en' ? 'Start new project' : 'פרויקט חדש';
-    if($('#heroDocs')) $('#heroDocs').textContent = uiLang === 'en' ? 'Open docs' : 'פתח תיעוד';
-    if($('#heroConnect')) $('#heroConnect').textContent = uiLang === 'en' ? 'Connect model' : 'חיבור למודל';
-    if($('#topTitle')) $('#topTitle').textContent = I18N[uiLang].pageTitle;
-    if($('#heroTitle')) $('#heroTitle').textContent = uiLang === 'en' ? 'A clean workspace for model-driven projects' : 'מסך עבודה נקי לפרויקטים ומודלים';
-    if($('#heroText')) $('#heroText').textContent = uiLang === 'en'
-      ? 'This is the new MVP shell: choose a model, choose a project, define the task, and let the model perform controlled actions on repositories.'
-      : 'זהו ה-MVP החדש: בוחרים מודל, בוחרים פרויקט, מגדירים משימה, ואז נותנים למודל לבצע פעולות מבוקרות על repositories.';
-    if($('#docTitle')) $('#docTitle').textContent = uiLang === 'en' ? 'Project Info' : 'מידע פרויקט';
-    if($('#chatText')) $('#chatText').textContent = uiLang === 'en'
-      ? 'I want to build a system that receives a project, connects a model, and performs controlled actions on GitHub.'
-      : 'אני רוצה לבנות מערכת שמקבלת פרויקט, מחברת מודל, ומבצעת פעולות מבוקרות על GitHub.';
-    if($('#langLabel')) $('#langLabel').textContent = uiLang === 'en' ? 'English' : 'Hebrew';
-  }
   async function renderWorkspace(){
     try{
       const data = await (await fetch('/api/workspace')).json();
@@ -1583,10 +1508,10 @@ if(next) await fetch(B+"/api/update",{method:"POST",
       if(docBody && data.selectedProject){
         const p = data.selectedProject;
         docBody.innerHTML = `
-          <div class="heroStatRow"><span>Project</span><b>${p.name}</b></div>
-          <div class="heroStatRow"><span>Status</span><b>${p.status}</b></div>
-          <div class="heroStatRow"><span>Note</span><b>${p.note || ''}</b></div>
-          <div class="heroStatRow"><span>Library</span><b>${data.selectedLibrary?.name || ''}</b></div>
+          <div class="heroStatRow"><span>פרויקט</span><b>${p.name}</b></div>
+          <div class="heroStatRow"><span>סטטוס</span><b>${p.status}</b></div>
+          <div class="heroStatRow"><span>הערה</span><b>${p.note || ''}</b></div>
+          <div class="heroStatRow"><span>ספרייה</span><b>${data.selectedLibrary?.name || ''}</b></div>
         `;
       }
       updateMiniStatus(data);
@@ -1597,8 +1522,6 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     if(mini && data && data.selectedProject) mini.textContent = data.selectedProject.name + ' · ' + data.selectedProject.status;
   }
   if($('#settingsBtn')) $('#settingsBtn').onclick=openSettings;
-  if(langBtn) langBtn.onclick=()=>applyLanguage(uiLang === 'en' ? 'he' : 'en');
-  if(newLangBtn) newLangBtn.onclick=()=>applyLanguage(uiLang === 'en' ? 'he' : 'en');
   if($('#settingsClose')) $('#settingsClose').onclick=closeSettings;
   if(settingsModal) settingsModal.onclick=e=>{ if(e.target===settingsModal) closeSettings(); };
   if($('#settingsHelpOpen')) $('#settingsHelpOpen').onclick=()=>{ closeSettings(); modal.classList.add('on'); };
@@ -1718,7 +1641,6 @@ if(next) await fetch(B+"/api/update",{method:"POST",
       if($('#settingsGoal')) $('#settingsGoal').textContent=s.goal||'—';
     }catch{}
   })();
-  applyLanguage(uiLang);
   renderWorkspace();
 })();
 
