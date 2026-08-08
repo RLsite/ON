@@ -1,7 +1,7 @@
 # ON TracK Project Info
 
-Version: `1.4.0`
-Status: `Per-user Agent consent is stored server-side and bound to the selected model.`
+Version: `1.4.2`
+Status: `Per-user Agent consent is stored server-side and bound to the selected model; chat requests show processing status and Agent plans use guarded patches.`
 
 ## Goal
 Build a web-first workspace where a chosen model can understand a project, connect to repositories, and perform approved actions in a controlled flow.
@@ -37,6 +37,8 @@ Build a web-first workspace where a chosen model can understand a project, conne
 - The project-management actions (open/create/rename/delete, added to the home screen's Projects panel) only worked locally — they called `/api/workspace/*`, which existed in `server.js` but was never ported to `worker.js`, so every click 404'd on the deployed site (same bug class as GitHub/models before those were ported). Added the missing `/api/workspace`, `/api/workspace/select`, `/api/workspace/projects`, `/api/workspace/projects/update`, `/api/workspace/projects/open`, `/api/workspace/projects/delete` endpoints to `worker.js`, per-user (`workspace_config:<uid>` in the same KV namespace), behind the same login gate as everything else. Also fixed two bugs found in the same review: (1) three of the four new button labels (open/rename/delete project) had Hebrew text that didn't match the i18n dictionary, so toggling language and back would silently change them; (2) project/library names were written into `innerHTML` without escaping, unlike every other user-supplied string rendered this way elsewhere in the file — a stored-XSS gap (a project named e.g. `<img src=x onerror=...>` would have executed). Verified end-to-end with `wrangler dev --local`: create/rename/open/delete round-trip correctly, two simulated users' project lists stay fully isolated, a non-string `name` in the request body returns a clean 400 instead of crashing the handler, and a malicious project name renders as inert text, not markup.
 
 ## Recent Updates
+- Improved Agent reliability for NVIDIA NIM: the Worker loads the repository `AGENT_SKILL.md`, requires a strict JSON action contract, retries one malformed response, and rejects narration without executing it. Existing files can be proposed as small `github.apply_patch` diffs, avoiding full-file output limits; all writes remain approval-gated on a new branch.
+- Added a visible chat-processing indicator: requests show sending, model processing, longer-running work, completion, errors, or an action plan waiting for approval. The indicator is available in Hebrew and English and does not claim a response is complete until the server returns it.
 - Added per-Google-user Agent consent. The server stores the approved model, scopes, timestamp, and account-bound permission under a user-scoped key; changing models requires approval again.
 - Activated the selected-model Agent flow: authorized requests receive repository context, read actions can return file context, and write plans require approval before a new branch and Pull Request.
 - Added per-user chat history in Worker KV, restored after refresh, with an intentional clear-conversation action.

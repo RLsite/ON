@@ -350,12 +350,18 @@ async function loadAgentRepoContext(config) {
     const tree = await githubApi(config, `/git/trees/${encodeURIComponent(defaultBranch)}?recursive=1`);
     paths = Array.isArray(tree?.tree) ? tree.tree.filter(item => item.type === 'blob').map(item => item.path).slice(0, 240) : [];
   } catch {}
+  let skill = null;
+  try {
+    const file = await githubApi(config, `/contents/AGENT_SKILL.md?ref=${encodeURIComponent(defaultBranch)}`);
+    if (file?.type === 'file' && typeof file.content === 'string') skill = decodeBase64Utf8(file.content).slice(0, 18000);
+  } catch {}
   return {
     fullName: repo.full_name || `${config.owner}/${config.repo}`,
     private: !!repo.private,
     defaultBranch,
     permissions: repo.permissions || null,
-    paths
+    paths,
+    skill
   };
 }
 
@@ -373,23 +379,37 @@ Repository context (safe metadata only): ${repoText}
 Available tools:
 - github.list_files: read the repository file tree. Arguments: branch (optional).
 - github.read_file: read one text file. Arguments: path, branch (optional).
-- github.write_file: prepare a complete replacement for one text file. Arguments: path, content, message.
+- github.apply_patch: prepare a small unified diff for an existing text file. Arguments: path, patch, message, branch (optional). Prefer this for existing files.
+- github.write_file: prepare a complete replacement for one new or small text file. Arguments: path, content, message.
 - github.create_pull_request: after file changes, request a Pull Request. Arguments: title, body, base (optional).
 
 Write actions are never executed immediately. They are shown to the user and require approval.
 For any request involving a file or repository, do not claim that you completed it unless ON returns an execution result.
 If you need file contents, first return a read action. If read results are supplied in a later message, use them and then return the smallest complete plan.
+For an existing file, use github.apply_patch with the smallest focused diff instead of returning the entire file. Use github.write_file only for a new file or when a complete replacement is genuinely small.
+Do not narrate intentions as if they were actions. Never answer with phrases such as "I'll read...", "I will update...", or "Reading...". Request the tool in the JSON plan instead.
 Do not use unsupported tools, do not output shell commands as if they were executed, and do not make up file contents.
 
 Return JSON only, with this shape:
 For an answer: {"kind":"answer","reply":"...","actions":[]}
 For work: {"kind":"plan","reply":"Short explanation in the user's language","actions":[{"tool":"github.read_file","path":"..."}]}
 Use the user's language. Keep replies concise. A write_file action must contain the full intended file content and a short commit message.
+An apply_patch action must contain a valid unified diff for one file and a short commit message. Return exactly one JSON object and no Markdown fences.
 ${githubConnected && dataSharingAuthorized ? '' : 'Repository access is not authorized for this request. Explain that clearly and do not create GitHub actions.'}`;
 }
 
 function agentWriteTool(tool) {
-  return tool === 'github.write_file' || tool === 'github.create_pull_request';
+  return tool === 'github.write_file' || tool === 'github.apply_patch' || tool === 'github.create_pull_request';
+}
+
+function agentRepairPrompt(rawText) {
+  return `Your previous response did not follow the ON TracK Agent contract. Convert it now and return exactly one JSON object, with no Markdown and no narration.
+If you need repository information, return a plan with github.read_file or github.list_files.
+If you want to change an existing file, return github.apply_patch with a small unified diff.
+If no tool is needed, return {"kind":"answer","reply":"...","actions":[]}.
+Do not say that you will read or change something; request the tool in actions instead.
+Previous response:
+${String(rawText || '').slice(0, 8000)}`;
 }
 
 function normalizeAgentPlan(rawText) {
@@ -420,6 +440,13 @@ function validateAgentPlan(plan, githubConnected) {
       if (!safeAgentPath(action.path)) return 'Invalid repository file path.';
       if (action.branch && !safeAgentBranch(action.branch)) return 'Invalid branch name.';
     }
+    if (action.tool === 'github.apply_patch') {
+      if (!safeAgentPath(action.path)) return 'Invalid repository file path.';
+      if (action.branch && !safeAgentBranch(action.branch)) return 'Invalid branch name.';
+      if (typeof action.patch !== 'string' || !action.patch.trim() || action.patch.length > 80000) return 'The proposed patch is missing or too large.';
+      if (!String(action.message || '').trim() || String(action.message).length > 180) return 'The proposed commit message is missing or too long.';
+      hasWrite = true;
+    }
     if (action.tool === 'github.write_file') {
       hasWrite = true;
       if (typeof action.content !== 'string' || action.content.length > 300000) return 'The proposed file content is missing or too large.';
@@ -431,7 +458,7 @@ function validateAgentPlan(plan, githubConnected) {
       if (action.base && !safeAgentBranch(action.base)) return 'Invalid Pull Request base branch.';
     }
   }
-  if (plan.actions.some(action => action.tool === 'github.create_pull_request') && !plan.actions.some(action => action.tool === 'github.write_file')) {
+  if (plan.actions.some(action => action.tool === 'github.create_pull_request') && !plan.actions.some(action => action.tool === 'github.write_file' || action.tool === 'github.apply_patch')) {
     return 'A Pull Request requires at least one file change.';
   }
   return hasWrite ? null : null;
@@ -448,9 +475,54 @@ function publicAgentPlan(plan) {
       message: action.message || null,
       title: action.title || null,
       body: action.body ? String(action.body).slice(0, 1200) : null,
-      contentLength: typeof action.content === 'string' ? action.content.length : null
+      contentLength: typeof action.content === 'string' ? action.content.length : (typeof action.patch === 'string' ? action.patch.length : null)
     }))
   };
+}
+
+function applyUnifiedPatch(original, patchText) {
+  const source = String(original || '').replace(/\r\n/g, '\n');
+  const rawLines = String(patchText || '').replace(/\r\n/g, '\n').split('\n');
+  const hunks = [];
+  for (let i = 0; i < rawLines.length; i++) {
+    const header = rawLines[i].match(/^@@\s*-(\d+)(?:,(\d+))?\s+\+(\d+)(?:,(\d+))?\s*@@/);
+    if (!header) continue;
+    const oldStart = Math.max(1, Number(header[1]));
+    const lines = [];
+    for (i += 1; i < rawLines.length && !/^@@\s*-\d+/.test(rawLines[i]); i++) {
+      const line = rawLines[i];
+      if (line === '\\ No newline at end of file') continue;
+      if (line.startsWith(' ') || line.startsWith('+') || line.startsWith('-')) lines.push(line);
+    }
+    i -= 1;
+    hunks.push({ oldStart, lines });
+  }
+  if (!hunks.length) throw new Error('The model returned an invalid unified patch.');
+  const output = source.split('\n');
+  let searchFrom = 0;
+  for (const hunk of hunks) {
+    const oldLines = hunk.lines.filter(line => line[0] === ' ' || line[0] === '-').map(line => line.slice(1));
+    const newLines = hunk.lines.filter(line => line[0] === ' ' || line[0] === '+').map(line => line.slice(1));
+    const preferred = Math.min(output.length, Math.max(0, hunk.oldStart - 1));
+    let found = -1;
+    for (const start of [preferred, searchFrom]) {
+      if (start < 0 || start > output.length) continue;
+      let matches = true;
+      for (let j = 0; j < oldLines.length; j++) if (output[start + j] !== oldLines[j]) { matches = false; break; }
+      if (matches) { found = start; break; }
+    }
+    if (found < 0) {
+      for (let start = searchFrom; start <= output.length - oldLines.length; start++) {
+        let matches = true;
+        for (let j = 0; j < oldLines.length; j++) if (output[start + j] !== oldLines[j]) { matches = false; break; }
+        if (matches) { found = start; break; }
+      }
+    }
+    if (found < 0) throw new Error(`The patch context did not match ${hunk.oldStart}.`);
+    output.splice(found, oldLines.length, ...newLines);
+    searchFrom = found + newLines.length;
+  }
+  return output.join('\n');
 }
 
 async function executeAgentReadActions(config, actions, defaultBranch) {
@@ -485,16 +557,23 @@ async function executeAgentWritePlan(config, plan, planId) {
     body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: baseRef.object.sha })
   });
   const files = [];
-  for (const action of plan.actions.filter(item => item.tool === 'github.write_file')) {
+  for (const action of plan.actions.filter(item => item.tool === 'github.write_file' || item.tool === 'github.apply_patch')) {
     const path = safeAgentPath(action.path);
     const ref = safeAgentBranch(action.branch) || branch;
     let current = null;
     try { current = await githubApi(config, `/contents/${githubPath(path)}?ref=${encodeURIComponent(ref)}`); }
     catch (e) { if (e.status !== 404) throw e; }
-    const body = { message: String(action.message).trim(), content: encodeBase64Utf8(action.content), branch: ref };
+    let content = action.content;
+    let actionName = 'updated';
+    if (action.tool === 'github.apply_patch') {
+      if (!current?.content) throw new Error(`Cannot patch a file that does not exist: ${path}`);
+      content = applyUnifiedPatch(decodeBase64Utf8(current.content), action.patch);
+      actionName = 'patched';
+    }
+    const body = { message: String(action.message).trim(), content: encodeBase64Utf8(content), branch: ref };
     if (current?.sha) body.sha = current.sha;
     const updated = await githubApi(config, `/contents/${githubPath(path)}`, { method: 'PUT', body: JSON.stringify(body) });
-    files.push({ path, action: current?.sha ? 'updated' : 'created', commit: updated?.commit?.sha || null });
+    files.push({ path, action: current?.sha ? actionName : 'created', commit: updated?.commit?.sha || null });
   }
   let pullRequest = null;
   const pullAction = plan.actions.find(item => item.tool === 'github.create_pull_request');
@@ -1133,12 +1212,21 @@ async function handleChat(request, env, uid) {
     const systemPrompt = agentSystemPrompt(githubReady, repoContext, consentMatchesModel);
     let rawReply = await callModel(m, prompt, 1800, imagePart, systemPrompt);
     let plan = normalizeAgentPlan(rawReply);
+    if (!plan) {
+      const repairedReply = await callModel(m, agentRepairPrompt(rawReply), 1200, null, systemPrompt);
+      plan = normalizeAgentPlan(repairedReply);
+      if (plan) rawReply = repairedReply;
+    }
+    if (!plan) {
+      const reply = 'The model returned an invalid Agent response. Nothing was executed. Please send the request again.';
+      return chatJson(env, uid, { prompt, error: reply, imageAttached: !!imagePart }, { error: reply }, 502);
+    }
     let readResults = [];
     if (plan && !validateAgentPlan(plan, githubReady)) {
       const readActions = plan.actions.filter(action => action.tool === 'github.list_files' || action.tool === 'github.read_file');
       if (readActions.length && repoContext) {
         readResults = await executeAgentReadActions(github, readActions, repoContext.defaultBranch);
-        const followReply = await callModel(m, agentToolResultsPrompt(readResults), 2200, null, systemPrompt);
+        const followReply = await callModel(m, agentToolResultsPrompt(readResults), 3200, null, systemPrompt);
         rawReply = followReply || rawReply;
         plan = normalizeAgentPlan(rawReply) || plan;
       }
