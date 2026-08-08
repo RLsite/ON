@@ -2,9 +2,20 @@
   // Must match the existing Worker in Cloudflare, or the deploy creates a second one.
   "name": "on",
   "compatibility_date": "2025-01-01",
+  // worker.js handles /api/github/* (config, status, issues, create-issue) and hands everything
+  // else to the static build via env.ASSETS. Without "main", Cloudflare serves assets.directory
+  // directly with no Worker invoked at all, and /api/* has nothing to answer it.
+  "main": "worker.js",
   // Only dist/ is uploaded. Pointing this at the repo root makes wrangler try to
   // upload node_modules, which exceeds the 25 MiB per-asset limit.
   "assets": {
-    "directory": "./dist"
-  }
+    "directory": "./dist",
+    "binding": "ASSETS"
+  },
+  // Durable storage for the GitHub owner/repo/token, since Workers have no filesystem.
+  // Replace "REPLACE_WITH_KV_NAMESPACE_ID" with the id from creating the namespace
+  // (Cloudflare Dashboard -> Workers & Pages -> KV -> Create a namespace -> name it GH_CONFIG).
+  "kv_namespaces": [
+    { "binding": "GH_CONFIG", "id": "REPLACE_WITH_KV_NAMESPACE_ID" }
+  ]
 }

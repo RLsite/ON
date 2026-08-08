@@ -382,7 +382,7 @@
       <section class="docPanel">
         <div class="docHeader">
           <div class="docTitle" data-i18n="docTitle">מידע פרויקט</div>
-          <span class="hint" id="docVersion">v0.6.0</span>
+          <span class="hint" id="docVersion">v0.7.0</span>
         </div>
         <div class="docBody" id="docBody">
           <ul>
@@ -407,7 +407,7 @@
       <aside class="sideCard">
         <h3 data-i18n="quickStats">מצב מהיר</h3>
         <div class="heroStatRow"><span data-i18n="statusLabel">סטטוס</span><b id="miniStatus" data-i18n="miniStatusDefault">התחלה חדשה</b></div>
-        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">0.6.0 ↻</button></div>
+        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">0.7.0 ↻</button></div>
         <div class="heroStatRow"><span data-i18n="langLabel">שפה</span><b id="langValue">עברית</b></div>
       </aside>
     </div>
@@ -457,7 +457,7 @@
         <div class="settingsGrid">
           <div class="settingCard">
             <b data-i18n="settingsCardVersion">גרסת פרויקט</b>
-            <div class="hint" id="settingsVersion">0.6.0</div>
+            <div class="hint" id="settingsVersion">0.7.0</div>
           </div>
           <div class="settingCard">
             <b data-i18n="settingsCardStatus">מצב נוכחי</b>
@@ -510,7 +510,7 @@
         <b data-i18n="helpTitle">❓ עזרה וסטטוס פרויקט</b>
         <button class="icon" id="helpClose">✕</button>
       </div>
-      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">0.6.0</b></div>
+      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">0.7.0</b></div>
       <p class="hint" style="line-height:1.7;margin-top:0" data-i18n="helpIntro">
         זהו כלי בדיקות (QA) מקומי שנבנה כדי להפוך לעבודה מסודרת מול מודל שתבחר.
         המטרה היא לעבוד בשלבים: לבחור מודל, לחבר פרויקט מקומי, להגדיר תכנית, ואז לעבור לביצוע מבוקר.
@@ -994,6 +994,24 @@
     }
   }
 
+  // Top-level (not inside any one IIFE) because several separate sections call this —
+  // the GitHub modal's own IIFE, and updateConnDots() in another. A previous version lived
+  // inside the GitHub-modal IIFE only: calling it from updateConnDots() threw a silent
+  // ReferenceError caught by updateConnDots()'s own try/catch, which read as "not connected"
+  // and left the header LED red even when the connection actually succeeded.
+  async function fetchJsonSafe(url, options){
+    const r = await fetch(url, options);
+    const text = await r.text();
+    let data = null;
+    if (text && text.trim()) {
+      try { data = JSON.parse(text); }
+      catch (e) {
+        throw new Error('תגובה לא תקינה משרת GitHub: ' + e.message + (text ? ' · ' + text.slice(0, 180) : ''));
+      }
+    }
+    return { response: r, data };
+  }
+
 // The settings/help/model/GitHub/preview/API/new-request popups were originally built for
 // the old QA dashboard shell (".oldApp"), which is now hidden ("display:none") while the new
 // clean home screen is under construction. A hidden ancestor hides its descendants no matter
@@ -1425,19 +1443,6 @@ loadModels();
     box.innerHTML=html;
   }
 
-  async function fetchJsonSafe(url, options){
-    const r = await fetch(url, options);
-    const text = await r.text();
-    let data = null;
-    if (text && text.trim()) {
-      try { data = JSON.parse(text); }
-      catch (e) {
-        throw new Error('תגובה לא תקינה משרת GitHub: ' + e.message + (text ? ' · ' + text.slice(0, 180) : ''));
-      }
-    }
-    return { response: r, data };
-  }
-
   async function testGh(force){
     $('#ghStatusBox').style.display='block';
     $('#ghStatusBox').style.borderColor='var(--line)';
@@ -1489,21 +1494,28 @@ loadModels();
     $('#localStatus').textContent = j.path ? (j.exists ? `✓ נשמר · ${j.fileCount} קבצים` : '✗ נשמר, אך הנתיב לא קיים/לא תיקייה') : 'נוקה';
     $('#localStatus').style.color = j.path ? (j.exists?'#3a9c75':'#c15070') : 'var(--muted)';
   };
-  $('#githubBtn').onclick=async()=>{
+  // Loads the saved config (owner/repo/enabled/token-present) into the form and refreshes the
+  // live status every time the modal opens — not just once at page load — so a value saved in
+  // an earlier visit or a previous tab shows up instead of a blank form. Exposed on window
+  // because every button that can open this modal (icon in the top bar, the Settings shortcut)
+  // lives in a different IIFE and can't reach a plain local function here.
+  async function openGithubModal(){
     modal.classList.add('on');
-    const c=await (await fetch('/api/github/config')).json();
-    $('#ghEnabled').checked=!!c.enabled;
-    $('#ghOwner').value=c.owner||'';
-    $('#ghRepo').value=c.repo||'';
+    const { data: c } = await fetchJsonSafe('/api/github/config');
+    $('#ghEnabled').checked = !!(c && c.enabled);
+    $('#ghOwner').value = (c && c.owner) || '';
+    $('#ghRepo').value = (c && c.repo) || '';
     $('#ghToken').value='';
-    showTokenStatus(!!c.hasToken);
+    showTokenStatus(!!(c && c.hasToken));
     $('#ghSaveStatus').textContent='';
     $('#ghStatusBox').style.display='none';
-    if(c.enabled && c.owner && c.repo){ loadIssues(); testGh(false); } else { $('#ghIssuesList').textContent='—'; }
+    if(c && c.enabled && c.owner && c.repo){ loadIssues(); testGh(false); } else { $('#ghIssuesList').textContent='—'; }
     loadLocalRepo();
     if(window.loadPreviewCfg) window.loadPreviewCfg();
     if(window.loadLsCfg) window.loadLsCfg();
-  };
+  }
+  window.openGithubModal = openGithubModal;
+  $('#githubBtn').onclick=openGithubModal;
   $('#ghTest').onclick=()=>testGh(true);
   $('#githubClose').onclick=()=>modal.classList.remove('on');
   modal.onclick=e=>{ if(e.target===modal) modal.classList.remove('on'); };
@@ -1728,13 +1740,13 @@ if(next) await fetch(B+"/api/update",{method:"POST",
   if(settingsModal) settingsModal.onclick=e=>{ if(e.target===settingsModal) closeSettings(); };
   if($('#settingsHelpOpen')) $('#settingsHelpOpen').onclick=()=>{ closeSettings(); modal.classList.add('on'); };
   if($('#settingsModelOpen')) $('#settingsModelOpen').onclick=()=>{ closeSettings(); $('#modelModal').classList.add('on'); };
-  if($('#settingsGithubOpen')) $('#settingsGithubOpen').onclick=()=>{ closeSettings(); $('#githubModal').classList.add('on'); };
+  if($('#settingsGithubOpen')) $('#settingsGithubOpen').onclick=()=>{ closeSettings(); window.openGithubModal(); };
   if($('#settingsApiOpen')) $('#settingsApiOpen').onclick=()=>{ closeSettings(); $('#apiModal').classList.add('on'); };
-  if($('#githubDockBtn')) $('#githubDockBtn').onclick=()=>$('#githubModal').classList.add('on');
+  if($('#githubDockBtn')) $('#githubDockBtn').onclick=()=>window.openGithubModal();
   if($('#modelDockBtn')) $('#modelDockBtn').onclick=()=>$('#modelModal').classList.add('on');
   if(newSettingsBtn) newSettingsBtn.onclick=()=>openSettings();
   if(newHelpBtn) newHelpBtn.onclick=()=>modal.classList.add('on');
-  if(newGithubBtn) newGithubBtn.onclick=()=>$('#githubModal').classList.add('on');
+  if(newGithubBtn) newGithubBtn.onclick=()=>window.openGithubModal();
   if(newModelBtn) newModelBtn.onclick=()=>$('#modelModal').classList.add('on');
   if(heroStart) heroStart.onclick=()=>openSettings();
   if(heroDocs) heroDocs.onclick=()=>modal.classList.add('on');
@@ -1746,7 +1758,7 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     b.textContent='❓ עזרה';
     apiBtn.parentElement.insertBefore(b, apiBtn);
   }
-  const appVersion='0.6.0';
+  const appVersion='0.7.0';
   $('#appVersion').textContent=appVersion;
   if($('#docVersion')) $('#docVersion').textContent='v'+appVersion;
   // Seeded here too: without a local server /api/state never answers, and this would

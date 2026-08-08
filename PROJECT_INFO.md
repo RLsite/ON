@@ -1,7 +1,7 @@
 # ON TracK Project Info
 
-Version: `0.6.0`
-Status: `Rebuilt the Hebrew/English toggle as one complete system (home screen + all 8 modals); added the RL logo as favicon`
+Version: `0.7.0`
+Status: `GitHub connection now works on the deployed site — added a Cloudflare Worker backend (worker.js) with KV-backed config, since the site was pure static hosting with zero server-side code`
 
 ## Goal
 Build a web-first workspace where a chosen model can understand a project, connect to repositories, and perform approved actions in a controlled flow.
@@ -20,10 +20,13 @@ Build a web-first workspace where a chosen model can understand a project, conne
 - Rebuilt the language toggle from scratch as one system instead of the two partial, disconnected ones that used to leave stray English on screen. One `#newLangBtn` button, one `I18N` dictionary (130+ keys) driving `data-i18n` / `data-i18n-html` / `data-i18n-title` / `data-i18n-placeholder` across the home screen and all 8 relocated modals, hoisted to the top of the script so JS-generated content (the model-preset dropdown, the help-panel bullet lists) can read the current language too. Verified with a body-text sweep in a real browser: zero Latin-script leftovers in English mode, exact text restored on toggling back to Hebrew.
 - Added the RL logo as the site favicon — resized to 64×64 and inlined as base64 to keep it self-contained in the single deployed HTML file.
 - Added a clickable version number (Quick Status → Version) that re-fetches the page with the cache bypassed, compares the served `appVersion` against the running one, and offers a one-click reload when they differ.
+- Gave the deployed site a real backend for the GitHub connection. Until now `on.rlapp.net` was pure static hosting (Cloudflare serving `dist/` with no server-side code at all), so every `/api/github/*` call 404'd and the whole GitHub modal was non-functional in production even though it worked locally against `server.js`. Added `worker.js` (a Cloudflare Worker `fetch` handler porting the five GitHub endpoints — config read/write, live status check, list issues, create issue — with the same logic as `server.js`) and wired it into `wrangler.jsonc` via `main` + an `ASSETS` binding, so the Worker runs for `/api/github/*` and falls through to the static build for everything else. Config (owner/repo/token) is stored in a KV namespace (`GH_CONFIG` binding) instead of a local JSON file, since Workers have no filesystem. **Needs a one-time manual step: create the KV namespace in the Cloudflare Dashboard and replace the placeholder ID in `wrangler.jsonc`, or the deploy will fail** — see the commit message for exact steps. The tool's other local-only features (folder browsing, starting a local dev server, driving a local Chrome for previews) are not and cannot be ported this way — they need real filesystem/process access a Worker structurally doesn't have, so they stay local-only by design.
+- Fixed two related bugs found while building the above: (1) `updateConnDots()` called a `fetchJsonSafe` helper that only existed inside a different section's closure — the resulting `ReferenceError` was silently caught and read as "not connected," so the GitHub header LED showed red even when actually connected. Moved `fetchJsonSafe` to the top of the script so every section can reach it. (2) The visible "connect GitHub" button (top-bar icon, and the Settings shortcut) only opened the modal — it never loaded the saved owner/repo/enabled state into the form, so after a page refresh the fields always looked empty even though the config was safely persisted. Added a shared `openGithubModal()` that loads the saved config and refreshes the live status every time the modal opens, and wired every entry point to it.
 
 ## In progress
 1. Make the home screen fully product-like
 2. Build real project and library data
+3. Add a GitHub Personal Access Token through the live UI and confirm issue listing/creation end-to-end on the deployed site (blocked on the KV namespace step above)
 
 ## Next
 1. Add a project picker
