@@ -1,7 +1,7 @@
 # ON TracK Project Info
 
-Version: `0.8.0`
-Status: `Model connection now works on the deployed site too — same Worker/KV treatment as GitHub, reusing the same KV namespace. Fixed the same "modal doesn't load on real button" bug for models. Added the RL logo as the visible sidebar brand mark, not just the tab favicon. Removed leftover QA-tool copy from the model modal.`
+Version: `0.8.1`
+Status: `Model modal has a "recently connected" favorites list — removing a model archives its full config (including the key) instead of discarding it, so reconnecting is one click, no retyping`
 
 ## Goal
 Build a web-first workspace where a chosen model can understand a project, connect to repositories, and perform approved actions in a controlled flow.
@@ -27,11 +27,11 @@ Build a web-first workspace where a chosen model can understand a project, conne
 - Extended `worker.js` to also handle `/api/models/*` (list, select, add, update, delete, test) — same reasoning as GitHub: this only existed in `server.js` before, so it 404'd on the deployed site. Reuses the existing `GH_CONFIG` KV namespace under a different key (`models_config`), so no second namespace had to be created. Found and fixed the identical bug class as GitHub's: the real "Connect Model" entry points (top-bar icon, Settings shortcut, hero "Connect model" button) only opened the modal without loading/rendering the saved model list — only the dead legacy `#modelBtn` had that logic. Added `openModelModal()` and wired every entry point to it. Verified end-to-end with `wrangler dev --local`: add/select/test/delete all persist correctly through KV, and a full page reload correctly restores the previously-selected model.
 - Added the RL logo as the visible sidebar brand mark (replacing the generic "O"), reusing the favicon's own data URI via JS rather than embedding the image twice.
 - Removed a paragraph of leftover QA-tool copy from the model modal ("המודל שנבחר כאן הוא המודל שמבצע את בדיקות ה-QA...") — this app isn't the QA dashboard it was forked from.
+- Added a "favorites" flow for models: deleting an external model now archives its full config server-side (label, provider, base URL, model id, and the API key) into a capped `recent` list (last 5) instead of discarding it. A "חוברו לאחרונה" section appears in the model modal whenever that list is non-empty, with a one-click "🔌 חבר מחדש" that restores the entry into the active list (fresh id) and selects it — no retyping the key. Verified end-to-end: add → delete → confirm it appears under recent with its key intact (never exposed to the client) → reconnect → confirm it's back in the active list, selected, and recent is empty again.
 
 ## In progress
 1. Make the home screen fully product-like
 2. Build real project and library data
-3. A quick one-click "reconnect" for an already-configured model, so re-testing doesn't require reopening the full form
 
 ## Next
 1. Add a project picker

@@ -383,7 +383,7 @@
       <section class="docPanel">
         <div class="docHeader">
           <div class="docTitle" data-i18n="docTitle">מידע פרויקט</div>
-          <span class="hint" id="docVersion">v0.8.0</span>
+          <span class="hint" id="docVersion">v0.8.1</span>
         </div>
         <div class="docBody" id="docBody">
           <ul>
@@ -408,7 +408,7 @@
       <aside class="sideCard">
         <h3 data-i18n="quickStats">מצב מהיר</h3>
         <div class="heroStatRow"><span data-i18n="statusLabel">סטטוס</span><b id="miniStatus" data-i18n="miniStatusDefault">התחלה חדשה</b></div>
-        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">0.8.0 ↻</button></div>
+        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">0.8.1 ↻</button></div>
         <div class="heroStatRow"><span data-i18n="langLabel">שפה</span><b id="langValue">עברית</b></div>
       </aside>
     </div>
@@ -458,7 +458,7 @@
         <div class="settingsGrid">
           <div class="settingCard">
             <b data-i18n="settingsCardVersion">גרסת פרויקט</b>
-            <div class="hint" id="settingsVersion">0.8.0</div>
+            <div class="hint" id="settingsVersion">0.8.1</div>
           </div>
           <div class="settingCard">
             <b data-i18n="settingsCardStatus">מצב נוכחי</b>
@@ -511,7 +511,7 @@
         <b data-i18n="helpTitle">❓ עזרה וסטטוס פרויקט</b>
         <button class="icon" id="helpClose">✕</button>
       </div>
-      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">0.8.0</b></div>
+      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">0.8.1</b></div>
       <p class="hint" style="line-height:1.7;margin-top:0" data-i18n="helpIntro">
         זהו כלי בדיקות (QA) מקומי שנבנה כדי להפוך לעבודה מסודרת מול מודל שתבחר.
         המטרה היא לעבוד בשלבים: לבחור מודל, לחבר פרויקט מקומי, להגדיר תכנית, ואז לעבור לביצוע מבוקר.
@@ -561,6 +561,10 @@
       <div class="hint" id="agentRunHint" style="display:none;margin-bottom:8px" data-i18n-html="agentRunHint"><b>אם הוגדר דפדפן מקומי (🖥️ Preview) + כתובת אתר:</b> לוחץ ומבצע <b>בדיקה חיה עם לחיצות</b> על הבדיקה הפתוחה הראשונה — המודל מנווט, לוחץ, ממלא, ומכריע PASS/FAIL, ורואים את זה חי בשרשור. <b>בלי דפדפן מקומי:</b> נסוג לניתוח מהיר (בלי לחיצות). אפשר גם ▶️ על כל בדיקה ספציפית.</div>
       <label data-i18n="availableModels">מודלים זמינים</label>
       <div id="modelList"></div>
+      <div id="modelRecentWrap" style="display:none">
+        <label data-i18n="recentModels">חוברו לאחרונה</label>
+        <div id="modelRecentList"></div>
+      </div>
       <hr class="sep">
       <label data-i18n="addExternalModel">➕ הוסף מודל חיצוני</label>
       <label data-i18n="displayName">שם תצוגה</label>
@@ -834,9 +838,9 @@
       helpDoneLabel:'מה בוצע', helpTodoLabel:'מה נשאר', helpFlowLabel:'איך עובדים עכשיו', helpPathLabel:'קובץ מידע',
       helpProjectStateLabel:'מצב פרויקט', saveState:'שמור מצב', infoFileLink:'📄 קובץ מידע',
       modelModalTitle:'🤖 בחירת מודל', currentModelLabel:'המודל הנוכחי', testConnection:'🔌 בדוק חיבור', liveTest:'🚀 בדיקה חיה',
-      availableModels:'מודלים זמינים', addExternalModel:'➕ הוסף מודל חיצוני', displayName:'שם תצוגה', apiProvider:'ספק API',
+      availableModels:'מודלים זמינים', recentModels:'חוברו לאחרונה', addExternalModel:'➕ הוסף מודל חיצוני', displayName:'שם תצוגה', apiProvider:'ספק API',
       openaiCompatible:'OpenAI-compatible (OpenAI / OpenRouter / NVIDIA NIM / אחר)', baseUrlLabel:'כתובת בסיס (Base URL)',
-      baseUrlExamples:'דוגמאות:', modelLabel:'מודל', apiKeyLabel:'מפתח API', addAndSelect:'הוסף ובחר',
+      baseUrlExamples:'דוגמאות:', modelLabel:'מודל', apiKeyLabel:'מפתח API', addAndSelect:'הוסף ובחר', reconnectModel:'🔌 חבר מחדש',
       githubModalTitle:'🔗 חיבור GitHub', tabLocalFolder:'📁 תיקיית קוד מקומית', tabLocalBrowser:'🖥️ דפדפן מקומי',
       ghIntro:'חיבור לריפו GitHub — לצפייה ב-issues פתוחים הקשורים לבדיקות, וליצירת issue ישירות מבדיקה שנכשלה (FAIL).',
       ghEnabledLabel:'חיבור GitHub פעיל', ownerLabel:'בעלים (משתמש/ארגון ב-GitHub — לא אימייל)', repoNameLabel:'שם הריפו (רק השם, לא הכתובת המלאה)', patLabel:'טוקן גישה אישי',
@@ -909,9 +913,9 @@
       helpDoneLabel:'Done', helpTodoLabel:'Remaining', helpFlowLabel:'How it works now', helpPathLabel:'Info file',
       helpProjectStateLabel:'Project State', saveState:'Save state', infoFileLink:'📄 Info file',
       modelModalTitle:'🤖 Choose Model', currentModelLabel:'Current model', testConnection:'🔌 Test connection', liveTest:'🚀 Live test',
-      availableModels:'Available models', addExternalModel:'➕ Add external model', displayName:'Display name', apiProvider:'API provider',
+      availableModels:'Available models', recentModels:'Recently connected', addExternalModel:'➕ Add external model', displayName:'Display name', apiProvider:'API provider',
       openaiCompatible:'OpenAI-compatible (OpenAI / OpenRouter / NVIDIA NIM / other)', baseUrlLabel:'Base URL',
-      baseUrlExamples:'Examples:', modelLabel:'Model', apiKeyLabel:'API key', addAndSelect:'Add and select',
+      baseUrlExamples:'Examples:', modelLabel:'Model', apiKeyLabel:'API key', addAndSelect:'Add and select', reconnectModel:'🔌 Reconnect',
       githubModalTitle:'🔗 Connect GitHub', tabLocalFolder:'📁 Local code folder', tabLocalBrowser:'🖥️ Local browser',
       ghIntro:'Connect a GitHub repo — to view open issues related to checks, and to create an issue directly from a failed (FAIL) check.',
       ghEnabledLabel:'GitHub connection enabled', ownerLabel:'Owner (GitHub user/org — not an email)', repoNameLabel:'Repo name (just the name, not the full URL)', patLabel:'Personal Access Token',
@@ -995,6 +999,7 @@
     // The model-preset <select> options are generated JS strings, not data-i18n markup —
     // refresh them if the modal has already been populated once and language changes later.
     if(typeof applyProviderUI === 'function' && document.getElementById('mNewModelSelect')?.options.length) applyProviderUI();
+    if(typeof renderRecentModels === 'function' && document.getElementById('modelRecentWrap')?.style.display==='block') renderRecentModels();
     if(document.getElementById('helpDone')) {
       const t = I18N[uiLang];
       $('#helpDone').textContent = t.helpDoneList.join('\n');
@@ -1294,6 +1299,25 @@ function renderModelList(){
     await loadModels(); refreshModelModal();
   });
 }
+// "Favorites": a model removed via 🗑️ lands here (full config, including its key, kept
+// server-side) instead of being gone for good — one click restores it, no retyping.
+function renderRecentModels(){
+  const wrap=$('#modelRecentWrap'), box=$('#modelRecentList');
+  const recent = modelsState.recent || [];
+  wrap.style.display = recent.length ? 'block' : 'none';
+  if(!recent.length) return;
+  box.innerHTML = recent.map(m=>{
+    const meta = m.provider==='openai' ? ('חיצוני · '+(m.model||'')) : ('Gemini · '+(m.model||''));
+    return `<div class="modelRow">
+      <div class="modelInfo"><div class="modelName">${esc(m.label)}</div><div class="modelMeta">${esc(meta)}${m.hasKey?' · 🔑':''}</div></div>
+      <div class="modelActions"><button class="act" data-reconnect="${esc(m.id)}">${I18N[uiLang].reconnectModel}</button></div>
+    </div>`;
+  }).join('');
+  box.querySelectorAll('[data-reconnect]').forEach(b=>b.onclick=async()=>{
+    await fetch('/api/models/reconnect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:b.dataset.reconnect})});
+    await loadModels(); refreshModelModal();
+  });
+}
 function selectedModelIsExternal(){
   const m = modelsState.models.find(x=>x.id===modelsState.selectedId);
   return !!(m && !m.builtin);
@@ -1304,6 +1328,7 @@ function refreshModelModal(){
   $('#agentRun').style.display = ext ? '' : 'none';
   $('#agentRunHint').style.display = ext ? 'block' : 'none';
   renderModelList();
+  renderRecentModels();
 }
 const modelModal=$('#modelModal');
 // Same fix as openGithubModal(): the modal must reload+re-render every time it opens, not
@@ -1777,7 +1802,7 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     b.textContent='❓ עזרה';
     apiBtn.parentElement.insertBefore(b, apiBtn);
   }
-  const appVersion='0.8.0';
+  const appVersion='0.8.1';
   $('#appVersion').textContent=appVersion;
   if($('#docVersion')) $('#docVersion').textContent='v'+appVersion;
   // Seeded here too: without a local server /api/state never answers, and this would

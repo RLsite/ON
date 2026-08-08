@@ -159,11 +159,15 @@ const BUILTIN_MODELS = [
   { id: 'claude-haiku', label: 'Claude Haiku', builtin: true }
 ];
 
+// Cap on the "recently disconnected" favorites list (see /api/models/delete and /reconnect).
+const RECENT_LIMIT = 5;
+
 async function loadModelsConfig(env) {
   const raw = await env.GH_CONFIG.get(MODELS_KEY);
   let cfg = null;
   if (raw) { try { cfg = JSON.parse(raw); } catch {} }
   if (!cfg || !Array.isArray(cfg.models)) cfg = { models: BUILTIN_MODELS.map(m => ({ ...m })), selectedId: 'claude-sonnet' };
+  if (!Array.isArray(cfg.recent)) cfg.recent = [];
   // Guarantee the built-ins always exist, same as server.js, so the list can't end up empty.
   BUILTIN_MODELS.forEach(b => { if (!cfg.models.some(m => m.id === b.id)) cfg.models.unshift({ ...b }); });
   if (!cfg.models.some(m => m.id === cfg.selectedId)) cfg.selectedId = cfg.models[0].id;
@@ -182,6 +186,12 @@ function publicModels(cfg) {
       id: m.id, label: m.label, builtin: !!m.builtin,
       provider: m.provider || null, baseUrl: m.baseUrl || null, model: m.model || null,
       hasKey: !!m.apiKey
+    })),
+    // Removed external models, most-recent first — kept (including their key) so "reconnect"
+    // is a single click instead of retyping everything. Capped at RECENT_LIMIT.
+    recent: cfg.recent.map(m => ({
+      id: m.id, label: m.label, provider: m.provider || null,
+      baseUrl: m.baseUrl || null, model: m.model || null, hasKey: !!m.apiKey
     }))
   };
 }
@@ -274,8 +284,27 @@ async function handleModelsApi(request, env, path) {
     if (m.builtin) return new Response('cannot delete a built-in model', { status: 400 });
     cfg.models = cfg.models.filter(x => x.id !== b.id);
     if (cfg.selectedId === b.id) cfg.selectedId = cfg.models[0].id;
+    // Archive it (full config, including the key) instead of discarding, so it can be
+    // one-click restored from "recent" without retyping the label/provider/URL/model/key.
+    cfg.recent = [m, ...cfg.recent.filter(x => x.id !== m.id)].slice(0, RECENT_LIMIT);
     await saveModelsConfig(env, cfg);
     return json({ ok: true, selectedId: cfg.selectedId });
+  }
+
+  // Restores a previously-removed external model from "recent" back into the active list,
+  // with a fresh id (the old one may already be reused) and selects it — no retyping needed.
+  if (path === '/api/models/reconnect' && method === 'POST') {
+    const cfg = await loadModelsConfig(env);
+    const b = await request.json().catch(() => ({}));
+    const idx = cfg.recent.findIndex(x => x.id === b.id);
+    if (idx === -1) return new Response('no such recent model', { status: 404 });
+    const old = cfg.recent[idx];
+    cfg.recent.splice(idx, 1);
+    const m = { ...old, id: 'ext-' + Date.now() };
+    cfg.models.push(m);
+    cfg.selectedId = m.id;
+    await saveModelsConfig(env, cfg);
+    return json({ ok: true, id: m.id, selectedId: cfg.selectedId });
   }
 
   if (path === '/api/models/test' && method === 'POST') {
