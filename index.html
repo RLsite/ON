@@ -311,19 +311,19 @@
   .lpStep{font-size:12.5px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 9px}
   .lpStep .a{font-weight:700}
   .lpStep .d{color:var(--muted);display:block;margin-top:1px}
-  .newShell{min-height:100vh;display:grid;grid-template-columns:280px minmax(0,1fr);background:var(--bg)}
-  .newSidebar{background:linear-gradient(180deg,#fffdf9, #fff4ea);border-inline-end:1px solid var(--line);padding:18px 14px;display:flex;flex-direction:column;gap:18px}
+  .newShell{--sidebar-width:280px;min-height:100vh;display:grid;grid-template-columns:var(--sidebar-width) minmax(0,1fr);background:var(--bg)}
+  .newSidebar{position:relative;min-width:0;background:linear-gradient(180deg,#fffdf9, #fff4ea);border-inline-end:1px solid var(--line);padding:18px 14px;display:flex;flex-direction:column;gap:18px}
+  .sidebarResizer{position:absolute;z-index:12;inset-inline-end:-5px;top:0;bottom:0;width:10px;cursor:col-resize;touch-action:none;display:grid;place-items:center}
+  .sidebarResizer::after{content:"";width:2px;height:44px;border-radius:2px;background:var(--line);transition:.15s}
+  .sidebarResizer:hover::after,.sidebarResizer:active::after{height:72px;background:var(--accent)}
+  body.isResizing,body.isResizing *{cursor:col-resize !important;user-select:none !important}
   .newMain{min-width:0;display:flex;flex-direction:column}
   .newTop{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border-bottom:1px solid var(--line);background:rgba(255,253,249,.8);backdrop-filter:blur(10px);position:sticky;top:0;z-index:10}
   .newTop .title{font-size:18px;font-weight:800}
   .newTop .actions{display:flex;gap:8px;flex-wrap:wrap}
   .newContent{padding:22px;display:grid;grid-template-columns:minmax(0,1.4fr) minmax(320px,.9fr);gap:18px;align-items:start}
-  @media (max-width:1020px){.newContent{grid-template-columns:1fr}.newShell{grid-template-columns:1fr}.newSidebar{border-inline-end:none;border-bottom:1px solid var(--line)}}
-  .heroPanel,.docPanel,.chatPanel,.sideCard{background:var(--panel);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow-sm)}
-  .heroPanel{padding:18px}
-  .heroPanel h2{margin:0 0 8px;font-size:24px;line-height:1.2}
-  .heroPanel p{margin:0;color:var(--muted)}
-  .heroActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  @media (max-width:1020px){.newContent{grid-template-columns:1fr}.newShell{grid-template-columns:1fr}.newSidebar{border-inline-end:none;border-bottom:1px solid var(--line)}.sidebarResizer{display:none}}
+  .chatPanel,.sideCard{background:var(--panel);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow-sm)}
   .sideCard{padding:14px}
   .sideCardHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
   .sideCard h3{margin:0;font-size:13px;color:#8b6a53;text-transform:uppercase;letter-spacing:.12em}
@@ -351,16 +351,12 @@
   .emptyState b{color:var(--txt);font-size:14px}
   .sideLink{display:flex;justify-content:space-between;gap:10px;padding:11px 12px;border-radius:14px;border:1px solid transparent;background:transparent;cursor:pointer;font:inherit;color:var(--txt);text-align:start}
   .sideLink:hover,.sideLink.on{background:var(--panel2);border-color:var(--line)}
-  .docPanel{padding:16px;min-height:360px}
-  .docHeader{display:flex;justify-content:space-between;align-items:center;gap:8px;padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:14px}
-  .docTitle{font-size:20px;font-weight:800}
-  .docBody{display:flex;flex-direction:column;gap:10px;font-size:16px;line-height:1.85}
-  .docBody ul{margin:0;padding-inline-start:22px}
-  .docBody li{margin:4px 0}
   .chatPanel{padding:16px;display:flex;flex-direction:column;gap:12px}
-  .chatBubble{border:1px solid var(--line);background:var(--panel2);border-radius:18px;padding:14px 16px}
+  .chatBubble{position:relative;border:1px solid var(--line);background:var(--panel2);border-radius:18px;padding:14px 44px 14px 16px}
   .chatBubble .meta{margin-top:0}
-  #chatThread{display:flex;flex-direction:column;gap:10px}
+  #chatThread{display:flex;flex-direction:column-reverse;gap:10px}
+  .chatDeleteBtn{position:absolute;top:9px;inset-inline-end:10px;width:24px;height:24px;border:0;border-radius:8px;background:transparent;color:var(--muted);font:inherit;font-size:18px;line-height:1;cursor:pointer;display:grid;place-items:center}
+  .chatDeleteBtn:hover{background:var(--fail-tint);color:var(--fail)}
   .chatBubble.user{background:var(--accent-tint);border-color:var(--accent)}
   .chatBubble.pending .meta{opacity:.7}
   .chatBubble.err{background:var(--fail-tint);border-color:var(--fail)}
@@ -424,11 +420,18 @@
         </div>
       </div>
       <div id="projectList"></div>
-    </div>
-    <div class="sideCard">
-      <h3 data-i18n="sidebarLibraries">ספריות</h3>
+      </div>
+      <div class="sideCard quickStatusCard">
+        <h3 data-i18n="quickStats">מצב מהיר</h3>
+        <div class="heroStatRow"><span data-i18n="statusLabel">סטטוס</span><b id="miniStatus" data-i18n="miniStatusDefault">אין פרויקט נבחר</b></div>
+        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">1.2.5 ↻</button></div>
+        <div class="heroStatRow"><span data-i18n="langLabel">שפה</span><b id="langValue">עברית</b></div>
+      </div>
+      <div class="sideCard">
+        <h3 data-i18n="sidebarLibraries">ספריות</h3>
       <div id="libraryList"></div>
     </div>
+    <div class="sidebarResizer" id="sidebarResizer" role="separator" aria-orientation="vertical" aria-label="שינוי רוחב אזור הפרויקטים"></div>
   </aside>
   <main class="newMain">
     <div class="newTop">
@@ -436,6 +439,7 @@
       <div class="actions">
         <button class="miniBtn iconBtn" id="authBtn" title="התחבר עם Google">👤</button>
         <button class="miniBtn iconBtn" id="newLangBtn" title="English / עברית">🌐</button>
+        <button class="miniBtn iconBtn" id="newThemeBtn" data-i18n-title="titleTheme" title="עבור למצב כהה" aria-label="עבור למצב כהה">🌙</button>
         <button class="miniBtn iconBtn" id="newSettingsBtn" data-i18n-title="titleSettings" title="הגדרות">⚙️</button>
         <button class="miniBtn iconBtn" id="newHelpBtn" data-i18n-title="titleHelp" title="עזרה">❓</button>
         <button class="miniBtn iconBtn" id="newGithubBtn" data-i18n-title="titleGithub" title="חיבור ל GitHub">🔗<span class="ledDot" id="newGithubLed"></span></button>
@@ -443,43 +447,20 @@
       </div>
     </div>
     <div class="newContent">
-      <section class="heroPanel">
-        <h2 data-i18n="heroTitle">מסך עבודה נקי לפרויקטים ומודלים</h2>
-        <p data-i18n="heroText">זהו ה-MVP החדש: בוחרים מודל, בוחרים פרויקט, מגדירים משימה, ואז נותנים למודל לבצע פעולות מבוקרות על מאגרי קוד.</p>
-        <div class="heroActions">
-          <button class="add" id="heroStart" data-i18n="heroStart">פרויקט חדש</button>
-          <button class="act" id="heroDocs" data-i18n="heroDocs">פתח תיעוד</button>
-          <button class="act" id="heroConnect" data-i18n="heroConnect">חיבור למודל</button>
-        </div>
-      </section>
-      <section class="docPanel">
-        <div class="docHeader">
-          <div class="docTitle" data-i18n="docTitle">מידע פרויקט</div>
-          <span class="hint" id="docVersion">v1.2.4</span>
-        </div>
-        <div class="docBody" id="docBody">
-          <div class="emptyState"><b data-i18n="emptyWorkspaceTitle">הפרויקט הראשון שלך מתחיל כאן</b><span data-i18n="emptyWorkspaceText">צור פרויקט חדש כדי להתחיל לעבוד.</span></div>
-        </div>
-      </section>
       <section class="chatPanel">
-        <div id="chatThread">
-          <div class="chatBubble">
-            <div class="meta">ON TracK</div>
-            <div data-i18n="chatText">אין עדיין הודעות. כתוב בקשה למודל כדי להתחיל.</div>
-          </div>
-        </div>
         <div class="composerBar">
           <button class="miniBtn">+</button>
           <input type="text" id="mainPrompt" data-i18n-placeholder="composerPlaceholder" placeholder="כתוב מה תרצה שהמודל יעשה..." />
           <button class="roundBtn" id="chatSendBtn">↑</button>
         </div>
+        <div id="chatThread">
+          <div class="chatBubble">
+            <button type="button" class="chatDeleteBtn" data-i18n-title="chatDelete" title="מחק הודעה" aria-label="מחק הודעה">×</button>
+            <div class="meta">ON TracK</div>
+            <div data-i18n="chatText">אין עדיין הודעות. כתוב בקשה למודל כדי להתחיל.</div>
+          </div>
+        </div>
       </section>
-      <aside class="sideCard">
-        <h3 data-i18n="quickStats">מצב מהיר</h3>
-        <div class="heroStatRow"><span data-i18n="statusLabel">סטטוס</span><b id="miniStatus" data-i18n="miniStatusDefault">אין פרויקט נבחר</b></div>
-        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">1.2.3 ↻</button></div>
-        <div class="heroStatRow"><span data-i18n="langLabel">שפה</span><b id="langValue">עברית</b></div>
-      </aside>
     </div>
   </main>
 </div>
@@ -511,33 +492,33 @@
     <div class="modal" id="settingsModal">
       <div class="modal-card">
         <div class="modal-head">
-          <b data-i18n="settingsTitle">⚙️ הגדרות פרויקט</b>
+        <b data-i18n="settingsTitle">⚙️ הגדרות</b>
           <button class="icon" id="settingsClose">✕</button>
         </div>
-        <p class="hint" data-i18n="settingsHint">מסך בקרה מהיר ל־ON TracK. מכאן עוברים למסך המודל, החיבור ל־GitHub, או לתיעוד הפרויקט.</p>
+        <p class="hint" data-i18n="settingsHint">כאן מנהלים את סביבת העבודה, בודקים את החיבורים ובוחרים את הפרויקט והספרייה הפעילים.</p>
         <div class="settingsGrid">
           <div class="settingCard">
-            <b data-i18n="settingsCardVersion">גרסת פרויקט</b>
+            <b data-i18n="settingsCardVersion">גרסת מערכת</b>
             <div class="hint" id="settingsVersion">0.9.0</div>
           </div>
           <div class="settingCard">
-            <b data-i18n="settingsCardStatus">מצב נוכחי</b>
-            <div class="hint" id="settingsStatus" data-i18n="settingsStatusDefault">ממתין</div>
+            <b data-i18n="settingsCardStatus">פרויקט נבחר</b>
+            <div class="hint" id="settingsStatus" data-i18n="settingsStatusDefault">לא נבחר</div>
           </div>
           <div class="settingCard">
-            <b data-i18n="settingsCardGoal">מטרת עבודה</b>
+            <b data-i18n="settingsCardGoal">ספרייה נבחרת</b>
             <div class="hint" id="settingsGoal">—</div>
           </div>
           <div class="settingCard">
-            <b data-i18n="settingsCardShortcut">קיצור דרך</b>
-            <div class="hint" data-i18n="settingsShortcutHint">פתח עזרה, מודל, GitHub או API לפי הצורך.</div>
+            <b data-i18n="settingsCardShortcut">חיבורים</b>
+            <div class="hint" data-i18n="settingsShortcutHint">חבר מודל או GitHub כדי לאפשר עבודה על הפרויקט.</div>
           </div>
         </div>
-        <div class="heroActions">
+        <div class="editrow">
           <button class="act" id="settingsHelpOpen" data-i18n="titleHelp">עזרה</button>
+          <button class="act" id="settingsThemeOpen" data-i18n="titleTheme">תצוגה</button>
           <button class="act" id="settingsModelOpen" data-i18n="titleModel">חיבור למודל</button>
           <button class="act" id="settingsGithubOpen" data-i18n="titleGithub">חיבור ל GitHub</button>
-          <button class="act" id="settingsApiOpen">API</button>
         </div>
       </div>
     </div>
@@ -568,33 +549,18 @@
   <div class="modal" id="helpModal">
     <div class="modal-card">
       <div class="modal-head">
-        <b data-i18n="helpTitle">❓ עזרה וסטטוס פרויקט</b>
+        <b data-i18n="helpTitle">❓ עזרה ל־ON TracK</b>
         <button class="icon" id="helpClose">✕</button>
       </div>
-      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">1.2.3</b></div>
-      <p class="hint" style="line-height:1.7;margin-top:0" data-i18n="helpIntro">
-        זהו כלי בדיקות (QA) מקומי שנבנה כדי להפוך לעבודה מסודרת מול מודל שתבחר.
-        המטרה היא לעבוד בשלבים: לבחור מודל, לחבר פרויקט מקומי, להגדיר תכנית, ואז לעבור לביצוע מבוקר.
-      </p>
-      <label data-i18n="helpDoneLabel">מה בוצע</label>
-      <pre id="helpDone"></pre>
-      <label data-i18n="helpTodoLabel">מה נשאר</label>
-      <pre id="helpTodo"></pre>
-      <label data-i18n="helpFlowLabel">איך עובדים עכשיו</label>
-      <pre id="helpFlow"></pre>
-      <label data-i18n="helpPathLabel">קובץ מידע</label>
-      <pre id="helpPath"></pre>
-      <label data-i18n="helpProjectStateLabel">מצב פרויקט</label>
-      <input type="text" id="projectTitle" class="fieldInput" data-i18n-placeholder="phProjectName" placeholder="שם הפרויקט">
-      <input type="text" id="projectStatus" class="fieldInput" data-i18n-placeholder="phProjectStatus" placeholder="סטטוס הפרויקט" style="margin-top:8px">
-      <textarea id="projectGoal" class="fieldSmall" data-i18n-placeholder="phProjectGoal" placeholder="מטרת הפרויקט" style="margin-top:8px"></textarea>
-      <div class="editrow" style="margin-top:10px">
-        <button class="add" id="projectSave" data-i18n="saveState">שמור מצב</button>
-        <span class="hint" id="projectSaveStatus"></span>
+      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">1.2.5</b></div>
+      <p class="hint" style="line-height:1.7;margin-top:0" data-i18n="helpIntro">ON TracK מחבר בין מודל שבחרת לבין פרויקט ומקורות קוד. המודל מקבל בקשות ומבצע פעולות רק דרך החיבורים וההרשאות שהגדרת.</p>
+      <div class="helpList">
+        <div class="hint" data-i18n="helpStepOne">1. צור או בחר פרויקט בצד.</div>
+        <div class="hint" data-i18n="helpStepTwo">2. חבר ספרייה, בדרך כלל Repository ב־GitHub.</div>
+        <div class="hint" data-i18n="helpStepThree">3. חבר את המודל שבו תרצה להשתמש.</div>
+        <div class="hint" data-i18n="helpStepFour">4. כתוב בקשה בתיבת ההודעות ובדוק את התוצאה.</div>
       </div>
-      <div class="editrow" style="margin-top:14px">
-        <a class="act" href="/PROJECT_INFO.md" target="_blank" style="text-decoration:none;display:inline-flex;align-items:center" data-i18n="infoFileLink">📄 קובץ מידע</a>
-      </div>
+      <div class="hint" style="margin-top:14px" data-i18n="helpNote">תיקייה מקומית תדרוש בהמשך Agent מקומי. באתר החי החיבור העיקרי הוא ל־GitHub.</div>
     </div>
   </div>
   <div class="mvpBanner" id="mvpBanner">
@@ -886,20 +852,22 @@
       sidebarLibraries:'ספריות',
       topTitle:'מרחב עבודה', heroTitle:'מסך עבודה נקי לפרויקטים ומודלים',
       heroText:'זהו ה-MVP החדש: בוחרים מודל, בוחרים פרויקט, מגדירים משימה, ואז נותנים למודל לבצע פעולות מבוקרות על מאגרי קוד.',
-      heroStart:'פרויקט חדש', heroDocs:'פתח תיעוד', heroConnect:'חיבור למודל', docTitle:'מידע פרויקט',
+      heroStart:'פרויקט חדש', heroDocs:'פתח תיעוד', heroConnect:'חיבור למודל',
       openProject:'פתח', createProject:'צור פרויקט', editProject:'ערוך', renameProject:'שנה שם', deleteProject:'מחק',
       projectActions:'פעולות פרויקט', projectMore:'פעולות נוספות', newProjectTitle:'פרויקט חדש', editProjectTitle:'עריכת פרויקט', renameProjectTitle:'שינוי שם פרויקט', saveProject:'שמור',
       projectNameRequired:'חסר שם פרויקט', creatingProject:'יוצר...', createdProject:'נוצר ✓', savingProject:'שומר...', updatedProject:'עודכן ✓', deletingProject:'מוחק...', deletedProject:'נמחק ✓',
-      emptyWorkspaceTitle:'הפרויקט הראשון שלך מתחיל כאן', emptyWorkspaceText:'צור פרויקט חדש כדי להתחיל לעבוד.', noProjects:'אין עדיין פרויקטים', noLibraries:'אין עדיין ספריות', noProjectStatus:'אין פרויקט נבחר', projectLabel:'פרויקט', noteLabel:'הערה', libraryLabel:'ספרייה',
-      chatText:'אין עדיין הודעות. כתוב בקשה למודל כדי להתחיל.',
+      noProjects:'אין עדיין פרויקטים', noLibraries:'אין עדיין ספריות', noProjectStatus:'אין פרויקט נבחר',
+      chatText:'אין עדיין הודעות. כתוב בקשה למודל כדי להתחיל.', chatDelete:'מחק הודעה',
       quickStats:'מצב מהיר', statusLabel:'סטטוס', miniStatusDefault:'אין פרויקט נבחר', versionLabel:'גרסה', langLabel:'שפה',
-      settingsTitle:'⚙️ הגדרות פרויקט', settingsHint:'מסך בקרה מהיר ל־ON TracK. מכאן עוברים למסך המודל, החיבור ל־GitHub, או לתיעוד הפרויקט.',
-      settingsCardVersion:'גרסת פרויקט', settingsCardStatus:'מצב נוכחי', settingsStatusDefault:'ממתין',
-      settingsCardGoal:'מטרת עבודה', settingsCardShortcut:'קיצור דרך', settingsShortcutHint:'פתח עזרה, מודל, GitHub או API לפי הצורך.',
+      settingsTitle:'⚙️ הגדרות', settingsHint:'כאן מנהלים את סביבת העבודה, בודקים את החיבורים ובוחרים את הפרויקט והספרייה הפעילים.',
+      settingsCardVersion:'גרסת מערכת', settingsCardStatus:'פרויקט נבחר', settingsStatusDefault:'לא נבחר',
+      settingsCardGoal:'ספרייה נבחרת', settingsCardShortcut:'חיבורים', settingsShortcutHint:'חבר מודל או GitHub כדי לאפשר עבודה על הפרויקט.',
       titleSettings:'הגדרות', titleHelp:'עזרה', titleModel:'חיבור למודל', titleGithub:'חיבור ל GitHub',
-      titleTheme:'החלף תצוגה',
-      helpTitle:'❓ עזרה וסטטוס פרויקט', helpVersionLabel:'גרסה:',
-      helpIntro:'זהו כלי בדיקות (QA) מקומי שנבנה כדי להפוך לעבודה מסודרת מול מודל שתבחר.\n        המטרה היא לעבוד בשלבים: לבחור מודל, לחבר פרויקט מקומי, להגדיר תכנית, ואז לעבור לביצוע מבוקר.',
+      titleTheme:'מצב בהיר / כהה',
+      helpTitle:'❓ עזרה ל־ON TracK', helpVersionLabel:'גרסה:',
+      helpIntro:'ON TracK מחבר בין מודל שבחרת לבין פרויקט ומקורות קוד. המודל מקבל בקשות ומבצע פעולות רק דרך החיבורים וההרשאות שהגדרת.',
+      helpStepOne:'1. צור או בחר פרויקט בצד.', helpStepTwo:'2. חבר ספרייה, בדרך כלל Repository ב־GitHub.', helpStepThree:'3. חבר את המודל שבו תרצה להשתמש.', helpStepFour:'4. כתוב בקשה בתיבת ההודעות ובדוק את התוצאה.',
+      helpNote:'תיקייה מקומית תדרוש בהמשך Agent מקומי. באתר החי החיבור העיקרי הוא ל־GitHub.',
       helpDoneLabel:'מה בוצע', helpTodoLabel:'מה נשאר', helpFlowLabel:'איך עובדים עכשיו', helpPathLabel:'קובץ מידע',
       helpProjectStateLabel:'מצב פרויקט', saveState:'שמור מצב', infoFileLink:'📄 קובץ מידע',
       modelModalTitle:'🤖 בחירת מודל', currentModelLabel:'המודל הנוכחי', testConnection:'🔌 בדוק חיבור', liveTest:'🚀 בדיקה חיה',
@@ -966,20 +934,22 @@
       sidebarLibraries:'Libraries',
       topTitle:'Workspace', heroTitle:'A clean workspace for projects and models',
       heroText:'This is the new MVP: choose a model, choose a project, define a task, then let the model perform controlled actions on code repositories.',
-      heroStart:'New project', heroDocs:'Open docs', heroConnect:'Connect model', docTitle:'Project Info',
+      heroStart:'New project', heroDocs:'Open docs', heroConnect:'Connect model',
       openProject:'Open project', createProject:'Create project', editProject:'Edit', renameProject:'Rename', deleteProject:'Delete',
       projectActions:'Project actions', projectMore:'More project actions', newProjectTitle:'New project', editProjectTitle:'Edit project', renameProjectTitle:'Rename project', saveProject:'Save',
       projectNameRequired:'Project name is required', creatingProject:'Creating...', createdProject:'Created ✓', savingProject:'Saving...', updatedProject:'Updated ✓', deletingProject:'Deleting...', deletedProject:'Deleted ✓',
-      emptyWorkspaceTitle:'Your first project starts here', emptyWorkspaceText:'Create a project to begin working.', noProjects:'No projects yet', noLibraries:'No libraries yet', noProjectStatus:'No project selected', projectLabel:'Project', noteLabel:'Note', libraryLabel:'Library',
-      chatText:'No messages yet. Write a request to the model to begin.',
+      noProjects:'No projects yet', noLibraries:'No libraries yet', noProjectStatus:'No project selected',
+      chatText:'No messages yet. Write a request to the model to begin.', chatDelete:'Delete message',
       quickStats:'Quick Status', statusLabel:'Status', miniStatusDefault:'No project selected', versionLabel:'Version', langLabel:'Language',
-      settingsTitle:'⚙️ Project Settings', settingsHint:'Quick control panel for ON TracK. Jump to the model, GitHub connection, or project docs from here.',
-      settingsCardVersion:'Project Version', settingsCardStatus:'Current Status', settingsStatusDefault:'Waiting',
-      settingsCardGoal:'Work Goal', settingsCardShortcut:'Shortcut', settingsShortcutHint:'Open help, model, GitHub, or API as needed.',
+      settingsTitle:'⚙️ Settings', settingsHint:'Manage the workspace, check connections, and see the active project and library.',
+      settingsCardVersion:'System version', settingsCardStatus:'Selected project', settingsStatusDefault:'Not selected',
+      settingsCardGoal:'Selected library', settingsCardShortcut:'Connections', settingsShortcutHint:'Connect a model or GitHub to work on the project.',
       titleSettings:'Settings', titleHelp:'Help', titleModel:'Connect Model', titleGithub:'Connect GitHub',
-      titleTheme:'Toggle theme',
-      helpTitle:'❓ Help & Project Status', helpVersionLabel:'Version:',
-      helpIntro:'This is a local QA tool built to turn testing into organized work with a model of your choice.\n        The goal is to work in stages: choose a model, connect a local project, define a plan, then move to controlled execution.',
+      titleTheme:'Light / dark mode',
+      helpTitle:'❓ ON TracK Help', helpVersionLabel:'Version:',
+      helpIntro:'ON TracK connects your chosen model to a project and its code sources. The model receives requests and acts only through the connections and permissions you configure.',
+      helpStepOne:'1. Create or select a project in the sidebar.', helpStepTwo:'2. Connect a library, usually a GitHub repository.', helpStepThree:'3. Connect the model you want to use.', helpStepFour:'4. Write a request in the message box and review the result.',
+      helpNote:'A local folder will later require a local Agent. On the live website, GitHub is the primary connection.',
       helpDoneLabel:'Done', helpTodoLabel:'Remaining', helpFlowLabel:'How it works now', helpPathLabel:'Info file',
       helpProjectStateLabel:'Project State', saveState:'Save state', infoFileLink:'📄 Info file',
       modelModalTitle:'🤖 Choose Model', currentModelLabel:'Current model', testConnection:'🔌 Test connection', liveTest:'🚀 Live test',
@@ -1066,6 +1036,7 @@
     });
     if($('#langValue')) $('#langValue').textContent = uiLang === 'en' ? 'English' : 'עברית';
     if($('#newLangBtn')) $('#newLangBtn').title = uiLang === 'en' ? 'עברית' : 'English';
+    if(typeof applyTheme === 'function') applyTheme(document.body.dataset.theme || 'light');
     // The model-preset <select> options are generated JS strings, not data-i18n markup —
     // refresh them if the modal has already been populated once and language changes later.
     if(typeof applyProviderUI === 'function' && document.getElementById('mNewModelSelect')?.options.length) applyProviderUI();
@@ -1111,10 +1082,23 @@
       const div = document.createElement('div');
       div.className = 'chatBubble' + (cls ? ' '+cls : '');
       div.innerHTML = `<div class="meta">${escHtml(meta)}</div><div>${escHtml(text)}</div>`;
+      const deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'chatDeleteBtn';
+      deleteBtn.dataset.i18nTitle = 'chatDelete';
+      deleteBtn.title = I18N[uiLang].chatDelete;
+      deleteBtn.setAttribute('aria-label', I18N[uiLang].chatDelete);
+      deleteBtn.textContent = '×';
+      div.prepend(deleteBtn);
       thread.appendChild(div);
-      div.scrollIntoView({ block: 'end', behavior: 'smooth' });
+      div.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       return div;
     }
+    const thread = document.getElementById('chatThread');
+    if(thread) thread.addEventListener('click', e => {
+      const deleteBtn = e.target.closest('.chatDeleteBtn');
+      if(deleteBtn) deleteBtn.closest('.chatBubble')?.remove();
+    });
     async function sendChatMessage(){
       const input = document.getElementById('mainPrompt');
       const btn = document.getElementById('chatSendBtn');
@@ -1966,12 +1950,53 @@ if(next) await fetch(B+"/api/update",{method:"POST",
   document.addEventListener('click', e=>{
     if(!e.target.closest('.projectMenuWrap')) closeProjectMenus();
   });
+  (function initSidebarResizer(){
+    const shell = $('.newShell');
+    const handle = $('#sidebarResizer');
+    if(!shell || !handle) return;
+    const minWidth = 220;
+    const maxWidth = 460;
+    const clamp = width => Math.max(minWidth, Math.min(maxWidth, width));
+    const savedWidth = Number(localStorage.getItem('ontrack-sidebar-width'));
+    if(Number.isFinite(savedWidth) && savedWidth > 0) shell.style.setProperty('--sidebar-width', clamp(savedWidth) + 'px');
+    let resizing = false;
+    let pointerId = null;
+    function setWidthFromPointer(e){
+      const rect = shell.getBoundingClientRect();
+      const rtl = getComputedStyle(shell).direction === 'rtl';
+      const width = rtl ? rect.right - e.clientX : e.clientX - rect.left;
+      shell.style.setProperty('--sidebar-width', clamp(width) + 'px');
+    }
+    function stopResize(){
+      if(!resizing) return;
+      resizing = false;
+      const width = parseFloat(getComputedStyle(shell).getPropertyValue('--sidebar-width'));
+      if(Number.isFinite(width)) localStorage.setItem('ontrack-sidebar-width', String(width));
+      document.body.classList.remove('isResizing');
+      if(pointerId !== null && handle.hasPointerCapture?.(pointerId)) handle.releasePointerCapture(pointerId);
+      pointerId = null;
+    }
+    handle.addEventListener('pointerdown', e=>{
+      if(window.matchMedia('(max-width:1020px)').matches) return;
+      resizing = true;
+      pointerId = e.pointerId;
+      handle.setPointerCapture?.(pointerId);
+      document.body.classList.add('isResizing');
+      setWidthFromPointer(e);
+      e.preventDefault();
+    });
+    handle.addEventListener('pointermove', e=>{
+      if(resizing && e.pointerId === pointerId) setWidthFromPointer(e);
+    });
+    handle.addEventListener('pointerup', stopResize);
+    handle.addEventListener('pointercancel', stopResize);
+    handle.addEventListener('lostpointercapture', stopResize);
+  })();
   async function renderWorkspace(){
     try{
       const data = await (await fetch('/api/workspace')).json();
       const projectList = $('#projectList');
       const libraryList = $('#libraryList');
-      const docBody = $('#docBody');
       if($('#projectNameInput') && !$('#projectNameInput').value.trim()) $('#projectNameInput').value = data.selectedProject?.name || '';
       if($('#projectNoteInput') && !$('#projectNoteInput').value.trim()) $('#projectNoteInput').value = data.selectedProject?.note || '';
       if($('#projectStatusSelect') && data.selectedProject?.status) $('#projectStatusSelect').value = data.selectedProject.status;
@@ -2033,19 +2058,6 @@ if(next) await fetch(B+"/api/update",{method:"POST",
           };
         });
       }
-      if(docBody){
-        if(data.selectedProject){
-          const p = data.selectedProject;
-          docBody.innerHTML = `
-            <div class="heroStatRow"><span>${I18N[uiLang].projectLabel}</span><b>${esc(p.name)}</b></div>
-            <div class="heroStatRow"><span>${I18N[uiLang].statusLabel}</span><b>${esc(p.status)}</b></div>
-            <div class="heroStatRow"><span>${I18N[uiLang].noteLabel}</span><b>${esc(p.note || '')}</b></div>
-            <div class="heroStatRow"><span>${I18N[uiLang].libraryLabel}</span><b>${esc(data.selectedLibrary?.name || '')}</b></div>
-          `;
-        } else {
-          docBody.innerHTML = `<div class="emptyState"><b>${I18N[uiLang].emptyWorkspaceTitle}</b><span>${I18N[uiLang].emptyWorkspaceText}</span></div>`;
-        }
-      }
       const tools = $('#projectToolsStatus');
       if(tools && data.selectedProject && !$('#projectEditor')?.classList.contains('on')) tools.textContent = `${data.selectedProject.name} · ${data.selectedProject.status}`;
       updateMiniStatus(data);
@@ -2058,13 +2070,13 @@ if(next) await fetch(B+"/api/update",{method:"POST",
   }
   if($('#settingsBtn')) $('#settingsBtn').onclick=openSettings;
   if($('#newLangBtn')) $('#newLangBtn').onclick=()=>applyLanguage(uiLang === 'en' ? 'he' : 'en');
-  const themeBtn=$('#themeBtn');
+  const themeBtn=$('#newThemeBtn') || $('#themeBtn');
   function applyTheme(theme){
     const next = theme === 'dark' ? 'dark' : 'light';
     document.body.dataset.theme = next;
     localStorage.setItem('ontrack-theme', next);
     if(themeBtn){
-      themeBtn.textContent = next === 'dark' ? 'בהיר' : 'כהה';
+      themeBtn.textContent = next === 'dark' ? '☀️' : '🌙';
       themeBtn.title = uiLang === 'en'
         ? (next === 'dark' ? 'Switch to light mode' : 'Switch to dark mode')
         : (next === 'dark' ? 'עבור למצב בהיר' : 'עבור למצב כהה');
@@ -2074,9 +2086,9 @@ if(next) await fetch(B+"/api/update",{method:"POST",
   if($('#settingsClose')) $('#settingsClose').onclick=closeSettings;
   if(settingsModal) settingsModal.onclick=e=>{ if(e.target===settingsModal) closeSettings(); };
   if($('#settingsHelpOpen')) $('#settingsHelpOpen').onclick=()=>{ closeSettings(); modal.classList.add('on'); };
+  if($('#settingsThemeOpen')) $('#settingsThemeOpen').onclick=()=>applyTheme(document.body.dataset.theme === 'dark' ? 'light' : 'dark');
   if($('#settingsModelOpen')) $('#settingsModelOpen').onclick=()=>{ closeSettings(); window.openModelModal(); };
   if($('#settingsGithubOpen')) $('#settingsGithubOpen').onclick=()=>{ closeSettings(); window.openGithubModal(); };
-  if($('#settingsApiOpen')) $('#settingsApiOpen').onclick=()=>{ closeSettings(); $('#apiModal').classList.add('on'); };
   async function createProject(){
     const t = I18N[uiLang];
     const name = $('#projectNameInput')?.value.trim();
@@ -2121,13 +2133,10 @@ if(next) await fetch(B+"/api/update",{method:"POST",
   if($('#projectCancelBtn')) $('#projectCancelBtn').onclick=closeProjectEditor;
   if($('#githubDockBtn')) $('#githubDockBtn').onclick=()=>window.openGithubModal();
   if($('#modelDockBtn')) $('#modelDockBtn').onclick=()=>window.openModelModal();
-  if(newSettingsBtn) newSettingsBtn.onclick=()=>openSettings();
-  if(newHelpBtn) newHelpBtn.onclick=()=>modal.classList.add('on');
-  if(newGithubBtn) newGithubBtn.onclick=()=>window.openGithubModal();
-  if(newModelBtn) newModelBtn.onclick=()=>window.openModelModal();
-  if(heroStart) heroStart.onclick=()=>openProjectEditor('create');
-  if(heroDocs) heroDocs.onclick=()=>modal.classList.add('on');
-  if(heroConnect) heroConnect.onclick=()=>window.openModelModal();
+  if($('#newSettingsBtn')) $('#newSettingsBtn').onclick=()=>openSettings();
+  if($('#newHelpBtn')) $('#newHelpBtn').onclick=()=>modal.classList.add('on');
+  if($('#newGithubBtn')) $('#newGithubBtn').onclick=()=>window.openGithubModal();
+  if($('#newModelBtn')) $('#newModelBtn').onclick=()=>window.openModelModal();
   if(apiBtn && apiBtn.parentElement && !$('#helpBtn')){
     const b=document.createElement('button');
     b.className='flagbtn compact';
@@ -2135,9 +2144,8 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     b.textContent='❓ עזרה';
     apiBtn.parentElement.insertBefore(b, apiBtn);
   }
-  const appVersion='1.2.4';
+  const appVersion='1.2.5';
   $('#appVersion').textContent=appVersion;
-  if($('#docVersion')) $('#docVersion').textContent='v'+appVersion;
   // Seeded here too: without a local server /api/state never answers, and this would
   // otherwise keep showing whatever literal the markup was last edited with.
   if($('#settingsVersion')) $('#settingsVersion').textContent=appVersion;
@@ -2172,45 +2180,15 @@ if(next) await fetch(B+"/api/update",{method:"POST",
       }
     };
   }
-  // helpDone/helpTodo/helpFlow are seeded by applyLanguage() at init (and re-seeded if the
-  // language toggles), so no static assignment is needed here.
-  $('#helpPath').textContent='C:\\harel\\RLAPP ON RL\\QA\\PROJECT_INFO.md';
-  async function loadProjectState(){
-    try{
-      const s=await (await fetch('/api/project/state')).json();
-      $('#projectTitle').value=s.title||'';
-      $('#projectStatus').value=s.status||'';
-      $('#projectGoal').value=s.goal||'';
-      $('#helpDone').textContent=(s.completed||[]).map(x=>'• '+x).join('\n');
-      $('#helpTodo').textContent=(s.nextSteps||[]).map(x=>'• '+x).join('\n');
-    }catch{}
-  }
-  $('#projectSave').onclick=async()=>{
-    $('#projectSaveStatus').textContent='שומר...';
-    try{
-      const body={
-        title:$('#projectTitle').value.trim(),
-        status:$('#projectStatus').value.trim(),
-        goal:$('#projectGoal').value.trim()
-      };
-      const j=await (await fetch('/api/project/state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})).json();
-      $('#projectSaveStatus').textContent = j.ok ? 'נשמר ✓' : 'לא נשמר';
-      await loadProjectState();
-      setTimeout(()=>{ if($('#projectSaveStatus').textContent==='נשמר ✓') $('#projectSaveStatus').textContent=''; }, 1800);
-    }catch{
-      $('#projectSaveStatus').textContent='שגיאה';
-    }
-  };
   $('#helpBtn').onclick=()=>modal.classList.add('on');
   $('#helpClose').onclick=()=>modal.classList.remove('on');
   modal.onclick=e=>{ if(e.target===modal) modal.classList.remove('on'); };
-  loadProjectState();
   (async()=>{
     try{
-      const s=await (await fetch('/api/project/state')).json();
-      if($('#settingsVersion')) $('#settingsVersion').textContent=s.version||appVersion;
-      if($('#settingsStatus')) $('#settingsStatus').textContent=s.status||'—';
-      if($('#settingsGoal')) $('#settingsGoal').textContent=s.goal||'—';
+      const s=await (await fetch('/api/workspace')).json();
+      if($('#settingsVersion')) $('#settingsVersion').textContent=appVersion;
+      if($('#settingsStatus')) $('#settingsStatus').textContent=s.selectedProject ? s.selectedProject.name+' · '+(s.selectedProject.status||'') : I18N[uiLang].settingsStatusDefault;
+      if($('#settingsGoal')) $('#settingsGoal').textContent=s.selectedLibrary?.name || I18N[uiLang].settingsStatusDefault;
     }catch{}
   })();
   applyLanguage(uiLang);

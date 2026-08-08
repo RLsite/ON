@@ -1,12 +1,13 @@
 # ON TracK Project Info
 
-Version: `1.2.4`
-Status: `New users now start with an empty workspace and create their first real project without seeded demo data.`
+Version: `1.2.5`
+Status: `The chat composer is above the message history, newest messages appear first, and every message can be removed.`
 
 ## Goal
 Build a web-first workspace where a chosen model can understand a project, connect to repositories, and perform approved actions in a controlled flow.
 
 ## Done
+- Removed the opening hero card so the workspace focuses on project selection, model requests, and the message history. Reversed the chat history so the newest message is at the top and the oldest is at the bottom, with an `x` delete action on every message.
 - Removed seeded demo projects, libraries, chat messages, and starter project state. New accounts now start empty, while a one-time Worker migration removes only the known old demo records and preserves user-created records.
 - Reworked the Projects panel into a compact workflow: a small `+` button opens the create editor, clicking a project name opens it, and each project row has a `⋯` menu with edit, rename, and delete actions. The editor reuses the existing per-user workspace endpoints, supports Hebrew/English labels, and stays closed until an action is chosen.
 - GitHub repository seeded
