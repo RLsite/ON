@@ -1,7 +1,7 @@
 # ON TracK Project Info
 
-Version: `1.4.10`
-Status: `Closed a critical Agent bug: a write action's own branch field could bypass the new-branch/PR/deploy flow and write straight to the live branch in one click. Also fixed a silent failure where a rejected plan produced no visible error, and the approval card now shows a real content/diff preview instead of only a byte count.`
+Version: `1.4.11`
+Status: `Diagnosed and fixed a real user report of "the model doesn't update files": Agent repair calls were given a smaller token budget than the original attempt, silently truncating corrected plans. Also capped a follow-up capacity-error retry to once per request instead of once per model call, after review found it could compound up to 6x in one request.`
 
 ## Goal
 Build a web-first workspace where a chosen model can understand a project, connect to repositories, and perform approved actions in a controlled flow.
@@ -67,6 +67,8 @@ Build a web-first workspace where a chosen model can understand a project, conne
 - Fixed a pre-existing i18n mismatch: the Settings-panel display/theme button's Hebrew markup ("תצוגה") didn't match its `titleTheme` dictionary entry ("מצב בהיר / כהה"), which is what it actually does (toggle light/dark mode) — corrected the markup to match.
 - Added a copy-to-clipboard button to every chat bubble (user and assistant), next to the existing delete button.
 - Fixed a version-consistency bug in the fix above: bumping the app version only in this file doesn't change what the app displays — `index.html` has its own `const appVersion` plus two hardcoded markup defaults, and `package.json`/`package-lock.json` have their own copies. All four now stay in sync with this file's `Version:` line on every release.
+- **Fixed the actual root cause of a real "the model doesn't update GitHub files" report.** The Agent's repair calls (both the JSON-shape repair and the contract-violation repair added earlier) used a smaller token budget (1,600) than the original attempt (2,600), even though a code-change repair has to re-emit the same full patch/content plus a reply plus up to four bundled actions — not smaller than the original, sometimes larger. At 1,600 tokens the corrected JSON likely got cut off mid-object, which the parser can't recover from, so the repair silently produced nothing and the request fell back to displaying the original, now-stale error as if no repair had been attempted. Both repair calls now get 2,600 tokens, the validation-repair prompt restates the full four-action bundle instead of only the single rule that failed, and the final error message now says plainly when a repair reply couldn't be parsed at all.
+- Added a single automatic retry for a transient model-capacity error (HTTP 429/503/"rate limit"/"overloaded"), found from a real user hitting this while the fix above was being tested. Adversarial review found the first version of this retry could compound: one `/api/chat` request can chain up to 6 sequential model calls, and each could independently retry-and-wait, worst case ~7.2s of added delay plus up to 6 duplicated full generations on an already slow, non-streamed response. Fixed by sharing one retry budget across all calls in a single request, so at most one retry happens per request regardless of how many calls hit capacity errors. Also reworded the "still working" hint (previously blamed only "files or GitHub actions," misleading for a plain question hitting a hidden retry) and the capacity error message (now says explicitly when the one retry was already spent, instead of telling the user to do what the server just tried).
 
 ## In progress
 1. Make the home screen fully product-like
