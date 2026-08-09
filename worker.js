@@ -432,7 +432,7 @@ ${String(rawText || '').slice(0, 8000)}`;
 // to fix the specific problem instead of the request silently dying with no visible reason.
 function agentValidationRepairPrompt(rawText, error, requestContext) {
   return `Your previous plan did not follow the ON TracK Agent contract: ${error}
-Return exactly one corrected JSON object with the same {"kind":"plan"|"answer","reply":"...","actions":[...]} shape, fixing only what the rule above requires. Keep the same intent. Do not narrate; return the corrected plan directly, with no Markdown fences.
+Return exactly one corrected JSON object with the same {"kind":"plan"|"answer","reply":"...","actions":[...]} shape. Keep the same file changes and intent, and fix the rule above, but also re-check the full contract: any plan that changes a source file must include ALL FOUR of the file-change action, github.update_version, github.create_pull_request, and github.deploy in the SAME actions array — not just the one piece mentioned above. Do not narrate; return the corrected plan directly, with no Markdown fences, and keep the reply field brief so the full JSON fits.
 Current user request:
 ${String(requestContext || '').slice(0, 8000)}
 Previous response:
@@ -1407,7 +1407,10 @@ async function handleChat(request, env, uid) {
     let rawReply = await callModel(m, prompt, 2600, imagePart, systemPrompt);
     let plan = inferAgentReadPlan(normalizeAgentPlan(rawReply), repoContext);
     if (!plan) {
-      const repairedReply = await callModel(m, agentRepairPrompt(rawReply, prompt), 1600, null, systemPrompt);
+      // Give the repair at least as much room as the original attempt — a code-change plan's
+      // repaired JSON (full patch + reply + up to 4 bundled actions) is not smaller than the
+      // first try, and a tighter budget here risks silently truncating the corrected JSON.
+      const repairedReply = await callModel(m, agentRepairPrompt(rawReply, prompt), 2600, null, systemPrompt);
       plan = inferAgentReadPlan(normalizeAgentPlan(repairedReply), repoContext);
       if (plan) rawReply = repairedReply;
     }
@@ -1458,13 +1461,21 @@ async function handleChat(request, env, uid) {
     // the user saw only the model's own reply text with no sign anything was rejected. Give
     // the model one chance to fix the specific rule before giving up.
     if (planError && plan && plan.kind === 'plan') {
-      const repairedReply = await callModel(m, agentValidationRepairPrompt(rawReply, planError, prompt), 1600, null, systemPrompt);
+      // Same reasoning as the JSON-shape repair above: a code-change repair still has to carry
+      // a full patch/content plus all four bundled actions, so it needs at least as much room
+      // as the original attempt, not less.
+      const repairedReply = await callModel(m, agentValidationRepairPrompt(rawReply, planError, prompt), 2600, null, systemPrompt);
       const repairedPlan = inferAgentReadPlan(normalizeAgentPlan(repairedReply), repoContext);
       if (repairedPlan) {
         const repairedError = validateAgentPlan(repairedPlan, githubReady);
         plan = repairedPlan;
         rawReply = repairedReply;
         planError = repairedError;
+      } else {
+        // The repair reply wasn't parseable JSON at all (most likely truncated by the model's
+        // own output limit) — say so plainly instead of silently re-showing the original error
+        // as if no repair had been attempted.
+        planError = 'The model\'s corrected plan could not be read (it may have been cut off). ' + planError;
       }
     }
     if (planError) {
