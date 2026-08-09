@@ -331,6 +331,7 @@
   @media (max-width:1020px){.newContent{grid-template-columns:1fr}.newShell{grid-template-columns:1fr}.newSidebar{border-inline-end:none;border-bottom:1px solid var(--line)}.sidebarResizer{display:none}}
   .chatPanel,.sideCard{background:var(--panel);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow-sm)}
   .sideCard{padding:14px}
+  .quickStatusCard{margin-top:auto}
   .agentAccessCard{border-color:var(--line)}
   .agentAccessDot{width:9px;height:9px;border-radius:50%;background:#c9ccdb;flex:none}
   .agentAccessDot.ok{background:#2fae66}.agentAccessDot.fail{background:#e35b5b}
@@ -450,24 +451,6 @@
         <div class="brandSub" data-i18n="subtitle">מרחב עבודה לפרויקטים מבוססי מודל</div>
       </div>
     </div>
-    <div class="sideCard agentAccessCard">
-      <div class="sideCardHead">
-        <h3 data-i18n="agentAccessTitle">Agent</h3>
-        <span class="agentAccessDot" id="agentAccessDot"></span>
-      </div>
-      <div class="hint" id="agentAccessText" data-i18n="agentAccessOff">המודל לא מקבל גישה לפרויקט.</div>
-      <label class="agentConsentRow">
-        <input type="checkbox" id="agentConsentToggle">
-        <span data-i18n="agentConsentLabel">אפשר למודל לקרוא ולפעול ב־GitHub וב־Skills</span>
-      </label>
-      <div class="hint agentAccessMeta" id="agentAccessMeta"></div>
-    </div>
-    <div class="sideCard quickStatusCard">
-      <h3 data-i18n="quickStats">מצב מהיר</h3>
-      <div class="heroStatRow"><span data-i18n="statusLabel">סטטוס</span><b id="miniStatus" data-i18n="miniStatusDefault">אין פרויקט נבחר</b></div>
-      <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">1.4.9 ↻</button></div>
-      <div class="heroStatRow"><span data-i18n="langLabel">שפה</span><b id="langValue">עברית</b></div>
-    </div>
     <div class="sideCard">
       <div class="sideCardHead">
         <h3 data-i18n="sidebarProjects">פרויקטים</h3>
@@ -522,6 +505,24 @@
           </div>
         </div>
         <div id="libraryList"></div>
+      </div>
+      <div class="sideCard agentAccessCard">
+        <div class="sideCardHead">
+          <h3 data-i18n="agentAccessTitle">Agent</h3>
+          <span class="agentAccessDot" id="agentAccessDot"></span>
+        </div>
+        <div class="hint" id="agentAccessText" data-i18n="agentAccessOff">המודל לא מקבל גישה לפרויקט.</div>
+        <label class="agentConsentRow">
+          <input type="checkbox" id="agentConsentToggle">
+          <span data-i18n="agentConsentLabel">אפשר למודל לקרוא ולפעול ב־GitHub וב־Skills</span>
+        </label>
+        <div class="hint agentAccessMeta" id="agentAccessMeta"></div>
+      </div>
+      <div class="sideCard quickStatusCard">
+        <h3 data-i18n="quickStats">מצב מהיר</h3>
+        <div class="heroStatRow"><span data-i18n="statusLabel">סטטוס</span><b id="miniStatus" data-i18n="miniStatusDefault">אין פרויקט נבחר</b></div>
+        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">1.4.10 ↻</button></div>
+        <div class="heroStatRow"><span data-i18n="langLabel">שפה</span><b id="langValue">עברית</b></div>
       </div>
     <div class="sidebarResizer" id="sidebarResizer" role="separator" aria-orientation="vertical" aria-label="שינוי רוחב אזור הפרויקטים"></div>
   </aside>
@@ -652,7 +653,7 @@
         <b data-i18n="helpTitle">❓ עזרה ל־ON TracK</b>
         <button class="icon" id="helpClose">✕</button>
       </div>
-      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">1.4.9</b></div>
+      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">1.4.10</b></div>
       <p class="hint" style="line-height:1.7;margin-top:0" data-i18n="helpIntro">ON TracK מחבר בין מודל שבחרת לבין פרויקט ומקורות קוד. המודל מקבל בקשות ומבצע פעולות רק דרך החיבורים וההרשאות שהגדרת.</p>
       <div class="helpList">
         <div class="hint" data-i18n="helpStepOne">1. צור או בחר פרויקט בצד.</div>
@@ -2729,7 +2730,7 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     b.textContent='❓ עזרה';
     apiBtn.parentElement.insertBefore(b, apiBtn);
   }
-  const appVersion='1.4.9';
+  const appVersion='1.4.10';
   $('#appVersion').textContent=appVersion;
   // Seeded here too: without a local server /api/state never answers, and this would
   // otherwise keep showing whatever literal the markup was last edited with.
