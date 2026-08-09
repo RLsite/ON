@@ -331,7 +331,6 @@
   @media (max-width:1020px){.newContent{grid-template-columns:1fr}.newShell{grid-template-columns:1fr}.newSidebar{border-inline-end:none;border-bottom:1px solid var(--line)}.sidebarResizer{display:none}}
   .chatPanel,.sideCard{background:var(--panel);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow-sm)}
   .sideCard{padding:14px}
-  .quickStatusCard{margin-top:auto}
   .agentAccessCard{border-color:var(--line)}
   .agentAccessDot{width:9px;height:9px;border-radius:50%;background:#c9ccdb;flex:none}
   .agentAccessDot.ok{background:#2fae66}.agentAccessDot.fail{background:#e35b5b}
@@ -401,6 +400,7 @@
   .agentPlanTitle{font-weight:800;font-size:13px}
   .agentPlanHint{color:var(--muted);font-size:12px}
   .agentPlanAction{font-size:12px;direction:ltr;text-align:left;background:var(--panel2);border-radius:8px;padding:6px 8px;overflow-wrap:anywhere}
+  .agentPlanDiff{margin:0 0 4px;font-size:11px;direction:ltr;text-align:left;font-family:ui-monospace,Consolas,monospace;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px;max-height:220px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
   .agentApproveBtn{align-self:flex-start;margin-top:4px;padding:7px 11px;font-size:12px}
   .agentPlanResult,.agentPlanError{font-size:12px;padding:7px 8px;border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere}
   .agentPlanResult{background:var(--pass-tint);color:var(--txt)}
@@ -449,6 +449,24 @@
         <div class="brandName">ON TracK</div>
         <div class="brandSub" data-i18n="subtitle">מרחב עבודה לפרויקטים מבוססי מודל</div>
       </div>
+    </div>
+    <div class="sideCard agentAccessCard">
+      <div class="sideCardHead">
+        <h3 data-i18n="agentAccessTitle">Agent</h3>
+        <span class="agentAccessDot" id="agentAccessDot"></span>
+      </div>
+      <div class="hint" id="agentAccessText" data-i18n="agentAccessOff">המודל לא מקבל גישה לפרויקט.</div>
+      <label class="agentConsentRow">
+        <input type="checkbox" id="agentConsentToggle">
+        <span data-i18n="agentConsentLabel">אפשר למודל לקרוא ולפעול ב־GitHub וב־Skills</span>
+      </label>
+      <div class="hint agentAccessMeta" id="agentAccessMeta"></div>
+    </div>
+    <div class="sideCard quickStatusCard">
+      <h3 data-i18n="quickStats">מצב מהיר</h3>
+      <div class="heroStatRow"><span data-i18n="statusLabel">סטטוס</span><b id="miniStatus" data-i18n="miniStatusDefault">אין פרויקט נבחר</b></div>
+      <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">1.4.9 ↻</button></div>
+      <div class="heroStatRow"><span data-i18n="langLabel">שפה</span><b id="langValue">עברית</b></div>
     </div>
     <div class="sideCard">
       <div class="sideCardHead">
@@ -504,24 +522,6 @@
           </div>
         </div>
         <div id="libraryList"></div>
-      </div>
-      <div class="sideCard agentAccessCard">
-        <div class="sideCardHead">
-          <h3 data-i18n="agentAccessTitle">Agent</h3>
-          <span class="agentAccessDot" id="agentAccessDot"></span>
-        </div>
-        <div class="hint" id="agentAccessText" data-i18n="agentAccessOff">המודל לא מקבל גישה לפרויקט.</div>
-        <label class="agentConsentRow">
-          <input type="checkbox" id="agentConsentToggle">
-          <span data-i18n="agentConsentLabel">אפשר למודל לקרוא ולפעול ב־GitHub וב־Skills</span>
-        </label>
-        <div class="hint agentAccessMeta" id="agentAccessMeta"></div>
-      </div>
-      <div class="sideCard quickStatusCard">
-        <h3 data-i18n="quickStats">מצב מהיר</h3>
-        <div class="heroStatRow"><span data-i18n="statusLabel">סטטוס</span><b id="miniStatus" data-i18n="miniStatusDefault">אין פרויקט נבחר</b></div>
-        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">1.4.9 ↻</button></div>
-        <div class="heroStatRow"><span data-i18n="langLabel">שפה</span><b id="langValue">עברית</b></div>
       </div>
     <div class="sidebarResizer" id="sidebarResizer" role="separator" aria-orientation="vertical" aria-label="שינוי רוחב אזור הפרויקטים"></div>
   </aside>
@@ -616,7 +616,7 @@
         </div>
         <div class="editrow">
           <button class="act" id="settingsHelpOpen" data-i18n="titleHelp">עזרה</button>
-          <button class="act" id="settingsThemeOpen" data-i18n="titleTheme">תצוגה</button>
+          <button class="act" id="settingsThemeOpen" data-i18n="titleTheme">מצב בהיר / כהה</button>
           <button class="act" id="settingsModelOpen" data-i18n="titleModel">חיבור למודל</button>
           <button class="act" id="settingsGithubOpen" data-i18n="titleGithub">חיבור ל GitHub</button>
         </div>
@@ -1334,6 +1334,12 @@
         const name = action.tool === 'github.write_file' ? (uiLang==='en' ? 'Write file' : 'שינוי קובץ') : action.tool === 'github.apply_patch' ? (uiLang==='en' ? 'Patch file' : 'תיקון קובץ') : action.tool === 'github.update_version' ? (uiLang==='en' ? 'Update version' : 'עדכון גרסה') : action.tool === 'github.deploy' ? (uiLang==='en' ? 'Deploy' : 'פריסה') : action.tool === 'github.read_file' ? (uiLang==='en' ? 'Read file' : 'קריאת קובץ') : action.tool === 'github.create_pull_request' ? 'Pull Request' : (uiLang==='en' ? 'List files' : 'רשימת קבצים');
         row.textContent = `${name}${action.path ? ' · '+action.path : ''}${action.contentLength ? ' · '+action.contentLength+' chars' : ''}`;
         box.appendChild(row);
+        if(action.contentPreview){
+          const pre = document.createElement('pre');
+          pre.className = 'agentPlanDiff';
+          pre.textContent = action.contentPreview + (action.contentTruncated ? '\n… ' + (uiLang==='en' ? '(truncated)' : '(מקוצר)') : '');
+          box.appendChild(pre);
+        }
       });
       if(planId){
         const approve = document.createElement('button');

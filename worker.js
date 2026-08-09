@@ -329,6 +329,15 @@ function safeAgentBranch(value) {
   return branch;
 }
 
+// CI/workflow files can grant code-execution capability far beyond editing app source, so the
+// agent can never write them regardless of approval — this is checked both before a plan is
+// ever shown to the user (validateAgentPlan) and again right before the write executes
+// (executeAgentWritePlan), so no future code path can skip it.
+function isAgentBlockedWritePath(path) {
+  const normalized = String(path || '').toLowerCase();
+  return normalized === '.github' || normalized.startsWith('.github/');
+}
+
 function encodeBase64Utf8(value) {
   const bytes = new TextEncoder().encode(String(value));
   let binary = '';
@@ -379,13 +388,13 @@ Repository context (safe metadata only): ${repoText}
 Available tools:
 - github.list_files: read the repository file tree. Arguments: branch (optional).
 - github.read_file: read one text file. Arguments: path, branch (optional).
-- github.apply_patch: prepare a small unified diff for an existing text file. Arguments: path, patch, message, branch (optional). Prefer this for existing files.
+- github.apply_patch: prepare a small unified diff for an existing text file. Arguments: path, patch, message. Prefer this for existing files.
 - github.write_file: prepare a complete replacement for one new or small text file. Arguments: path, content, message.
 - github.create_pull_request: after file changes, request a Pull Request. Arguments: title, body, base (optional).
 - github.update_version: update the canonical project version files. Arguments: version, message (optional).
-- github.deploy: merge the approved Pull Request into the configured deployment branch. Arguments: branch, version.
+- github.deploy: merge the approved Pull Request into the configured deployment branch. This only merges the branch on GitHub — it does not by itself update the live site; a person must still run the project's deploy command afterward. Arguments: branch, version.
 
-Write actions are never executed immediately. They are shown to the user and require approval.
+All file writes always go to a new branch created for this change; you cannot target any other branch, including the live branch, directly. Write actions are never executed immediately. They are shown to the user and require approval.
 For any request involving a file or repository, do not claim that you completed it unless ON returns an execution result.
 If you need file contents, first return a read action. If read results are supplied in a later message, use them and then return the smallest complete plan.
 For an existing file, use github.apply_patch with the smallest focused diff instead of returning the entire file. Use github.write_file only for a new file or when a complete replacement is genuinely small.
@@ -412,6 +421,18 @@ If you want to change an existing file, return github.apply_patch with a small u
 If no tool is needed, return {"kind":"answer","reply":"...","actions":[]}.
 Do not say that you will read or change something; request the tool in actions instead.
 For a code change, include the source-file action, github.update_version, github.create_pull_request, and github.deploy in the same plan.
+Current user request:
+${String(requestContext || '').slice(0, 8000)}
+Previous response:
+${String(rawText || '').slice(0, 8000)}`;
+}
+
+// Used when the model's plan is valid JSON in the right shape but fails a contract rule (e.g.
+// a code change missing github.update_version/create_pull_request/deploy) — gives it one chance
+// to fix the specific problem instead of the request silently dying with no visible reason.
+function agentValidationRepairPrompt(rawText, error, requestContext) {
+  return `Your previous plan did not follow the ON TracK Agent contract: ${error}
+Return exactly one corrected JSON object with the same {"kind":"plan"|"answer","reply":"...","actions":[...]} shape, fixing only what the rule above requires. Keep the same intent. Do not narrate; return the corrected plan directly, with no Markdown fences.
 Current user request:
 ${String(requestContext || '').slice(0, 8000)}
 Previous response:
@@ -494,13 +515,15 @@ function validateAgentPlan(plan, githubConnected) {
       if (action.branch && !safeAgentBranch(action.branch)) return 'Invalid branch name.';
       continue;
     }
-    if (action.tool === 'github.read_file' || action.tool === 'github.write_file') {
+    if (action.tool === 'github.read_file') {
       if (!safeAgentPath(action.path)) return 'Invalid repository file path.';
       if (action.branch && !safeAgentBranch(action.branch)) return 'Invalid branch name.';
     }
-    if (action.tool === 'github.apply_patch') {
+    if (action.tool === 'github.write_file' || action.tool === 'github.apply_patch') {
       if (!safeAgentPath(action.path)) return 'Invalid repository file path.';
-      if (action.branch && !safeAgentBranch(action.branch)) return 'Invalid branch name.';
+      if (isAgentBlockedWritePath(safeAgentPath(action.path))) return 'This path cannot be modified by the agent.';
+    }
+    if (action.tool === 'github.apply_patch') {
       if (typeof action.patch !== 'string' || !action.patch.trim() || action.patch.length > 80000) return 'The proposed patch is missing or too large.';
       if (!String(action.message || '').trim() || String(action.message).length > 180) return 'The proposed commit message is missing or too long.';
       hasWrite = true;
@@ -540,20 +563,33 @@ function validateAgentPlan(plan, githubConnected) {
   return hasWrite ? null : null;
 }
 
+// A write/patch preview limit generous enough to cover the vast majority of the small, focused
+// diffs the agent is instructed to produce, while keeping the approval payload bounded.
+const AGENT_PLAN_PREVIEW_LIMIT = 8000;
+
 function publicAgentPlan(plan) {
   return {
     kind: plan.kind,
     reply: plan.reply,
-    actions: plan.actions.map(action => ({
-      tool: action.tool,
-      path: action.path || null,
-      branch: action.branch || null,
-      message: action.message || null,
-      title: action.title || null,
-      body: action.body ? String(action.body).slice(0, 1200) : null,
-      version: action.version || null,
-      contentLength: typeof action.content === 'string' ? action.content.length : (typeof action.patch === 'string' ? action.patch.length : null)
-    }))
+    actions: plan.actions.map(action => {
+      const raw = typeof action.content === 'string' ? action.content : (typeof action.patch === 'string' ? action.patch : null);
+      // write_file/apply_patch always write to the auto-created change branch (see
+      // executeAgentWritePlan) — any branch the model supplied for those is ignored, so it's
+      // omitted here rather than shown as if it had an effect.
+      const isWriteToChangeBranch = action.tool === 'github.write_file' || action.tool === 'github.apply_patch';
+      return {
+        tool: action.tool,
+        path: action.path || null,
+        branch: isWriteToChangeBranch ? null : (action.branch || null),
+        message: action.message || null,
+        title: action.title || null,
+        body: action.body ? String(action.body).slice(0, 1200) : null,
+        version: action.version || null,
+        contentLength: raw ? raw.length : null,
+        contentPreview: raw ? raw.slice(0, AGENT_PLAN_PREVIEW_LIMIT) : null,
+        contentTruncated: raw ? raw.length > AGENT_PLAN_PREVIEW_LIMIT : false
+      };
+    })
   };
 }
 
@@ -684,11 +720,14 @@ async function executeAgentWritePlan(config, plan, planId, env) {
     body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: baseRef.object.sha })
   });
   const files = [];
+  // Every write always targets the freshly created `branch`, never a model-supplied one — an
+  // action.branch override here would let an approved write land directly on any branch,
+  // including the live deploy branch, bypassing the whole new-branch/PR/deploy safety flow.
   for (const action of plan.actions.filter(item => item.tool === 'github.write_file' || item.tool === 'github.apply_patch')) {
     const path = safeAgentPath(action.path);
-    const ref = safeAgentBranch(action.branch) || branch;
+    if (isAgentBlockedWritePath(path)) throw new Error(`This path cannot be modified by the agent: ${path}`);
     let current = null;
-    try { current = await githubApi(config, `/contents/${githubPath(path)}?ref=${encodeURIComponent(ref)}`); }
+    try { current = await githubApi(config, `/contents/${githubPath(path)}?ref=${encodeURIComponent(branch)}`); }
     catch (e) { if (e.status !== 404) throw e; }
     let content = action.content;
     let actionName = 'updated';
@@ -697,7 +736,7 @@ async function executeAgentWritePlan(config, plan, planId, env) {
       content = applyUnifiedPatch(decodeBase64Utf8(current.content), action.patch);
       actionName = 'patched';
     }
-    const body = { message: String(action.message).trim(), content: encodeBase64Utf8(content), branch: ref };
+    const body = { message: String(action.message).trim(), content: encodeBase64Utf8(content), branch };
     if (current?.sha) body.sha = current.sha;
     const updated = await githubApi(config, `/contents/${githubPath(path)}`, { method: 'PUT', body: JSON.stringify(body) });
     files.push({ path, action: current?.sha ? actionName : 'created', commit: updated?.commit?.sha || null });
@@ -726,7 +765,10 @@ async function executeAgentWritePlan(config, plan, planId, env) {
       body: JSON.stringify({ merge_method: 'merge', commit_title: `Deploy ON TracK ${deployAction.version}` })
     });
     if (!merge?.merged) throw new Error(merge?.message || 'Pull Request was not merged; deployment did not start.');
-    deployment = { branch: deployBranch, version: deployAction.version, merged: true, commit: merge.sha || null };
+    deployment = {
+      branch: deployBranch, version: deployAction.version, merged: true, commit: merge.sha || null,
+      note: 'This merged the change into the branch on GitHub only. The live site is not updated automatically — a person must still run the project deploy command.'
+    };
   }
   return { branch, baseBranch, files, pullRequest, deployment };
 }
@@ -1410,10 +1452,24 @@ async function handleChat(request, env, uid) {
         }
       }
     }
-    const planError = plan ? validateAgentPlan(plan, githubReady) : null;
+    let planError = plan ? validateAgentPlan(plan, githubReady) : null;
+    // A structurally valid plan that breaks a contract rule (e.g. a write missing the
+    // required update_version/create_pull_request/deploy bundle) used to die silently here —
+    // the user saw only the model's own reply text with no sign anything was rejected. Give
+    // the model one chance to fix the specific rule before giving up.
+    if (planError && plan && plan.kind === 'plan') {
+      const repairedReply = await callModel(m, agentValidationRepairPrompt(rawReply, planError, prompt), 1600, null, systemPrompt);
+      const repairedPlan = inferAgentReadPlan(normalizeAgentPlan(repairedReply), repoContext);
+      if (repairedPlan) {
+        const repairedError = validateAgentPlan(repairedPlan, githubReady);
+        plan = repairedPlan;
+        rawReply = repairedReply;
+        planError = repairedError;
+      }
+    }
     if (planError) {
-      const reply = plan.reply || rawReply || 'Agent access is not enabled for this request.';
-      return chatJson(env, uid, { prompt, reply, imageAttached: !!imagePart }, { reply, agentAccessRequired: true });
+      const reply = (plan?.reply ? plan.reply + '\n\n' : '') + '⚠️ ' + planError;
+      return chatJson(env, uid, { prompt, reply, imageAttached: !!imagePart }, { reply, planError, agentAccessRequired: true });
     }
     if (plan && plan.kind === 'plan') {
       const publicPlan = publicAgentPlan(plan);

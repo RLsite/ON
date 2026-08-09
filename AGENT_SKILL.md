@@ -14,9 +14,10 @@ The Worker stores a separate approval for each Google account and the exact sele
 - `github.apply_patch` creates a proposed focused patch for an existing file.
 - `github.update_version` updates the project version in the canonical project files.
 - `github.create_pull_request` is proposed together with file changes.
-- `github.deploy` merges the approved Pull Request into the configured deployment branch.
+- `github.deploy` merges the approved Pull Request into the configured deployment branch. This is a GitHub-only, git-level merge — it does not call Cloudflare or start a deploy. The live site only picks up the change once a person separately runs the project's deploy command.
 - Write plans are stored for a short period and require explicit user approval.
-- Approved changes are written to a new `ontrack/agent-*` branch, never directly to the default branch.
+- Approved changes are written to a new `ontrack/agent-*` branch, never directly to the default branch — a proposed branch on the write action itself has no effect; the server always chooses it.
+- The agent can never write to `.github/*` (workflow files), regardless of approval, since those can grant code-execution capability far beyond editing application source.
 - The current ON live deployment branch is `claude/github-site-integration-fbb693`; use it as the default context branch instead of a stale repository default branch.
 - Changing the selected model invalidates the previous Agent approval until the user confirms the new destination.
 
@@ -34,7 +35,7 @@ The web UI can record a browser-selected local Skill folder as library metadata.
 2. Request file reads before proposing edits when file content is needed.
 3. For an existing file, propose a small `github.apply_patch` unified diff instead of returning the entire file. Use `github.write_file` only for a new or genuinely small file.
 4. Return exactly one JSON object. Do not narrate intentions with messages such as "I will read..." or "Reading..."; request the read tool in `actions`. After ON returns read results, answer the user's request or return the smallest next action plan; never repeat the same read request.
-5. Show the exact files and intended actions before any write.
+5. Show the exact files, intended actions, and a content/diff preview before any write.
 6. Require approval before creating a branch, commit, or Pull Request.
 7. For every code change, include version update, Pull Request, and deploy actions in the same plan.
 8. Report the GitHub result, branch, commit, Pull Request URL, and deployment branch after execution.
