@@ -926,7 +926,31 @@ function modelError(response, data) {
 // Shared provider call (OpenAI-compatible chat/completions, or Gemini generateContent).
 // Returns the raw text reply. Used by the cheap connection ping (testModel), the real chat
 // endpoint (handleChat), so there's one place that knows how to talk to each provider.
-async function callModel(m, prompt, maxTokens, imagePart, systemPrompt) {
+// One conservative retry on a transient capacity error (429/503/"rate limit"/"overloaded") —
+// a single busy provider response used to end the whole agent turn immediately, forcing the
+// user to notice and manually hit "refresh request" for what's often a one-second blip.
+// This function is called several times in sequence within one /api/chat request (initial
+// attempt, repairs, read follow-ups) — up to 6 in the worst case — so retrying independently
+// at every call site could stack multiple 1200ms delays plus duplicated full generations onto
+// one already-slow, non-streamed request. Callers that make several calls in one request (see
+// handleChat) should share one `retryBudget = { used: false }` object across all of them, so
+// at most ONE retry happens for the whole request, not one per call. A caller that never
+// passes a budget (e.g. the single-shot connection-test ping) still gets its own retry.
+async function callModel(m, prompt, maxTokens, imagePart, systemPrompt, retryBudget) {
+  try {
+    return await callModelOnce(m, prompt, maxTokens, imagePart, systemPrompt);
+  } catch (e) {
+    if (!e.capacity) throw e;
+    if (retryBudget) {
+      if (retryBudget.used) throw e;
+      retryBudget.used = true;
+    }
+    await new Promise(resolve => setTimeout(resolve, 1200));
+    return await callModelOnce(m, prompt, maxTokens, imagePart, systemPrompt);
+  }
+}
+
+async function callModelOnce(m, prompt, maxTokens, imagePart, systemPrompt) {
   const keyError = modelKeyError(m.apiKey);
   if (keyError) throw new Error(keyError);
   if (m.provider === 'openai') {
@@ -1393,6 +1417,11 @@ async function handleChat(request, env, uid) {
   if (!m.apiKey) return chatJson(env, uid, { prompt, error: 'No API key is configured for the selected model.', imageAttached: !!imagePart }, { error: 'No API key is configured for the selected model.' }, 400);
   const keyError = modelKeyError(m.apiKey);
   if (keyError) return chatJson(env, uid, { prompt, error: keyError, imageAttached: !!imagePart }, { error: keyError }, 400);
+  // Shared across every callModel() call in the try block below so a capacity error retries at
+  // most ONCE for this whole request, not once per call — this request can chain up to 6 model
+  // calls. Declared outside the try block so the catch below can tell whether that one retry
+  // was already spent, to give an accurate error message instead of implying no retry happened.
+  const retryBudget = { used: false };
   try {
     const consent = await loadAgentConsent(env, uid);
     const github = await loadGithubConfig(env, uid);
@@ -1404,13 +1433,13 @@ async function handleChat(request, env, uid) {
     }
     const githubReady = !!(consentMatchesModel && hasGithubFields && repoContext);
     const systemPrompt = agentSystemPrompt(githubReady, repoContext, consentMatchesModel);
-    let rawReply = await callModel(m, prompt, 2600, imagePart, systemPrompt);
+    let rawReply = await callModel(m, prompt, 2600, imagePart, systemPrompt, retryBudget);
     let plan = inferAgentReadPlan(normalizeAgentPlan(rawReply), repoContext);
     if (!plan) {
       // Give the repair at least as much room as the original attempt — a code-change plan's
       // repaired JSON (full patch + reply + up to 4 bundled actions) is not smaller than the
       // first try, and a tighter budget here risks silently truncating the corrected JSON.
-      const repairedReply = await callModel(m, agentRepairPrompt(rawReply, prompt), 2600, null, systemPrompt);
+      const repairedReply = await callModel(m, agentRepairPrompt(rawReply, prompt), 2600, null, systemPrompt, retryBudget);
       plan = inferAgentReadPlan(normalizeAgentPlan(repairedReply), repoContext);
       if (plan) rawReply = repairedReply;
     }
@@ -1423,15 +1452,15 @@ async function handleChat(request, env, uid) {
       const readActions = plan.actions.filter(action => action.tool === 'github.list_files' || action.tool === 'github.read_file');
       if (readActions.length && repoContext) {
         readResults = await executeAgentReadActions(github, readActions, repoContext.defaultBranch);
-        let followReply = await callModel(m, agentToolResultsPrompt(readResults, prompt), 5000, null, systemPrompt);
+        let followReply = await callModel(m, agentToolResultsPrompt(readResults, prompt), 5000, null, systemPrompt, retryBudget);
         let followPlan = inferAgentReadPlan(normalizeAgentPlan(followReply), repoContext);
         if (!followPlan) {
-          const repairedFollowReply = await callModel(m, agentReadResultsRepairPrompt(followReply, readResults, prompt), 2000, null, systemPrompt);
+          const repairedFollowReply = await callModel(m, agentReadResultsRepairPrompt(followReply, readResults, prompt), 2000, null, systemPrompt, retryBudget);
           followPlan = inferAgentReadPlan(normalizeAgentPlan(repairedFollowReply), repoContext);
           if (followPlan) followReply = repairedFollowReply;
         }
         if (isReadOnlyAgentPlan(followPlan)) {
-          const repeatedReadReply = await callModel(m, agentReadResultsRepairPrompt(followReply, readResults, prompt), 2000, null, systemPrompt);
+          const repeatedReadReply = await callModel(m, agentReadResultsRepairPrompt(followReply, readResults, prompt), 2000, null, systemPrompt, retryBudget);
           const repeatedPlan = inferAgentReadPlan(normalizeAgentPlan(repeatedReadReply), repoContext);
           if (repeatedPlan && !isReadOnlyAgentPlan(repeatedPlan)) {
             followPlan = repeatedPlan;
@@ -1464,7 +1493,7 @@ async function handleChat(request, env, uid) {
       // Same reasoning as the JSON-shape repair above: a code-change repair still has to carry
       // a full patch/content plus all four bundled actions, so it needs at least as much room
       // as the original attempt, not less.
-      const repairedReply = await callModel(m, agentValidationRepairPrompt(rawReply, planError, prompt), 2600, null, systemPrompt);
+      const repairedReply = await callModel(m, agentValidationRepairPrompt(rawReply, planError, prompt), 2600, null, systemPrompt, retryBudget);
       const repairedPlan = inferAgentReadPlan(normalizeAgentPlan(repairedReply), repoContext);
       if (repairedPlan) {
         const repairedError = validateAgentPlan(repairedPlan, githubReady);
@@ -1498,7 +1527,9 @@ async function handleChat(request, env, uid) {
     return chatJson(env, uid, { prompt, reply, imageAttached: !!imagePart }, { reply });
   } catch (e) {
     const message = e.capacity
-      ? 'The selected model is temporarily busy or has reached its request capacity. Please wait a few seconds and refresh this request.'
+      ? (retryBudget.used
+          ? 'The selected model is still busy after an automatic retry. Please wait a bit longer before trying again — retrying immediately is unlikely to help.'
+          : 'The selected model is temporarily busy or has reached its request capacity. Please wait a few seconds and refresh this request.')
       : (e.message || 'The model request failed.');
     return chatJson(env, uid, { prompt, error: message, imageAttached: !!imagePart }, { error: message, retryable: !!e.capacity }, 502);
   }
