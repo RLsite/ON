@@ -1,12 +1,13 @@
 # ON TracK Project Info
 
-Version: `1.4.7`
-Status: `Per-user Agent consent is stored server-side and bound to the selected model; Agent changes now have an approval-gated version, PR, and deployment contract.`
+Version: `1.4.8`
+Status: `Agent read requests now complete with a final answer or action plan; malformed model output and temporary model capacity errors are handled explicitly.`
 
 ## Goal
 Build a web-first workspace where a chosen model can understand a project, connect to repositories, and perform approved actions in a controlled flow.
 
 ## Done
+- Hardened the Agent read round-trip for Nemotron: JSON extraction now tolerates surrounding text, read results are included in the repair prompt, repeated read narration is not shown as a final answer, and plain model replies after a successful read are returned to the user instead of being replaced by the stale "I will read..." message. Model response content arrays are also normalized, while temporary capacity errors receive a clear retryable message.
 - Removed the opening hero card so the workspace focuses on project selection, model requests, and the message history. Reversed the chat history so the newest message is at the top and the oldest is at the bottom, with an `x` delete action on every message.
 - Removed seeded demo projects, libraries, chat messages, and starter project state. New accounts now start empty, while a one-time Worker migration removes only the known old demo records and preserves user-created records.
 - Reworked the Projects panel into a compact workflow: a small `+` button opens the create editor, clicking a project name opens it, and each project row has a `⋯` menu with edit, rename, and delete actions. The editor reuses the existing per-user workspace endpoints, supports Hebrew/English labels, and stays closed until an action is chosen.

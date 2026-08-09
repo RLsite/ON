@@ -438,14 +438,44 @@ function inferAgentReadPlan(plan, repoContext) {
 
 function normalizeAgentPlan(rawText) {
   const source = String(rawText || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
-  const start = source.indexOf('{');
-  const end = source.lastIndexOf('}');
-  if (start < 0 || end <= start) return null;
-  let parsed;
-  try { parsed = JSON.parse(source.slice(start, end + 1)); } catch { return null; }
-  if (!parsed || !['answer', 'plan'].includes(parsed.kind)) return null;
-  const actions = Array.isArray(parsed.actions) ? parsed.actions.slice(0, 6).map(action => ({ ...action, tool: String(action.tool || '') })) : [];
-  return { kind: parsed.kind, reply: String(parsed.reply || '').slice(0, 6000), actions };
+  const candidates = [];
+  for (let start = 0; start < source.length; start += 1) {
+    if (source[start] !== '{') continue;
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    for (let i = start; i < source.length; i += 1) {
+      const char = source[i];
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (char === '\\') escaped = true;
+        else if (char === '"') inString = false;
+        continue;
+      }
+      if (char === '"') { inString = true; continue; }
+      if (char === '{') depth += 1;
+      if (char === '}') {
+        depth -= 1;
+        if (depth === 0) {
+          candidates.push(source.slice(start, i + 1));
+          break;
+        }
+      }
+    }
+  }
+  for (const candidate of candidates) {
+    let parsed;
+    try { parsed = JSON.parse(candidate); } catch { continue; }
+    if (!parsed || !['answer', 'plan'].includes(parsed.kind)) continue;
+    const actions = Array.isArray(parsed.actions) ? parsed.actions.slice(0, 8).map(action => ({ ...action, tool: String(action.tool || '') })) : [];
+    return { kind: parsed.kind, reply: String(parsed.reply || '').slice(0, 6000), actions };
+  }
+  return null;
+}
+
+function isReadOnlyAgentPlan(plan) {
+  return !!(plan && plan.kind === 'plan' && Array.isArray(plan.actions) && plan.actions.length &&
+    plan.actions.every(action => action.tool === 'github.list_files' || action.tool === 'github.read_file'));
 }
 
 function validateAgentPlan(plan, githubConnected) {
@@ -591,7 +621,11 @@ async function executeAgentReadActions(config, actions, defaultBranch) {
 }
 
 function agentToolResultsPrompt(results, requestContext) {
-  return `ON executed these read-only GitHub tools. Use only these results; do not claim other access. Keep the original request in mind and return the final JSON plan now.\nOriginal user request:\n${String(requestContext || '').slice(0, 8000)}\nRead results:\n${JSON.stringify(results).slice(0, 70000)}`;
+  return `ON already executed the read-only GitHub tools below. Use only these results; do not request the same files again. Keep the original request in mind and return the final JSON plan now. If the request needs a code change, return the smallest apply_patch/write_file plan plus update_version, create_pull_request, and deploy. If no change is needed, return a useful answer. Never return future-tense narration such as "I will read".\nOriginal user request:\n${String(requestContext || '').slice(0, 8000)}\nRead results:\n${JSON.stringify(results).slice(0, 70000)}`;
+}
+
+function agentReadResultsRepairPrompt(rawText, results, requestContext) {
+  return `Your previous response did not follow the ON TracK Agent contract. The files have already been read, so do not request another read and do not narrate intentions. Return exactly one JSON object now: either an answer with a useful response, or a plan for the requested change. For a code change, include a source-file action, github.update_version, github.create_pull_request, and github.deploy. Use only the read results below.\nOriginal user request:\n${String(requestContext || '').slice(0, 8000)}\nPrevious response:\n${String(rawText || '').slice(0, 8000)}\nRead results:\n${JSON.stringify(results).slice(0, 70000)}`;
 }
 
 const LIVE_DEPLOY_BRANCH = 'claude/github-site-integration-fbb693';
@@ -834,6 +868,19 @@ function publicModels(cfg) {
   };
 }
 
+function modelTextContent(value) {
+  if (Array.isArray(value)) return value.map(part => typeof part === 'string' ? part : (part?.text || '')).join('');
+  return typeof value === 'string' ? value : '';
+}
+
+function modelError(response, data) {
+  const detail = data?.error?.message || data?.message || `HTTP ${response.status}`;
+  const error = new Error(String(detail).slice(0, 800));
+  error.status = response.status;
+  error.capacity = response.status === 429 || response.status === 503 || /resourceexhausted|capacity|rate.?limit|overloaded/i.test(error.message);
+  return error;
+}
+
 // Shared provider call (OpenAI-compatible chat/completions, or Gemini generateContent).
 // Returns the raw text reply. Used by the cheap connection ping (testModel), the real chat
 // endpoint (handleChat), so there's one place that knows how to talk to each provider.
@@ -853,8 +900,8 @@ async function callModel(m, prompt, maxTokens, imagePart, systemPrompt) {
       body: JSON.stringify({ model: m.model, messages, max_tokens: maxTokens })
     });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
-    return (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '';
+    if (!r.ok) throw modelError(r, j);
+    return modelTextContent(j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content);
   }
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${m.model}:generateContent?key=${encodeURIComponent(m.apiKey)}`;
   const parts = [{ text: prompt }];
@@ -864,9 +911,9 @@ async function callModel(m, prompt, maxTokens, imagePart, systemPrompt) {
   const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload) });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
-  return (j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts &&
-    j.candidates[0].content.parts[0] && j.candidates[0].content.parts[0].text) || '';
+  if (!r.ok) throw modelError(r, j);
+  const responseParts = j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts;
+  return modelTextContent(responseParts);
 }
 
 // Real minimal ping to the provider so "connected" means the key actually works, not just
@@ -1315,10 +1362,10 @@ async function handleChat(request, env, uid) {
     }
     const githubReady = !!(consentMatchesModel && hasGithubFields && repoContext);
     const systemPrompt = agentSystemPrompt(githubReady, repoContext, consentMatchesModel);
-    let rawReply = await callModel(m, prompt, 1800, imagePart, systemPrompt);
+    let rawReply = await callModel(m, prompt, 2600, imagePart, systemPrompt);
     let plan = inferAgentReadPlan(normalizeAgentPlan(rawReply), repoContext);
     if (!plan) {
-      const repairedReply = await callModel(m, agentRepairPrompt(rawReply, prompt), 1200, null, systemPrompt);
+      const repairedReply = await callModel(m, agentRepairPrompt(rawReply, prompt), 1600, null, systemPrompt);
       plan = inferAgentReadPlan(normalizeAgentPlan(repairedReply), repoContext);
       if (plan) rawReply = repairedReply;
     }
@@ -1331,18 +1378,35 @@ async function handleChat(request, env, uid) {
       const readActions = plan.actions.filter(action => action.tool === 'github.list_files' || action.tool === 'github.read_file');
       if (readActions.length && repoContext) {
         readResults = await executeAgentReadActions(github, readActions, repoContext.defaultBranch);
-        let followReply = await callModel(m, agentToolResultsPrompt(readResults, prompt), 3200, null, systemPrompt);
+        let followReply = await callModel(m, agentToolResultsPrompt(readResults, prompt), 5000, null, systemPrompt);
         let followPlan = inferAgentReadPlan(normalizeAgentPlan(followReply), repoContext);
         if (!followPlan) {
-          const repairedFollowReply = await callModel(m, agentRepairPrompt(followReply, prompt), 1200, null, systemPrompt);
+          const repairedFollowReply = await callModel(m, agentReadResultsRepairPrompt(followReply, readResults, prompt), 2000, null, systemPrompt);
           followPlan = inferAgentReadPlan(normalizeAgentPlan(repairedFollowReply), repoContext);
           if (followPlan) followReply = repairedFollowReply;
+        }
+        if (isReadOnlyAgentPlan(followPlan)) {
+          const repeatedReadReply = await callModel(m, agentReadResultsRepairPrompt(followReply, readResults, prompt), 2000, null, systemPrompt);
+          const repeatedPlan = inferAgentReadPlan(normalizeAgentPlan(repeatedReadReply), repoContext);
+          if (repeatedPlan && !isReadOnlyAgentPlan(repeatedPlan)) {
+            followPlan = repeatedPlan;
+            followReply = repeatedPlan ? repeatedReadReply : followReply;
+          } else if (String(repeatedReadReply || '').trim()) {
+            followPlan = { kind: 'answer', reply: String(repeatedReadReply).trim(), actions: [] };
+            followReply = repeatedReadReply;
+          }
         }
         if (followPlan) {
           rawReply = followReply;
           plan = followPlan;
+        } else if (String(followReply || '').trim()) {
+          // Never fall back to the stale "I will read..." plan after the model
+          // has received the file contents. Return its plain answer instead.
+          rawReply = String(followReply).trim();
+          plan = { kind: 'answer', reply: rawReply, actions: [] };
         } else {
-          rawReply = followReply || rawReply;
+          rawReply = 'The model did not return a final answer after reading the requested files. Please refresh the request.';
+          plan = { kind: 'answer', reply: rawReply, actions: [] };
         }
       }
     }
@@ -1366,7 +1430,10 @@ async function handleChat(request, env, uid) {
     const reply = plan?.reply || rawReply || '(empty model response)';
     return chatJson(env, uid, { prompt, reply, imageAttached: !!imagePart }, { reply });
   } catch (e) {
-    return chatJson(env, uid, { prompt, error: e.message, imageAttached: !!imagePart }, { error: e.message }, 502);
+    const message = e.capacity
+      ? 'The selected model is temporarily busy or has reached its request capacity. Please wait a few seconds and refresh this request.'
+      : (e.message || 'The model request failed.');
+    return chatJson(env, uid, { prompt, error: message, imageAttached: !!imagePart }, { error: message, retryable: !!e.capacity }, 502);
   }
 }
 

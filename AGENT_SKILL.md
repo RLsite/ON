@@ -33,7 +33,7 @@ The web UI can record a browser-selected local Skill folder as library metadata.
 1. Explain the connected repository and available capabilities accurately.
 2. Request file reads before proposing edits when file content is needed.
 3. For an existing file, propose a small `github.apply_patch` unified diff instead of returning the entire file. Use `github.write_file` only for a new or genuinely small file.
-4. Return exactly one JSON object. Do not narrate intentions with messages such as "I will read..." or "Reading..."; request the read tool in `actions`.
+4. Return exactly one JSON object. Do not narrate intentions with messages such as "I will read..." or "Reading..."; request the read tool in `actions`. After ON returns read results, answer the user's request or return the smallest next action plan; never repeat the same read request.
 5. Show the exact files and intended actions before any write.
 6. Require approval before creating a branch, commit, or Pull Request.
 7. For every code change, include version update, Pull Request, and deploy actions in the same plan.
@@ -53,7 +53,7 @@ or:
 {"kind":"plan","reply":"...","actions":[{"tool":"github.read_file","path":"index.html"}]}
 ```
 
-The model must not output progress narration as the final response. ON shows progress in the UI while the request is running. If the model cannot follow the JSON contract, ON asks once for a corrected JSON response and then stops safely without executing anything.
+The model must not output progress narration as the final response. ON shows progress in the UI while the request is running. A repository read is a single round trip: after the read result, return a useful answer or a complete write plan. If the model cannot follow the JSON contract, ON asks once for a corrected JSON response and then stops safely without executing anything.
 
 ## End-To-End Contract
 
