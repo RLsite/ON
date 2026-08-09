@@ -1,12 +1,13 @@
 # ON TracK Project Info
 
-Version: `1.4.8`
+Version: `1.4.9`
 Status: `Agent read requests now complete with a final answer or action plan; malformed model output and temporary model capacity errors are handled explicitly.`
 
 ## Goal
 Build a web-first workspace where a chosen model can understand a project, connect to repositories, and perform approved actions in a controlled flow.
 
 ## Done
+- Fixed Agent context selection so repository files and `AGENT_SKILL.md` are read from the configured live deployment branch (`claude/github-site-integration-fbb693`) instead of silently falling back to a stale GitHub default branch.
 - Hardened the Agent read round-trip for Nemotron: JSON extraction now tolerates surrounding text, read results are included in the repair prompt, repeated read narration is not shown as a final answer, and plain model replies after a successful read are returned to the user instead of being replaced by the stale "I will read..." message. Model response content arrays are also normalized, while temporary capacity errors receive a clear retryable message.
 - Removed the opening hero card so the workspace focuses on project selection, model requests, and the message history. Reversed the chat history so the newest message is at the top and the oldest is at the bottom, with an `x` delete action on every message.
 - Removed seeded demo projects, libraries, chat messages, and starter project state. New accounts now start empty, while a one-time Worker migration removes only the known old demo records and preserves user-created records.

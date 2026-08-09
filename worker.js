@@ -342,9 +342,9 @@ function decodeBase64Utf8(value) {
   return new TextDecoder().decode(bytes);
 }
 
-async function loadAgentRepoContext(config) {
+async function loadAgentRepoContext(config, preferredBranch) {
   const repo = await githubApi(config);
-  const defaultBranch = repo.default_branch || 'main';
+  const defaultBranch = safeAgentBranch(preferredBranch) || repo.default_branch || 'main';
   let paths = [];
   try {
     const tree = await githubApi(config, `/git/trees/${encodeURIComponent(defaultBranch)}?recursive=1`);
@@ -1358,7 +1358,7 @@ async function handleChat(request, env, uid) {
     const consentMatchesModel = !!(consent.enabled && consent.modelId === m.id && consent.scopes.includes('repo_metadata'));
     let repoContext = null;
     if (consentMatchesModel && hasGithubFields) {
-      try { repoContext = await loadAgentRepoContext(github); } catch {}
+      try { repoContext = await loadAgentRepoContext(github, LIVE_DEPLOY_BRANCH); } catch {}
     }
     const githubReady = !!(consentMatchesModel && hasGithubFields && repoContext);
     const systemPrompt = agentSystemPrompt(githubReady, repoContext, consentMatchesModel);

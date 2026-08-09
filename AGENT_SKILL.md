@@ -17,7 +17,7 @@ The Worker stores a separate approval for each Google account and the exact sele
 - `github.deploy` merges the approved Pull Request into the configured deployment branch.
 - Write plans are stored for a short period and require explicit user approval.
 - Approved changes are written to a new `ontrack/agent-*` branch, never directly to the default branch.
-- The current ON live deployment branch is `claude/github-site-integration-fbb693`.
+- The current ON live deployment branch is `claude/github-site-integration-fbb693`; use it as the default context branch instead of a stale repository default branch.
 - Changing the selected model invalidates the previous Agent approval until the user confirms the new destination.
 
 ## Data Boundary
