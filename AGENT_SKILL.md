@@ -57,10 +57,11 @@ almost certainly lives in `.newShell`, not `.oldApp`.
 2. Request file reads before proposing edits when file content is needed.
 3. For an existing file, propose a small `github.apply_patch` unified diff instead of returning the entire file. Use `github.write_file` only for a new or genuinely small file.
 4. Return exactly one JSON object. Do not narrate intentions with messages such as "I will read..." or "Reading..."; request the read tool in `actions`. After ON returns read results, answer the user's request or return the smallest next action plan; never repeat the same read request.
-5. Show the exact files, intended actions, and a content/diff preview before any write.
-6. Require approval before creating a branch, commit, or Pull Request.
-7. For every code change, include version update, Pull Request, and deploy actions in the same plan.
-8. Report the GitHub result, branch, commit, Pull Request URL, and deployment branch after execution.
+5. Never say a change is done, made, applied, or complete in `reply` unless the write/patch action that makes it is actually present in that same response's `actions` array. This has happened for real: after reading a file, the model described a change in plain text and said it was finished, with no action, no approval card, and nothing ever written to GitHub. Explaining what the change would be is not the same as proposing it — if a change is warranted, propose it as an action; do not describe it as already done.
+6. Show the exact files, intended actions, and a content/diff preview before any write.
+7. Require approval before creating a branch, commit, or Pull Request.
+8. For every code change, include version update, Pull Request, and deploy actions in the same plan.
+9. Report the GitHub result, branch, commit, Pull Request URL, and deployment branch after execution.
 
 ## Anti-Stall Contract
 

@@ -395,7 +395,7 @@ Available tools:
 - github.deploy: merge the approved Pull Request into the configured deployment branch. This only merges the branch on GitHub — it does not by itself update the live site; a person must still run the project's deploy command afterward. Arguments: branch, version.
 
 All file writes always go to a new branch created for this change; you cannot target any other branch, including the live branch, directly. Write actions are never executed immediately. They are shown to the user and require approval.
-For any request involving a file or repository, do not claim that you completed it unless ON returns an execution result.
+For any request involving a file or repository, do not claim that you completed it unless ON returns an execution result. This applies even to an "answer"-kind reply: never say a change is done, made, applied, or complete in "reply" unless the write/patch action that makes it is actually present in this same response's "actions" array — describing a change in words instead of proposing it as an action is the exact false-completion failure this rule exists to prevent, with no exception for changes that seem small or obvious.
 If you need file contents, first return a read action. If read results are supplied in a later message, use them and then return the smallest complete plan.
 For an existing file, use github.apply_patch with the smallest focused diff instead of returning the entire file. Use github.write_file only for a new file or when a complete replacement is genuinely small.
 Do not narrate intentions as if they were actions. Never answer with phrases such as "I'll read...", "I will update...", or "Reading...". Request the tool in the JSON plan instead.
@@ -657,7 +657,7 @@ async function executeAgentReadActions(config, actions, defaultBranch) {
 }
 
 function agentToolResultsPrompt(results, requestContext) {
-  return `ON already executed the read-only GitHub tools below. Use only these results; do not request the same files again. Keep the original request in mind and return the final JSON plan now. If the request needs a code change, return the smallest apply_patch/write_file plan plus update_version, create_pull_request, and deploy. If no change is needed, return a useful answer. Never return future-tense narration such as "I will read".\nOriginal user request:\n${String(requestContext || '').slice(0, 8000)}\nRead results:\n${JSON.stringify(results).slice(0, 70000)}`;
+  return `ON already executed the read-only GitHub tools below. Use only these results; do not request the same files again. Keep the original request in mind and return the final JSON plan now. If the request needs a code change, return the smallest apply_patch/write_file plan plus update_version, create_pull_request, and deploy — in this exact response, as actions in the JSON, not described in words. If no change is needed, return a useful answer. Never return future-tense narration such as "I will read". Never say a change is done, made, applied, or complete in "reply" unless this same response's "actions" array actually contains the write/patch action that makes it — describing the change instead of including it as an action is exactly the false-completion behavior that must never happen, with no exception for small or obvious changes.\nOriginal user request:\n${String(requestContext || '').slice(0, 8000)}\nRead results:\n${JSON.stringify(results).slice(0, 70000)}`;
 }
 
 function agentReadResultsRepairPrompt(rawText, results, requestContext) {
