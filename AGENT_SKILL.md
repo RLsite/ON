@@ -29,6 +29,28 @@ The GitHub token stays in the Cloudflare Worker. Repository metadata or file con
 
 The web UI can record a browser-selected local Skill folder as library metadata. A live Worker cannot read `C:\` paths. Actual Skill file loading requires a local Agent that runs on the user's computer and sends only the approved Skill content to the selected model.
 
+## index.html contains a dead legacy shell — do not edit it
+
+`index.html` has two visually similar sections with overlapping class names, and only one of
+them is ever shown to a user:
+
+- The live UI is `<div class="newShell">` (search for that exact string first). Its sidebar is
+  `.newSidebar`, and its brand mark is inside `.newSidebar`'s own `.railBrand`
+  (`<div class="brandMark"><img id="brandLogo"></div>`).
+- `<div class="oldApp">` is a separate, older container elsewhere in the file, hidden with
+  `.oldApp{display:none}` in the stylesheet — it is never visible to any user, on any device, in
+  any state. It happens to contain its *own* similarly-named elements (its own `.railBrand`,
+  `.brandMark`, `.sideRail`, `.topDock`, `.dockActions`) left over from an earlier version of the
+  UI. This has already caused a real failure: a plan that patched `.oldApp`'s copy of these
+  elements was syntactically valid and passed every check, but changed nothing a user could see,
+  because it targeted dead markup.
+
+Before proposing any `github.write_file`/`github.apply_patch` for `index.html`, confirm the
+element you are changing is inside `.newShell` and not inside `.oldApp` — read enough
+surrounding context in the file to be sure which container an element belongs to; matching class
+name alone is not enough. If a task is about something the user can currently see, the element
+almost certainly lives in `.newShell`, not `.oldApp`.
+
 ## Required Behavior
 
 1. Explain the connected repository and available capabilities accurately.
