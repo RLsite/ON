@@ -707,18 +707,32 @@ async function updateProjectVersion(config, branch, version, message) {
   return files;
 }
 
+// githubApi() throws GitHub's own error text (e.g. "Resource not accessible by personal access
+// token") with no indication of which of the ~5 distinct GitHub calls in a write plan produced
+// it — branch creation, a file write, the version bump, opening the PR, and merging each need
+// different token permissions, so knowing WHICH one failed is the difference between a useless
+// generic error and one the user can actually act on (e.g. "the PAT needs Pull requests: write").
+async function withStage(label, fn) {
+  try {
+    return await fn();
+  } catch (e) {
+    e.message = `Failed while ${label}: ${e.message}`;
+    throw e;
+  }
+}
+
 async function executeAgentWritePlan(config, plan, planId, env) {
-  const repo = await githubApi(config);
+  const repo = await withStage('reading the repository', () => githubApi(config));
   const pullAction = plan.actions.find(item => item.tool === 'github.create_pull_request');
   const deployAction = plan.actions.find(item => item.tool === 'github.deploy');
   const deployBranch = safeAgentBranch(deployAction?.branch) || safeAgentBranch(env?.DEPLOY_BRANCH) || LIVE_DEPLOY_BRANCH;
   const baseBranch = safeAgentBranch(pullAction?.base) || deployBranch || repo.default_branch || 'main';
-  const baseRef = await githubApi(config, `/git/ref/heads/${encodeURIComponent(baseBranch)}`);
+  const baseRef = await withStage('reading the base branch', () => githubApi(config, `/git/ref/heads/${encodeURIComponent(baseBranch)}`));
   const branch = `ontrack/agent-${String(planId).replace(/[^a-zA-Z0-9-]/g, '').slice(0, 18)}`;
-  await githubApi(config, '/git/refs', {
+  await withStage('creating the change branch', () => githubApi(config, '/git/refs', {
     method: 'POST',
     body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: baseRef.object.sha })
-  });
+  }));
   const files = [];
   // Every write always targets the freshly created `branch`, never a model-supplied one — an
   // action.branch override here would let an approved write land directly on any branch,
@@ -738,14 +752,14 @@ async function executeAgentWritePlan(config, plan, planId, env) {
     }
     const body = { message: String(action.message).trim(), content: encodeBase64Utf8(content), branch };
     if (current?.sha) body.sha = current.sha;
-    const updated = await githubApi(config, `/contents/${githubPath(path)}`, { method: 'PUT', body: JSON.stringify(body) });
+    const updated = await withStage(`writing ${path}`, () => githubApi(config, `/contents/${githubPath(path)}`, { method: 'PUT', body: JSON.stringify(body) }));
     files.push({ path, action: current?.sha ? actionName : 'created', commit: updated?.commit?.sha || null });
   }
   const versionAction = plan.actions.find(item => item.tool === 'github.update_version');
-  if (versionAction) files.push(...await updateProjectVersion(config, branch, String(versionAction.version).trim(), versionAction.message));
+  if (versionAction) files.push(...await withStage('updating the version files', () => updateProjectVersion(config, branch, String(versionAction.version).trim(), versionAction.message)));
   let pullRequest = null;
   if (pullAction) {
-    const pr = await githubApi(config, '/pulls', {
+    const pr = await withStage('creating the Pull Request', () => githubApi(config, '/pulls', {
       method: 'POST',
       body: JSON.stringify({
         title: String(pullAction.title).trim(),
@@ -753,17 +767,17 @@ async function executeAgentWritePlan(config, plan, planId, env) {
         head: branch,
         base: safeAgentBranch(pullAction.base) || baseBranch
       })
-    });
+    }));
     pullRequest = { number: pr.number, url: pr.html_url, title: pr.title };
   }
   let deployment = null;
   if (deployAction) {
     if (!pullRequest?.number) throw new Error('Deployment requires a created Pull Request.');
     if (deployBranch !== baseBranch) throw new Error('Deployment branch and Pull Request base do not match.');
-    const merge = await githubApi(config, `/pulls/${pullRequest.number}/merge`, {
+    const merge = await withStage('merging the Pull Request', () => githubApi(config, `/pulls/${pullRequest.number}/merge`, {
       method: 'PUT',
       body: JSON.stringify({ merge_method: 'merge', commit_title: `Deploy ON TracK ${deployAction.version}` })
-    });
+    }));
     if (!merge?.merged) throw new Error(merge?.message || 'Pull Request was not merged; deployment did not start.');
     deployment = {
       branch: deployBranch, version: deployAction.version, merged: true, commit: merge.sha || null,
