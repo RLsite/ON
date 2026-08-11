@@ -185,9 +185,79 @@ function ghHeaders(config) {
   return headers;
 }
 
+function githubTokenType(token) {
+  if (/^github_pat_/i.test(String(token || ''))) return 'fine-grained';
+  if (/^ghp_/i.test(String(token || ''))) return 'classic';
+  return token ? 'unknown' : 'none';
+}
+
+async function githubWritePermissionStatus(config, repo) {
+  const result = {
+    writeChecked: true,
+    writeAccess: false,
+    contentsWrite: false,
+    pullRequestsWrite: false,
+    tokenType: githubTokenType(config.token),
+    writeError: null
+  };
+  if (!config.token) {
+    result.writeError = 'A GitHub token is required for repository changes.';
+    return result;
+  }
+  const branch = String(repo?.default_branch || '').trim();
+  if (!branch) {
+    result.writeChecked = false;
+    result.writeError = 'GitHub did not return a default branch for the repository.';
+    return result;
+  }
+  const headers = ghHeaders(config);
+  const repoUrl = `https://api.github.com/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}`;
+  const branchPath = branch.split('/').map(encodeURIComponent).join('/');
+  try {
+    const refResponse = await fetch(`${repoUrl}/git/ref/heads/${branchPath}`, { headers });
+    const ref = await refResponse.json().catch(() => ({}));
+    if (!refResponse.ok || !ref?.object?.sha) {
+      result.writeChecked = false;
+      result.writeError = ref.message || `Could not read the default branch (${refResponse.status}).`;
+      return result;
+    }
+
+    // Both probes are deliberately impossible to complete: the ref already exists and the PR
+    // head does not exist. GitHub returns 422 only after the token passes the endpoint's write
+    // permission gate, while a read-only fine-grained PAT returns 403. No repository state changes.
+    const refProbe = await fetch(`${repoUrl}/git/refs`, {
+      method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: ref.object.sha })
+    });
+    result.contentsWrite = refProbe.status === 422;
+
+    const pullProbe = await fetch(`${repoUrl}/pulls`, {
+      method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'ON TracK permission probe',
+        head: `ontrack-permission-probe-${crypto.randomUUID()}`,
+        base: branch
+      })
+    });
+    result.pullRequestsWrite = pullProbe.status === 422;
+    result.writeAccess = result.contentsWrite && result.pullRequestsWrite;
+    if (!result.writeAccess) {
+      const missing = [];
+      if (!result.contentsWrite) missing.push('Contents: Read and write');
+      if (!result.pullRequestsWrite) missing.push('Pull requests: Read and write');
+      result.writeError = `The token is missing effective permission: ${missing.join(', ')}.`;
+    }
+    return result;
+  } catch (error) {
+    result.writeChecked = false;
+    result.writeError = `Could not verify GitHub write permissions: ${error.message}`;
+    return result;
+  }
+}
+
 // Hits the real GitHub API (repo reachability + token identity) so the UI can show a true
 // connected/failed state, not just "fields are filled in" — mirrors server.js's ghConnectionStatus.
-async function connectionStatus(config) {
+async function connectionStatus(config, verifyWrite = false) {
   if (!config.enabled) return { ok: false, checked: false, error: 'חיבור GitHub אינו מופעל.' };
   if (!config.owner || !config.repo) return { ok: false, checked: true, error: 'חסר Owner ו/או שם ריפו.' };
   const headers = ghHeaders(config);
@@ -216,6 +286,7 @@ async function connectionStatus(config) {
         }
       } catch (e) { data.authWarning = e.message; }
     }
+    if (verifyWrite) Object.assign(data, await githubWritePermissionStatus(config, j));
     return data;
   } catch (e) {
     return { ok: false, checked: true, error: 'שגיאת רשת מול GitHub: ' + e.message };
@@ -243,11 +314,11 @@ async function handleGithubApi(request, env, path, uid) {
     return json({ ok: true, enabled: config.enabled, hasToken: !!config.token });
   }
 
-  // GET = cheap poll (header dot / MVP chip), POST = forced fresh check after Save+Test.
-  // Both behave identically here since this Worker doesn't cache; see note in connectionStatus.
+  // GET is the cheap read/connectivity poll used by header indicators. POST is the explicit
+  // Save+Test check and also performs safe Contents/Pull Request write-permission probes.
   if (path === '/api/github/status' && (method === 'GET' || method === 'POST')) {
     const config = await loadGithubConfig(env, uid);
-    return json(await connectionStatus(config));
+    return json(await connectionStatus(config, method === 'POST'));
   }
 
   if (path === '/api/github/issues' && method === 'GET') {
@@ -929,6 +1000,22 @@ async function executeAgentWritePlan(config, plan, planId, env) {
     error.status = 403;
     throw error;
   }
+  await withStage('checking GitHub write permissions', async () => {
+    const permission = await githubWritePermissionStatus(config, repo);
+    if (!permission.writeChecked) {
+      const error = new Error(permission.writeError || 'Could not verify GitHub write permissions.');
+      error.status = 502;
+      error.code = 'GITHUB_WRITE_PERMISSION_CHECK_FAILED';
+      throw error;
+    }
+    if (!permission.writeAccess) {
+      const error = new Error(permission.writeError || 'The GitHub token does not have write access.');
+      error.status = 403;
+      error.code = 'GITHUB_WRITE_PERMISSION_REQUIRED';
+      error.permissionStatus = permission;
+      throw error;
+    }
+  });
   const pullAction = plan.actions.find(item => item.tool === 'github.create_pull_request');
   const deployAction = plan.actions.find(item => item.tool === 'github.deploy');
   const deployBranch = safeAgentBranch(deployAction?.branch) || safeAgentBranch(env?.DEPLOY_BRANCH) || LIVE_DEPLOY_BRANCH;
@@ -1041,6 +1128,7 @@ async function handleAgentApproval(request, env, uid) {
       const job = await loadAgentJob(env, uid, stored.jobId);
       if (job) {
         job.state = 'complete';
+        job.approvalRetry = false;
         job.currentStep = null;
         job.error = null;
         job.reply = agentJobText(job, 'הפעולות המאושרות בוצעו ב-GitHub.', 'The approved actions were executed on GitHub.');
@@ -1065,6 +1153,7 @@ async function handleAgentApproval(request, env, uid) {
           );
         }
         job.state = 'waiting_approval';
+        job.approvalRetry = true;
         job.error = null;
         job.currentStep = message;
         waitForAgentApproval(job);
@@ -1074,7 +1163,13 @@ async function handleAgentApproval(request, env, uid) {
         jobView = publicAgentJob(job);
       }
     }
-    return json({ error: message, retryable: true, job: jobView }, 502);
+    return json({
+      error: message,
+      code: e.code || null,
+      retryable: true,
+      githubPermission: e.permissionStatus || null,
+      job: jobView
+    }, e.status === 401 || e.status === 403 ? 403 : 502);
   }
 }
 
@@ -1657,6 +1752,7 @@ function compactChatEntry(entry) {
     execution: entry.execution || null,
     jobId: entry.jobId || null,
     jobStatus: entry.jobStatus || null,
+    approvalRetry: entry.approvalRetry === true,
     resumeAvailable: entry.resumeAvailable === true,
     checklist: Array.isArray(entry.checklist) ? entry.checklist.slice(0, 7).map(item => ({ id: item.id, text: item.text, status: item.status })) : [],
     steps: Array.isArray(entry.steps) ? entry.steps.slice(-24).map(item => ({ id: item.id, at: item.at, title: item.title, detail: item.detail, status: item.status })) : []
@@ -1838,6 +1934,10 @@ function agentJobCanResume(job) {
 
 function publicAgentJob(job) {
   const status = agentJobPublicStatus(job);
+  const approvalRetry = job.approvalRetry === true || (
+    status === 'waiting'
+    && /GitHub rejected the write|GitHub דחה את פעולת הכתיבה|Resource not accessible by personal access token/i.test(String(job.currentStep || ''))
+  );
   return {
     jobId: job.id,
     historyId: job.historyId || null,
@@ -1850,6 +1950,7 @@ function publicAgentJob(job) {
     continueRequired: status === 'queued' || status === 'running',
     retryAfter: job.retryAfter || 350,
     approvalRequired: status === 'waiting',
+    approvalRetry,
     plan: job.planPublic || null,
     planId: job.planId || null,
     resumeAvailable: agentJobCanResume(job),
@@ -1869,6 +1970,7 @@ async function saveAgentJob(env, uid, job) {
       planId: view.planId,
       jobId: view.jobId,
       jobStatus: view.jobStatus,
+      approvalRetry: view.approvalRetry,
       resumeAvailable: view.resumeAvailable,
       checklist: view.checklist,
       steps: view.steps
@@ -1973,6 +2075,7 @@ async function acceptAgentJobPlan(env, uid, job, plan, rawReply, githubReady) {
     job.planId = planId;
     job.planPublic = publicAgentPlan(plan);
     job.state = 'waiting_approval';
+    job.approvalRetry = false;
     job.currentStep = agentJobText(job, 'ממתין לאישור שלך', 'Waiting for your approval');
     job.reply = plan.reply || agentJobText(job, 'תוכנית הפעולה מוכנה לאישור.', 'The action plan is ready for approval.');
     waitForAgentApproval(job);

@@ -545,7 +545,7 @@
       <div class="sideCard quickStatusCard">
         <h3 data-i18n="quickStats">מצב מהיר</h3>
         <div class="heroStatRow"><span data-i18n="statusLabel">סטטוס</span><b id="miniStatus" data-i18n="miniStatusDefault">אין פרויקט נבחר</b></div>
-        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">1.4.25 ↻</button></div>
+        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">1.4.26 ↻</button></div>
         <div class="heroStatRow"><span data-i18n="langLabel">שפה</span><b id="langValue">עברית</b></div>
       </div>
     <div class="sidebarResizer" id="sidebarResizer" role="separator" aria-orientation="vertical" aria-label="שינוי רוחב אזור הפרויקטים"></div>
@@ -677,7 +677,7 @@
         <b data-i18n="helpTitle">❓ עזרה ל־ON TracK</b>
         <button class="icon" id="helpClose">✕</button>
       </div>
-      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">1.4.25</b></div>
+      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">1.4.26</b></div>
       <p class="hint" style="line-height:1.7;margin-top:0" data-i18n="helpIntro">ON TracK מחבר בין מודל שבחרת לבין פרויקט ומקורות קוד. המודל מקבל בקשות ומבצע פעולות רק דרך החיבורים וההרשאות שהגדרת.</p>
       <div class="helpList">
         <div class="hint" data-i18n="helpStepOne">1. צור או בחר פרויקט בצד.</div>
@@ -1397,7 +1397,7 @@
       bubble.appendChild(wrap);
       logList.scrollTop=logList.scrollHeight;
     }
-    function appendAgentPlan(bubble, plan, planId, jobId){
+    function appendAgentPlan(bubble, plan, planId, jobId, approvalRetry){
       if(!bubble || !plan) return;
       bubble.querySelector('.agentPlan')?.remove();
       const box = document.createElement('div');
@@ -1422,7 +1422,9 @@
       if(planId){
         const approve = document.createElement('button');
         approve.type='button'; approve.className='add agentApproveBtn';
-        approve.textContent = uiLang==='en' ? 'Approve and run' : 'אשר ובצע';
+        approve.textContent = approvalRetry
+          ? (uiLang==='en' ? 'Check permissions and retry' : 'בדוק הרשאות ובצע שוב')
+          : (uiLang==='en' ? 'Approve and run' : 'אשר ובצע');
         approve.onclick = async()=>{
           box.querySelector('.agentPlanError')?.remove();
           approve.disabled=true; approve.textContent=uiLang==='en' ? 'Running…' : 'מבצע…';
@@ -1564,7 +1566,7 @@
             resumable={jobId:turn.jobId,bubble:assistant,prompt:turn.prompt || ''};
           }
         }
-        if(turn.plan) appendAgentPlan(assistant, turn.plan, turn.planId, turn.jobId);
+        if(turn.plan) appendAgentPlan(assistant, turn.plan, turn.planId, turn.jobId, turn.approvalRetry);
         if(turn.resumeAvailable) addJobContinueControl(assistant,turn.jobId,turn.prompt || '');
         else if(!['queued','running','waiting'].includes(turn.jobStatus)) addRetryControl(assistant, turn.prompt, null, null);
       });
@@ -1602,7 +1604,7 @@
         bubble.classList.remove('pending');
         bubble.querySelector('.meta').textContent='ON TracK';
         setPendingState(bubble,'waiting',job.currentStep || dictionary.agentJobWaiting);
-        if(job.plan) appendAgentPlan(bubble,job.plan,job.planId,job.jobId);
+        if(job.plan) appendAgentPlan(bubble,job.plan,job.planId,job.jobId,job.approvalRetry);
       }else if(job.jobStatus==='complete'){
         bubble.classList.remove('pending');
         bubble.querySelector('.meta').textContent='ON TracK';
@@ -1731,7 +1733,7 @@
           pending.querySelector('.bubbleText').textContent = j.reply || '';
           if(j.approvalRequired && j.plan){
             setPendingState(pending, 'waiting');
-            appendAgentPlan(pending, j.plan, j.planId, j.jobId);
+            appendAgentPlan(pending, j.plan, j.planId, j.jobId, j.approvalRetry);
           } else setPendingState(pending, 'done');
           addRetryControl(pending, text, sentImage, null);
         }
@@ -2460,17 +2462,24 @@ loadModels();
       box.innerHTML='❌ '+esc(d && d.error ? d.error : 'החיבור נכשל.');
       return;
     }
-    box.style.borderColor='var(--pass)';
-    box.style.background='var(--pass-tint)';
-    const perm = d.permissions ? (d.permissions.push ? 'קריאה+כתיבה' : 'קריאה בלבד') : 'לא ידוע';
-    let html='✅ מחובר ל-<a href="'+esc(d.htmlUrl||'#')+'" target="_blank" style="direction:ltr;display:inline-block">'+esc(d.fullName||'')+'</a>';
-    html+='<br>נראות: '+(d.private?'פרטי':'ציבורי')+' · ברירת מחדל: <span style="direction:ltr;display:inline-block">'+esc(d.defaultBranch||'?')+'</span> · הרשאות טוקן: '+perm;
+    const writeFailed = d.writeChecked === true && d.writeAccess !== true;
+    box.style.borderColor=writeFailed ? 'var(--fail)' : 'var(--pass)';
+    box.style.background=writeFailed ? 'var(--fail-tint)' : 'var(--pass-tint)';
+    const accountRole = d.permissions ? (d.permissions.push ? 'יכול לכתוב' : 'קריאה בלבד') : 'לא ידוע';
+    let html=(writeFailed ? '⚠️ מחובר לקריאה בלבד ל-' : '✅ מחובר ל-')+'<a href="'+esc(d.htmlUrl||'#')+'" target="_blank" style="direction:ltr;display:inline-block">'+esc(d.fullName||'')+'</a>';
+    html+='<br>נראות: '+(d.private?'פרטי':'ציבורי')+' · ברירת מחדל: <span style="direction:ltr;display:inline-block">'+esc(d.defaultBranch||'?')+'</span> · תפקיד החשבון: '+accountRole;
     if(d.authenticated){
-      html+='<br>מזוהה כ-<span style="direction:ltr;display:inline-block">'+esc(d.login||'')+'</span>'+(d.scopes&&d.scopes.length?(' · הרשאות טוקן: '+esc(d.scopes.join(', '))):'');
+      html+='<br>מזוהה כ-<span style="direction:ltr;display:inline-block">'+esc(d.login||'')+'</span>'+(d.tokenType?(' · סוג טוקן: '+esc(d.tokenType)):'')+(d.scopes&&d.scopes.length?(' · scopes: '+esc(d.scopes.join(', '))):'');
     } else if(d.authWarning){
       html+='<br>⚠️ '+esc(d.authWarning);
     } else {
       html+='<br><span class="hint">ללא טוקן — קריאה בלבד (ריפו ציבורי). הוסף טוקן כדי ליצור issues.</span>';
+    }
+    if(d.writeChecked){
+      if(d.writeAccess) html+='<br><b style="color:var(--pass)">✓ כתיבת קבצים ויצירת Pull Request אומתו בפועל</b>';
+      else html+='<br><b style="color:var(--fail)">✗ הטוקן אינו מורשה לבצע את פעולות ה-Agent.</b><br>'+esc(d.writeError||'נדרשות הרשאות כתיבה.')+' <a href="https://github.com/settings/personal-access-tokens" target="_blank">פתח הגדרות טוקן ב-GitHub ↗</a>';
+    } else if(d.authenticated){
+      html+='<br><span class="hint">לחץ "בדוק חיבור" כדי לאמת גם כתיבת קבצים ו-Pull Requests.</span>';
     }
     box.innerHTML=html;
   }
@@ -2479,7 +2488,7 @@ loadModels();
     $('#ghStatusBox').style.display='block';
     $('#ghStatusBox').style.borderColor='var(--line)';
     $('#ghStatusBox').style.background='var(--panel2)';
-    $('#ghStatusBox').textContent='בודק מול GitHub…';
+    $('#ghStatusBox').textContent=force ? 'בודק קריאה, כתיבה ו-Pull Requests מול GitHub…' : 'בודק מול GitHub…';
     try{
       const { response: r, data: j } = await fetchJsonSafe('/api/github/status', force ? { method:'POST' } : undefined);
       if (!r.ok && !j) throw new Error('GitHub status request failed with HTTP ' + r.status);
@@ -2558,14 +2567,14 @@ loadModels();
     if(!token) return;
     $('#ghSaveStatus').textContent='שומר טוקן…';
     await saveGh({ token });
-    $('#ghSaveStatus').textContent='טוקן נשמר ✓';
-    setTimeout(()=>{ if($('#ghSaveStatus').textContent==='טוקן נשמר ✓') $('#ghSaveStatus').textContent=''; }, 2500);
+    const status=await testGh(true);
+    $('#ghSaveStatus').textContent=status&&status.writeAccess ? 'טוקן נשמר, כתיבה אומתה ✓' : 'הטוקן נשמר, אך כתיבה חסומה';
   });
   $('#ghSave').onclick=async()=>{
     $('#ghSaveStatus').textContent='שומר…';
     await saveGh();
-    $('#ghSaveStatus').textContent='נשמר ✓';
-    await testGh(true);
+    const status=await testGh(true);
+    $('#ghSaveStatus').textContent=status&&status.writeAccess ? 'נשמר, כתיבה אומתה ✓' : 'נשמר, אך הרשאות הכתיבה חסרות';
   };
   $('#ghLoadIssues').onclick=loadIssues;
 
@@ -3051,7 +3060,7 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     b.textContent='❓ עזרה';
     apiBtn.parentElement.insertBefore(b, apiBtn);
   }
-  const appVersion='1.4.25';
+  const appVersion='1.4.26';
   $('#appVersion').textContent=appVersion;
   // Seeded here too: without a local server /api/state never answers, and this would
   // otherwise keep showing whatever literal the markup was last edited with.
