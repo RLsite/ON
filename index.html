@@ -316,7 +316,7 @@
   .lpStep{font-size:12.5px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 9px}
   .lpStep .a{font-weight:700}
   .lpStep .d{color:var(--muted);display:block;margin-top:1px}
-  .newShell{--sidebar-width:280px;min-height:100vh;display:grid;grid-template-columns:var(--sidebar-width) minmax(0,1fr);background:var(--bg)}
+  .newShell{--sidebar-width:210px;min-height:100vh;display:grid;grid-template-columns:var(--sidebar-width) minmax(0,1fr);background:var(--bg)}
   .newSidebar{position:relative;min-width:0;background:linear-gradient(180deg,#fffdf9, #fff4ea);border-inline-end:1px solid var(--line);padding:18px 14px;display:flex;flex-direction:column;gap:18px}
   .sidebarResizer{position:absolute;z-index:12;inset-inline-end:-5px;top:0;bottom:0;width:10px;cursor:col-resize;touch-action:none;display:grid;place-items:center}
   .sidebarResizer::after{content:"";width:2px;height:44px;border-radius:2px;background:var(--line);transition:.15s}
@@ -2806,7 +2806,7 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     const shell = $('.newShell');
     const handle = $('#sidebarResizer');
     if(!shell || !handle) return;
-    const minWidth = 220;
+    const minWidth = 180;
     const maxWidth = 460;
     const clamp = width => Math.max(minWidth, Math.min(maxWidth, width));
     const savedWidth = Number(localStorage.getItem('ontrack-sidebar-width'));
