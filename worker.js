@@ -390,7 +390,7 @@ Repository context (safe metadata only): ${repoText}
 
 Available tools:
 - github.list_files: read the repository file tree. Arguments: branch (optional).
-- github.read_file: read one text file. Arguments: path, branch (optional), query (optional text to find), or startLine and endLine (optional focused line range, maximum 400 lines). For large files, first use query, then use a line range only when more surrounding context is needed. Never repeat an identical read. Request at most two read actions per round.
+- github.read_file: read one text file. Arguments: path, branch (optional), query (optional text to find), or startLine and endLine (optional focused line range, maximum 400 lines). A query is ONE literal case-insensitive substring, not semantic search and not a list of CSS guesses. Request exact text such as id="brandLogo", .brandMark, or a quoted attribute; never combine unrelated guesses with spaces. For large files, first use a query, then use matchLocations and a line range only when more surrounding context is needed. Never repeat an identical read. Request at most two read actions per round and use no more than four read rounds.
 - github.apply_patch: prepare a small unified diff for an existing text file. Arguments: path, patch, message. Prefer this for existing files.
 - github.write_file: prepare a complete replacement for one new or small text file. Arguments: path, content, message.
 - github.create_pull_request: after file changes, request a Pull Request. Arguments: title, body, base (optional).
@@ -581,6 +581,22 @@ function validateAgentPlan(plan, githubConnected) {
   return hasWrite ? null : null;
 }
 
+function agentReplyClaimsCompletedChange(reply) {
+  let text = String(reply || '').toLocaleLowerCase();
+  text = text
+    .replace(/\b(?:did not|didn't|have not|haven't|was not|wasn't|not yet)\s+(?:add|change|move|update|fix|remove|delete|create|implement|edit|replace|deploy|complete)\w*/g, '')
+    .replace(/\b(?:the\s+)?(?:icon|button|file|code|issue|problem|interface|change)\s+(?:is|was|has been)\s+not\s+(?:added|changed|moved|updated|fixed|removed|deleted|created|implemented|edited|replaced|deployed|completed)/g, '')
+    .replace(/לא\s+(?:ביצעתי|שיניתי|הזזתי|עדכנתי|תיקנתי|הסרתי|מחקתי|יצרתי|הוספתי|פרסתי|הושלם|בוצע)/g, '')
+    .replace(/(?:הסמל|האייקון|הכפתור|הקובץ|הקוד|הבעיה|הממשק|השינוי)\s+לא\s+(?:הוזז|הועבר|נוסף|עודכן|שונה|תוקן|הוסר|נמחק|נוצר|בוצע|הושלם)/g, '');
+  return /\b(?:i(?:'ve|\s+have)?\s+(?:added|changed|moved|updated|fixed|removed|deleted|created|implemented|edited|replaced|deployed|completed)|(?:the\s+)?(?:icon|button|file|code|issue|problem|interface|change|fix|update|implementation|deployment)\s+(?:is|was|has been)\s+(?:done|complete|completed|applied|added|changed|moved|updated|fixed|removed|deleted|created|implemented|edited|replaced|deployed)|(?:done|completed)\s*[.!]?\s*$)/i.test(text)
+    || /(?:ביצעתי|שיניתי|הזזתי|עדכנתי|תיקנתי|הסרתי|מחקתי|יצרתי|הוספתי|פרסתי|השינוי\s+(?:בוצע|הושלם|הוחל)|הפעולה\s+(?:בוצעה|הושלמה)|(?:הסמל|האייקון|הכפתור|הקובץ|הקוד|הבעיה|הממשק)\s+(?:הוזז|הועבר|נוסף|עודכן|שונה|תוקן|הוסר|נמחק|נוצר)|סיימתי\s+(?:את\s+)?(?:השינוי|התיקון|העבודה))/u.test(text);
+}
+
+function validateAgentCompletionClaim(plan) {
+  if (plan?.kind !== 'answer' || !agentReplyClaimsCompletedChange(plan.reply)) return null;
+  return 'The reply claims that a repository change was completed, but it contains no github.apply_patch or github.write_file action. Return the actual change plan with update_version, create_pull_request, and deploy; do not describe the change as completed.';
+}
+
 // A write/patch preview limit generous enough to cover the vast majority of the small, focused
 // diffs the agent is instructed to produce, while keeping the approval payload bounded.
 const AGENT_PLAN_PREVIEW_LIMIT = 8000;
@@ -657,7 +673,34 @@ function applyUnifiedPatch(original, patchText) {
 }
 
 const AGENT_READ_CONTENT_LIMIT = 6000;
-const MAX_AGENT_READ_ROUNDS = 2;
+const MAX_AGENT_READ_ROUNDS = 4;
+
+function agentQueryMatchScore(line, query) {
+  let score = 0;
+  if (line.length <= 500) score += 5;
+  else if (line.length > 1800) score -= 8;
+  if (/data:image|;base64,/i.test(line)) score -= 14;
+  if (/(?:class|id|aria-label|alt)=|(?:^|[,{\s])[.#][a-z_-][\w-]*\s*[{,]|\bfunction\b|querySelector|getElementById/i.test(line)) score += 7;
+  if (new RegExp(`(?:id|class|alt|aria-label)=["'][^"']*${String(query).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i').test(line)) score += 8;
+  return score;
+}
+
+function agentQueryPreview(line, query) {
+  const compact = String(line || '').replace(/\s+/g, ' ').trim();
+  if (compact.length <= 220) return compact;
+  const index = compact.toLocaleLowerCase().indexOf(String(query || '').toLocaleLowerCase());
+  const start = Math.max(0, index - 90);
+  const end = Math.min(compact.length, Math.max(index + String(query || '').length + 90, start + 220));
+  return `${start ? '… ' : ''}${compact.slice(start, end)}${end < compact.length ? ' …' : ''}`;
+}
+
+function agentQuerySuggestions(lines, query) {
+  const terms = [...new Set(String(query || '').split(/\s+/).map(item => item.trim()).filter(item => item.length >= 2))].slice(0, 6);
+  return terms.map(term => ({
+    query: term,
+    matchCount: lines.reduce((count, line) => count + (line.toLocaleLowerCase().includes(term.toLocaleLowerCase()) ? 1 : 0), 0)
+  })).filter(item => item.matchCount > 0);
+}
 
 function agentReadRanges(lines, requestedRanges) {
   const ranges = [];
@@ -711,23 +754,31 @@ function agentFileReadResult(action, branch, sha, content) {
     const needle = query.toLocaleLowerCase();
     const allMatches = [];
     for (let index = 0; index < lines.length; index += 1) {
-      if (lines[index].toLocaleLowerCase().includes(needle)) allMatches.push(index + 1);
+      if (lines[index].toLocaleLowerCase().includes(needle)) {
+        allMatches.push({ line: index + 1, score: agentQueryMatchScore(lines[index], query), preview: agentQueryPreview(lines[index], query) });
+      }
     }
+    const rankedMatches = [...allMatches].sort((a, b) => b.score - a.score || a.line - b.line);
     const requestedRanges = [];
-    for (const line of allMatches.slice(0, 6)) {
+    for (const line of rankedMatches.slice(0, 8).map(item => item.line).sort((a, b) => a - b)) {
       const next = { startLine: Math.max(1, line - 14), endLine: Math.min(lines.length, line + 14) };
       const previous = requestedRanges[requestedRanges.length - 1];
       if (previous && next.startLine <= previous.endLine + 1) previous.endLine = Math.max(previous.endLine, next.endLine);
       else requestedRanges.push(next);
     }
+    const suggestions = allMatches.length ? [] : agentQuerySuggestions(lines, query);
     return {
       ...base,
       mode: 'query',
       query,
       matchCount: allMatches.length,
-      matchesTruncated: allMatches.length > 6,
+      matchesTruncated: allMatches.length > 8,
+      matchLocations: rankedMatches.slice(0, 24).map(item => ({ line: item.line, preview: item.preview })),
+      suggestedQueries: suggestions,
       ranges: agentReadRanges(lines, requestedRanges),
-      instruction: allMatches.length ? 'Use the returned line ranges. Very long individual lines may be compacted and are marked explicitly; never copy an omission marker into a patch. Request one focused line range only if more adjacent context is necessary.' : 'No match was found. Try a different specific query; do not repeat this read.'
+      instruction: allMatches.length
+        ? 'Query is one literal case-insensitive substring, not search syntax. Relevant source/markup matches are ranked ahead of embedded data and minified lines. Use matchLocations and returned ranges; request an exact selector, id, quoted attribute, or focused line range if more context is necessary. Never copy an omission marker into a patch.'
+        : 'No literal match was found. The words in suggestedQueries are independent alternatives with their match counts; request ONE exact term or selector in the next read, not a space-separated list of guesses.'
     };
   }
   if (Number.isInteger(action.startLine) && Number.isInteger(action.endLine)) {
@@ -785,14 +836,14 @@ async function executeAgentReadActions(config, actions, defaultBranch) {
 
 function agentToolResultsPrompt(results, requestContext, canReadMore) {
   const nextStep = canReadMore
-    ? 'If the supplied excerpts are insufficient, you may request one NEW focused github.read_file query or line range. Never repeat an identical read. Otherwise return the final answer or complete write plan now.'
+    ? 'If the supplied excerpts are insufficient, you may request one NEW focused github.read_file query or line range. A query is ONE literal case-insensitive substring, not search syntax: use an exact selector, id, quoted attribute, or one term from suggestedQueries, never a space-separated list of guesses. Use matchLocations to request the exact line range. Never repeat an identical read. Otherwise return the final answer or complete write plan now.'
     : 'The read-round limit has been reached. Do not request another read; return the final answer or complete write plan now.';
   return `ON already executed the read-only GitHub tools below. ${nextStep} Keep the original request in mind. If the request needs a code change, return the smallest apply_patch/write_file plan plus update_version, create_pull_request, and deploy — in this exact response, as actions in the JSON, not described in words. If no change is needed, return a useful answer. Never return future-tense narration such as "I will read". Never say a change is done, made, applied, or complete in "reply" unless this same response's "actions" array actually contains the write/patch action that makes it — describing the change instead of including it as an action is exactly the false-completion behavior that must never happen, with no exception for small or obvious changes.\nOriginal user request:\n${String(requestContext || '').slice(0, 8000)}\nRead results:\n${JSON.stringify(results).slice(0, 70000)}`;
 }
 
 function agentReadResultsRepairPrompt(rawText, results, requestContext, canReadMore) {
   const readRule = canReadMore
-    ? 'If context is still missing, you may request one NEW focused read with query or startLine/endLine, but never repeat an identical read.'
+    ? 'If context is still missing, you may request one NEW focused read with a single literal query or startLine/endLine, but never repeat an identical read or combine selector guesses with spaces.'
     : 'The read-round limit has been reached, so do not request another read.';
   return `Your previous response did not follow the ON TracK Agent contract. Do not narrate intentions. ${readRule} Return exactly one JSON object now: either an answer with a useful response, a new focused read plan when allowed, or a plan for the requested change. For a code change, include a source-file action, github.update_version, github.create_pull_request, and github.deploy. Use the read results below.\nOriginal user request:\n${String(requestContext || '').slice(0, 8000)}\nPrevious response:\n${String(rawText || '').slice(0, 8000)}\nRead results:\n${JSON.stringify(results).slice(0, 70000)}`;
 }
@@ -856,6 +907,11 @@ async function withStage(label, fn) {
 
 async function executeAgentWritePlan(config, plan, planId, env) {
   const repo = await withStage('reading the repository', () => githubApi(config));
+  if (repo?.permissions && repo.permissions.push === false) {
+    const error = new Error('The connected GitHub token has read-only repository access.');
+    error.status = 403;
+    throw error;
+  }
   const pullAction = plan.actions.find(item => item.tool === 'github.create_pull_request');
   const deployAction = plan.actions.find(item => item.tool === 'github.deploy');
   const deployBranch = safeAgentBranch(deployAction?.branch) || safeAgentBranch(env?.DEPLOY_BRANCH) || LIVE_DEPLOY_BRANCH;
@@ -924,9 +980,24 @@ async function handleAgentApproval(request, env, uid) {
   if (request.method !== 'POST') return json({ error: 'not found' }, 404);
   const body = await request.json().catch(() => ({}));
   const planId = typeof body.planId === 'string' ? body.planId.trim() : '';
+  const requestedJobId = safeAgentJobId(body.jobId);
   if (!planId || !/^[a-zA-Z0-9-]{12,80}$/.test(planId)) return json({ error: 'Invalid or expired agent plan.' }, 400);
   const key = `agent_plan:${uid}:${planId}`;
-  const raw = await env.GH_CONFIG.get(key);
+  let raw = await env.GH_CONFIG.get(key);
+  let recoveredJob = null;
+  if (!raw && requestedJobId) {
+    recoveredJob = await loadAgentJob(env, uid, requestedJobId);
+    if (recoveredJob?.planId === planId && recoveredJob.plan) {
+      raw = JSON.stringify({
+        prompt: recoveredJob.prompt,
+        translatedPrompt: recoveredJob.translatedPrompt || null,
+        modelId: recoveredJob.modelId,
+        plan: recoveredJob.plan,
+        jobId: recoveredJob.id
+      });
+      await env.GH_CONFIG.put(key, raw, { expirationTtl: AGENT_JOB_TTL });
+    }
+  }
   if (!raw) return json({ error: 'This agent plan has expired. Send the request again.' }, 410);
   let stored;
   try { stored = JSON.parse(raw); } catch { return json({ error: 'Invalid agent plan.' }, 400); }
@@ -938,12 +1009,16 @@ async function handleAgentApproval(request, env, uid) {
     }
   }
   const consent = await loadAgentConsent(env, uid);
-  if (!consent.enabled) return json({ error: 'Agent repository access is disabled. Enable it again and send the request again.' }, 403);
+  const models = await loadModelsConfig(env, uid);
+  const selectedModel = models.models.find(item => item.id === models.selectedId);
+  if (!selectedModel || stored.modelId !== selectedModel.id || !agentConsentMatchesModel(consent, selectedModel)) {
+    return json({ error: 'This plan belongs to a different model or consent destination. Select the original model and approve its Agent access again.' }, 403);
+  }
   const config = await loadGithubConfig(env, uid);
   if (!config.enabled || !config.owner || !config.repo || !config.token) return json({ error: 'GitHub is not connected for this account.' }, 400);
-  await env.GH_CONFIG.delete(key);
   try {
     const result = await executeAgentWritePlan(config, stored.plan, planId, env);
+    await env.GH_CONFIG.delete(key);
     let jobView = null;
     if (stored.jobId) {
       const job = await loadAgentJob(env, uid, stored.jobId);
@@ -960,14 +1035,29 @@ async function handleAgentApproval(request, env, uid) {
     }
     return json({ ok: true, result, job: jobView });
   } catch (e) {
+    let message = e.message || 'GitHub write failed.';
+    let jobView = null;
     if (stored.jobId) {
       const job = await loadAgentJob(env, uid, stored.jobId);
       if (job) {
-        failAgentJob(job, e.message || 'GitHub write failed.');
+        const permissionFailure = e.status === 401 || e.status === 403 || /Resource not accessible by personal access token|read-only repository access/i.test(message);
+        if (permissionFailure) {
+          message = agentJobText(job,
+            `GitHub דחה את פעולת הכתיבה. בטוקן Fine-grained יש לאפשר לריפו הזה Contents: Read and write וגם Pull requests: Read and write; בטוקן Classic יש לאפשר repo. עדכן את חיבור GitHub ואז לחץ שוב "אשר ובצע". התוכנית נשמרה. (${message})`,
+            `GitHub rejected the write. For a fine-grained token, grant this repository Contents: Read and write and Pull requests: Read and write; for a classic token, grant repo. Update the GitHub connection, then click "Approve and run" again. The plan was preserved. (${message})`
+          );
+        }
+        job.state = 'waiting_approval';
+        job.error = null;
+        job.currentStep = message;
+        waitForAgentApproval(job);
+        addAgentJobStep(job, agentJobText(job, 'ביצוע GitHub נעצר; התוכנית נשמרה', 'GitHub execution stopped; plan preserved'), message, 'failed');
+        waitForAgentApproval(job);
         await saveAgentJob(env, uid, job);
+        jobView = publicAgentJob(job);
       }
     }
-    return json({ error: e.message || 'GitHub write failed.' }, e.status === 401 || e.status === 403 ? 502 : 502);
+    return json({ error: message, retryable: true, job: jobView }, 502);
   }
 }
 
@@ -1513,6 +1603,7 @@ function compactChatEntry(entry) {
     execution: entry.execution || null,
     jobId: entry.jobId || null,
     jobStatus: entry.jobStatus || null,
+    resumeAvailable: entry.resumeAvailable === true,
     checklist: Array.isArray(entry.checklist) ? entry.checklist.slice(0, 7).map(item => ({ id: item.id, text: item.text, status: item.status })) : [],
     steps: Array.isArray(entry.steps) ? entry.steps.slice(-24).map(item => ({ id: item.id, at: item.at, title: item.title, detail: item.detail, status: item.status })) : []
   };
@@ -1554,7 +1645,15 @@ async function chatJson(env, uid, entry, payload, status = 200) {
 }
 
 async function handleChatHistory(request, env, uid, path) {
-  if (request.method === 'GET' && path === '/api/chat/history') return json({ history: await loadChatHistory(env, uid) });
+  if (request.method === 'GET' && path === '/api/chat/history') {
+    const history = await loadChatHistory(env, uid);
+    const hydrated = await Promise.all(history.map(async turn => {
+      if (!turn.jobId) return turn;
+      const job = await loadAgentJob(env, uid, turn.jobId);
+      return job ? compactChatEntry({ ...turn, ...publicAgentJob(job) }) : turn;
+    }));
+    return json({ history: hydrated });
+  }
   if (request.method === 'POST' && path === '/api/chat/clear') {
     const history = await loadChatHistory(env, uid);
     await Promise.all(history.flatMap(item => [
@@ -1671,6 +1770,14 @@ function agentJobPublicStatus(job) {
   return 'running';
 }
 
+function agentJobCanResume(job) {
+  return ['complete', 'failed'].includes(job.state)
+    && Array.isArray(job.readResults)
+    && job.readResults.length > 0
+    && !job.planId
+    && Number(job.readRounds || 0) < MAX_AGENT_READ_ROUNDS;
+}
+
 function publicAgentJob(job) {
   const status = agentJobPublicStatus(job);
   return {
@@ -1687,6 +1794,7 @@ function publicAgentJob(job) {
     approvalRequired: status === 'waiting',
     plan: job.planPublic || null,
     planId: job.planId || null,
+    resumeAvailable: agentJobCanResume(job),
     done: status === 'complete' || status === 'canceled'
   };
 }
@@ -1703,6 +1811,7 @@ async function saveAgentJob(env, uid, job) {
       planId: view.planId,
       jobId: view.jobId,
       jobStatus: view.jobStatus,
+      resumeAvailable: view.resumeAvailable,
       checklist: view.checklist,
       steps: view.steps
     });
@@ -1772,7 +1881,7 @@ async function acceptAgentJobPlan(env, uid, job, plan, rawReply, githubReady) {
   adoptAgentChecklist(job, plan.checklist);
   job.rawReply = rawReply;
   job.plan = plan;
-  const planError = validateAgentPlan(plan, githubReady);
+  const planError = validateAgentCompletionClaim(plan) || validateAgentPlan(plan, githubReady);
   if (planError) {
     if (job.validationRepairUsed) {
       failAgentJob(job, `${plan.reply ? plan.reply + '\n\n' : ''}⚠️ ${planError}`);
@@ -2093,6 +2202,48 @@ async function handleAgentJobCancel(request, env, uid) {
   return json(publicAgentJob(job));
 }
 
+async function handleAgentJobResume(request, env, uid) {
+  if (request.method !== 'POST') return json({ error: 'not found' }, 404);
+  const body = await request.json().catch(() => ({}));
+  const jobId = safeAgentJobId(body.jobId);
+  if (!jobId) return json({ error: 'Invalid Agent job id.' }, 400);
+  const job = await loadAgentJob(env, uid, jobId);
+  if (!job) return json({ error: 'This Agent job expired or was deleted.' }, 410);
+  if (['queued', 'translate', 'read', 'analyze_reads', 'repair_format', 'repair_validation', 'finalize_reads'].includes(job.state)) return json(publicAgentJob(job));
+  if (!agentJobCanResume(job)) return json({ error: 'This Agent job cannot continue from its saved context.' }, 409);
+
+  job.state = 'analyze_reads';
+  job.error = null;
+  job.plan = null;
+  job.planId = null;
+  job.planPublic = null;
+  job.rawReply = null;
+  job.formatRepairUsed = false;
+  job.validationRepairUsed = false;
+  job.transientFailures = 0;
+  job.retryAfter = 350;
+  job.reply = agentJobText(job, 'ממשיך מהקריאות שכבר נשמרו; העבודה אינה מתחילה מחדש.', 'Continuing from the saved reads; the job is not restarting.');
+  job.currentStep = agentJobText(job, 'מנתח מחדש את ההקשר השמור ומצמצם את החיפוש', 'Re-analyzing the saved context and narrowing the search');
+  job.checklist = agentJobText(job,
+    [
+      { id: 'resume-context', text: 'להמשיך מהקבצים שכבר נקראו', status: 'active' },
+      { id: 'resume-narrow', text: 'לצמצם למיקום המדויק', status: 'pending' },
+      { id: 'resume-change', text: 'להכין שינוי מדויק ובטוח', status: 'pending' },
+      { id: 'resume-approve', text: 'להמתין לאישור ולבצע', status: 'pending' }
+    ],
+    [
+      { id: 'resume-context', text: 'Continue from the files already read', status: 'active' },
+      { id: 'resume-narrow', text: 'Narrow down the exact location', status: 'pending' },
+      { id: 'resume-change', text: 'Prepare an exact and safe change', status: 'pending' },
+      { id: 'resume-approve', text: 'Wait for approval and execute', status: 'pending' }
+    ]
+  );
+  job.checklistAdopted = false;
+  addAgentJobStep(job, agentJobText(job, 'המשך מאותה נקודה', 'Continue from the same point'), job.currentStep, 'active');
+  await saveAgentJob(env, uid, job);
+  return json(publicAgentJob(job));
+}
+
 // ---------------------------------------------------------------------------
 
 export default {
@@ -2111,6 +2262,7 @@ export default {
       if (path === '/api/chat') return handleChat(request, env, user.uid);
       if (path === '/api/chat/continue') return handleAgentJobContinue(request, env, user.uid);
       if (path === '/api/chat/cancel') return handleAgentJobCancel(request, env, user.uid);
+      if (path === '/api/chat/resume') return handleAgentJobResume(request, env, user.uid);
       if (path === '/api/chat/history' || path === '/api/chat/clear' || path === '/api/chat/delete') return handleChatHistory(request, env, user.uid, path);
       if (path === '/api/agent/status' || path === '/api/agent/consent') return handleAgentApi(request, env, path, user.uid);
       if (path === '/api/agent/approve') return handleAgentApproval(request, env, user.uid);
