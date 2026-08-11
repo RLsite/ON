@@ -655,7 +655,7 @@ function applyUnifiedPatch(original, patchText) {
   return output.join('\n');
 }
 
-const AGENT_READ_CONTENT_LIMIT = 14000;
+const AGENT_READ_CONTENT_LIMIT = 6000;
 const MAX_AGENT_READ_ROUNDS = 2;
 
 function agentReadRanges(lines, requestedRanges) {
@@ -664,12 +664,32 @@ function agentReadRanges(lines, requestedRanges) {
   for (const requested of requestedRanges) {
     if (remaining <= 0 || !lines.length) break;
     const startLine = Math.max(1, Math.min(lines.length, requested.startLine));
-    const endLine = Math.max(startLine, Math.min(lines.length, requested.endLine));
-    let excerpt = lines.slice(startLine - 1, endLine).join('\n');
-    const contentTruncated = excerpt.length > remaining;
-    if (contentTruncated) excerpt = excerpt.slice(0, remaining);
-    ranges.push({ startLine, endLine, content: excerpt, contentTruncated });
-    remaining -= excerpt.length;
+    const requestedEndLine = Math.max(startLine, Math.min(lines.length, requested.endLine));
+    const excerpt = [];
+    let contentTruncated = false;
+    let contentCompacted = false;
+    let endLine = startLine - 1;
+    for (let lineNumber = startLine; lineNumber <= requestedEndLine; lineNumber += 1) {
+      const original = lines[lineNumber - 1];
+      let line = original;
+      if (line.length > 1800) {
+        const omitted = line.length - 1500;
+        line = `${line.slice(0, 1200)} … [ON omitted ${omitted} characters from line ${lineNumber}] … ${line.slice(-300)}`;
+        contentCompacted = true;
+      }
+      const addition = (excerpt.length ? '\n' : '') + line;
+      if (addition.length > remaining) {
+        if (remaining > 0) excerpt.push(addition.slice(excerpt.length ? 1 : 0, remaining));
+        contentTruncated = true;
+        endLine = lineNumber;
+        remaining = 0;
+        break;
+      }
+      excerpt.push(line);
+      remaining -= addition.length;
+      endLine = lineNumber;
+    }
+    ranges.push({ startLine, endLine, requestedEndLine, content: excerpt.join('\n'), contentTruncated, contentCompacted });
   }
   return ranges;
 }
@@ -693,8 +713,8 @@ function agentFileReadResult(action, branch, sha, content) {
       if (lines[index].toLocaleLowerCase().includes(needle)) allMatches.push(index + 1);
     }
     const requestedRanges = [];
-    for (const line of allMatches.slice(0, 8)) {
-      const next = { startLine: Math.max(1, line - 24), endLine: Math.min(lines.length, line + 24) };
+    for (const line of allMatches.slice(0, 6)) {
+      const next = { startLine: Math.max(1, line - 14), endLine: Math.min(lines.length, line + 14) };
       const previous = requestedRanges[requestedRanges.length - 1];
       if (previous && next.startLine <= previous.endLine + 1) previous.endLine = Math.max(previous.endLine, next.endLine);
       else requestedRanges.push(next);
@@ -704,9 +724,9 @@ function agentFileReadResult(action, branch, sha, content) {
       mode: 'query',
       query,
       matchCount: allMatches.length,
-      matchesTruncated: allMatches.length > 8,
+      matchesTruncated: allMatches.length > 6,
       ranges: agentReadRanges(lines, requestedRanges),
-      instruction: allMatches.length ? 'Use the returned line ranges. Request one focused line range only if more adjacent context is necessary.' : 'No match was found. Try a different specific query; do not repeat this read.'
+      instruction: allMatches.length ? 'Use the returned line ranges. Very long individual lines may be compacted and are marked explicitly; never copy an omission marker into a patch. Request one focused line range only if more adjacent context is necessary.' : 'No match was found. Try a different specific query; do not repeat this read.'
     };
   }
   if (Number.isInteger(action.startLine) && Number.isInteger(action.endLine)) {
@@ -716,7 +736,7 @@ function agentFileReadResult(action, branch, sha, content) {
       requestedStartLine: action.startLine,
       requestedEndLine: action.endLine,
       ranges: agentReadRanges(lines, [{ startLine: action.startLine, endLine: action.endLine }]),
-      instruction: 'The range content is exact repository text; line numbers are metadata and are not part of the file.'
+      instruction: 'Line numbers are metadata and are not part of the file. Very long individual lines may be compacted and are marked explicitly; never copy an omission marker into a patch.'
     };
   }
   if (normalized.length <= AGENT_READ_CONTENT_LIMIT) return { ...base, mode: 'full', content: normalized, truncated: false };
@@ -1095,12 +1115,12 @@ async function callModel(m, prompt, maxTokens, imagePart, systemPrompt, retryBud
 
 async function fetchModelProvider(url, options) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 75000);
+  const timeout = setTimeout(() => controller.abort(), 60000);
   try {
     return await fetch(url, { ...options, signal: controller.signal });
   } catch (error) {
     if (controller.signal.aborted) {
-      const timeoutError = new Error('The model provider did not respond within 75 seconds. The saved Agent job can continue in a new step.');
+      const timeoutError = new Error('The model provider did not respond within 60 seconds. The saved Agent job can continue in a new step.');
       timeoutError.timeout = true;
       throw timeoutError;
     }
@@ -1533,7 +1553,7 @@ async function handleChatHistory(request, env, uid, path) {
 }
 
 const AGENT_JOB_TTL = 86400;
-const AGENT_JOB_MAX_TRANSIENT_FAILURES = 3;
+const AGENT_JOB_MAX_TRANSIENT_FAILURES = 2;
 
 function agentJobKey(uid, jobId) {
   return `agent_job:${uid}:${jobId}`;
@@ -1558,6 +1578,7 @@ function defaultAgentChecklist(prompt) {
 
 function adoptAgentChecklist(job, checklist) {
   if (job.checklistAdopted || !Array.isArray(checklist) || !checklist.length) return;
+  if (job.language === 'he' && !checklist.some(item => /[\u0590-\u05ff]/.test(String(item?.text || '')))) return;
   job.checklist = checklist.slice(0, 7).map((item, index) => ({ ...item, status: index === 0 ? 'active' : 'pending' }));
   job.checklistAdopted = true;
 }
@@ -1844,13 +1865,12 @@ async function handleAgentJobContinue(request, env, uid) {
           job.readResults = (job.readResults || []).concat(roundResults);
           job.state = 'analyze_reads';
           job.currentStep = agentJobText(job, 'המודל מנתח את תוצאות הקריאה', 'The model is analyzing the read results');
-          advanceAgentChecklist(job);
           addAgentJobStep(job, agentJobText(job, `קריאת פרויקט ${job.readRounds}/${MAX_AGENT_READ_ROUNDS}`, `Repository read ${job.readRounds}/${MAX_AGENT_READ_ROUNDS}`), detail, 'done');
         }
       }
       if (job.state === 'analyze_reads') {
         const canReadMore = job.readRounds < MAX_AGENT_READ_ROUNDS;
-        const rawReply = await callModel(m, agentToolResultsPrompt(job.readResults, job.prompt, canReadMore), 5000, null, systemPrompt, noInlineRetry);
+        const rawReply = await callModel(m, agentToolResultsPrompt(job.readResults, job.prompt, canReadMore), 3600, null, systemPrompt, noInlineRetry);
         const plan = inferAgentReadPlan(normalizeAgentPlan(rawReply), job.repoContext);
         if (!plan) {
           if (job.formatRepairUsed) failAgentJob(job, agentJobText(job, 'המודל לא החזיר תוכנית Agent תקינה לאחר קריאת הקבצים.', 'The model did not return a valid Agent plan after reading the files.'));
@@ -1908,7 +1928,7 @@ async function handleAgentJobContinue(request, env, uid) {
       job.transientFailures = Number(job.transientFailures || 0) + 1;
       job.retryAfter = Math.min(15000, 2500 * job.transientFailures);
       const detail = error.timeout
-        ? agentJobText(job, 'ספק המודל לא ענה בתוך 75 שניות. מצב העבודה נשמר והניסיון הבא ירוץ בבקשה חדשה.', 'The model provider did not answer within 75 seconds. State was saved and the next attempt will use a new request.')
+        ? agentJobText(job, 'ספק המודל לא ענה בתוך 60 שניות. מצב העבודה נשמר והניסיון הבא ירוץ בבקשה חדשה.', 'The model provider did not answer within 60 seconds. State was saved and the next attempt will use a new request.')
         : agentJobText(job, 'המודל עמוס כרגע. מצב העבודה נשמר והמערכת תנסה שוב בשלב נפרד.', 'The model is busy. State was saved and the system will retry in a separate step.');
       addAgentJobStep(job, agentJobText(job, `המתנה וניסיון נוסף ${job.transientFailures}/${AGENT_JOB_MAX_TRANSIENT_FAILURES}`, `Waiting and retrying ${job.transientFailures}/${AGENT_JOB_MAX_TRANSIENT_FAILURES}`), detail, job.transientFailures >= AGENT_JOB_MAX_TRANSIENT_FAILURES ? 'failed' : 'active');
       if (job.transientFailures >= AGENT_JOB_MAX_TRANSIENT_FAILURES) failAgentJob(job, detail);
