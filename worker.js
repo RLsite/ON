@@ -378,15 +378,22 @@ async function loadAgentRepoContext(config, preferredBranch) {
 }
 
 function agentSystemPrompt(githubConnected, repoContext, dataSharingAuthorized) {
-  const repoText = repoContext
-    ? JSON.stringify(repoContext)
-    : 'null';
+  const repoText = repoContext ? JSON.stringify({
+    fullName: repoContext.fullName,
+    private: repoContext.private,
+    defaultBranch: repoContext.defaultBranch,
+    permissions: repoContext.permissions,
+    paths: repoContext.paths
+  }) : 'null';
+  const projectSkill = repoContext?.skill
+    ? `\nProject-specific Skill excerpt (follow it):\n${String(repoContext.skill).slice(0, 7000)}`
+    : '';
   return `You are the ON TracK project agent. You work for the user through a secure server bridge.
 The server, not you, holds the GitHub token. Never ask for, reveal, invent, or echo a token.
 You do not browse GitHub directly. You may request only the tools listed below; ON executes them.
 GitHub connected: ${githubConnected ? 'yes' : 'no'}.
 Private repository data sharing authorized for this session: ${dataSharingAuthorized ? 'yes' : 'no'}.
-Repository context (safe metadata only): ${repoText}
+Repository context (safe metadata only): ${repoText}${projectSkill}
 
 Available tools:
 - github.list_files: read the repository file tree. Arguments: branch (optional).
@@ -761,7 +768,7 @@ function agentFileReadResult(action, branch, sha, content) {
     const rankedMatches = [...allMatches].sort((a, b) => b.score - a.score || a.line - b.line);
     const requestedRanges = [];
     for (const line of rankedMatches.slice(0, 8).map(item => item.line).sort((a, b) => a - b)) {
-      const next = { startLine: Math.max(1, line - 14), endLine: Math.min(lines.length, line + 14) };
+      const next = { startLine: Math.max(1, line - 8), endLine: Math.min(lines.length, line + 8) };
       const previous = requestedRanges[requestedRanges.length - 1];
       if (previous && next.startLine <= previous.endLine + 1) previous.endLine = Math.max(previous.endLine, next.endLine);
       else requestedRanges.push(next);
@@ -838,14 +845,14 @@ function agentToolResultsPrompt(results, requestContext, canReadMore) {
   const nextStep = canReadMore
     ? 'If the supplied excerpts are insufficient, you may request one NEW focused github.read_file query or line range. A query is ONE literal case-insensitive substring, not search syntax: use an exact selector, id, quoted attribute, or one term from suggestedQueries, never a space-separated list of guesses. Use matchLocations to request the exact line range. Never repeat an identical read. Otherwise return the final answer or complete write plan now.'
     : 'The read-round limit has been reached. Do not request another read; return the final answer or complete write plan now.';
-  return `ON already executed the read-only GitHub tools below. ${nextStep} Keep the original request in mind. If the request needs a code change, return the smallest apply_patch/write_file plan plus update_version, create_pull_request, and deploy — in this exact response, as actions in the JSON, not described in words. If no change is needed, return a useful answer. Never return future-tense narration such as "I will read". Never say a change is done, made, applied, or complete in "reply" unless this same response's "actions" array actually contains the write/patch action that makes it — describing the change instead of including it as an action is exactly the false-completion behavior that must never happen, with no exception for small or obvious changes.\nOriginal user request:\n${String(requestContext || '').slice(0, 8000)}\nRead results:\n${JSON.stringify(results).slice(0, 70000)}`;
+  return `ON already executed the read-only GitHub tools below. ${nextStep} Keep the original request in mind. Put the JSON object first; do not output analysis or hidden reasoning. If the request needs a code change, return the smallest apply_patch/write_file plan plus update_version, create_pull_request, and deploy — in this exact response, as actions in the JSON, not described in words. If no change is needed, return a useful answer. Never return future-tense narration such as "I will read". Never say a change is done, made, applied, or complete in "reply" unless this same response's "actions" array actually contains the write/patch action that makes it — describing the change instead of including it as an action is exactly the false-completion behavior that must never happen, with no exception for small or obvious changes.\nOriginal user request:\n${String(requestContext || '').slice(0, 8000)}\nRead results:\n${JSON.stringify(results).slice(0, 30000)}`;
 }
 
 function agentReadResultsRepairPrompt(rawText, results, requestContext, canReadMore) {
   const readRule = canReadMore
     ? 'If context is still missing, you may request one NEW focused read with a single literal query or startLine/endLine, but never repeat an identical read or combine selector guesses with spaces.'
     : 'The read-round limit has been reached, so do not request another read.';
-  return `Your previous response did not follow the ON TracK Agent contract. Do not narrate intentions. ${readRule} Return exactly one JSON object now: either an answer with a useful response, a new focused read plan when allowed, or a plan for the requested change. For a code change, include a source-file action, github.update_version, github.create_pull_request, and github.deploy. Use the read results below.\nOriginal user request:\n${String(requestContext || '').slice(0, 8000)}\nPrevious response:\n${String(rawText || '').slice(0, 8000)}\nRead results:\n${JSON.stringify(results).slice(0, 70000)}`;
+  return `Your previous response did not follow the ON TracK Agent contract. Do not narrate intentions or analysis; put the JSON object first. ${readRule} Return exactly one JSON object now: either an answer with a useful response, a new focused read plan when allowed, or a plan for the requested change. For a code change, include a source-file action, github.update_version, github.create_pull_request, and github.deploy. Use the read results below.\nOriginal user request:\n${String(requestContext || '').slice(0, 8000)}\nPrevious response excerpt:\n${String(rawText || '').slice(0, 1600)}\nRead results:\n${JSON.stringify(results).slice(0, 30000)}`;
 }
 
 const LIVE_DEPLOY_BRANCH = 'claude/github-site-integration-fbb693';
@@ -1243,20 +1250,38 @@ async function fetchModelProvider(url, options) {
   }
 }
 
+function isNvidiaNimConnection(model) {
+  try {
+    return /(^|\.)nvidia\.com$/i.test(new URL(model?.baseUrl || '').hostname);
+  } catch {
+    return false;
+  }
+}
+
 async function callModelOnce(m, prompt, maxTokens, imagePart, systemPrompt) {
   const keyError = modelKeyError(m.apiKey);
   if (keyError) throw new Error(keyError);
   if (m.provider === 'openai') {
+    const nvidiaNim = isNvidiaNimConnection(m);
     const content = imagePart
       ? [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: `data:${imagePart.mime};base64,${imagePart.data}` } }]
       : prompt;
     const messages = [];
-    if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
+    if (systemPrompt) messages.push({ role: 'system', content: nvidiaNim ? `/no_think\n${systemPrompt}` : systemPrompt });
     messages.push({ role: 'user', content });
+    const payload = { model: m.model, messages, max_tokens: maxTokens };
+    // NVIDIA reasoning models can spend the whole Cloudflare request window emitting an
+    // internal monologue before the required Agent JSON. NIM officially supports disabling
+    // that mode per request; the Agent still plans the change, but returns the contract first.
+    if (nvidiaNim) {
+      payload.temperature = 0;
+      payload.stream = false;
+      payload.chat_template_kwargs = { enable_thinking: false };
+    }
     const r = await fetchModelProvider(`${m.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${m.apiKey}` },
-      body: JSON.stringify({ model: m.model, messages, max_tokens: maxTokens })
+      body: JSON.stringify(payload)
     });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw modelError(r, j);
@@ -2106,7 +2131,7 @@ async function handleAgentJobContinue(request, env, uid) {
       }
       if (job.state === 'analyze_reads') {
         const canReadMore = job.readRounds < MAX_AGENT_READ_ROUNDS;
-        const rawReply = await callModel(m, agentToolResultsPrompt(job.readResults, agentJobWorkingPrompt(job), canReadMore), 3600, null, systemPrompt, noInlineRetry);
+        const rawReply = await callModel(m, agentToolResultsPrompt(job.readResults, agentJobWorkingPrompt(job), canReadMore), 2200, null, systemPrompt, noInlineRetry);
         const plan = inferAgentReadPlan(normalizeAgentPlan(rawReply), job.repoContext);
         if (!plan) {
           if (job.formatRepairUsed) failAgentJob(job, agentJobText(job, 'המודל לא החזיר תוכנית Agent תקינה לאחר קריאת הקבצים.', 'The model did not return a valid Agent plan after reading the files.'));
@@ -2132,7 +2157,7 @@ async function handleAgentJobContinue(request, env, uid) {
       const repairPrompt = job.readResults?.length
         ? agentReadResultsRepairPrompt(job.rawReply, job.readResults, agentJobWorkingPrompt(job), canReadMore)
         : agentRepairPrompt(job.rawReply, agentJobWorkingPrompt(job));
-      const rawReply = await callModel(m, repairPrompt, 2600, null, systemPrompt, noInlineRetry);
+      const rawReply = await callModel(m, repairPrompt, 1800, null, systemPrompt, noInlineRetry);
       const plan = inferAgentReadPlan(normalizeAgentPlan(rawReply), job.repoContext);
       if (!plan) failAgentJob(job, agentJobText(job, 'גם ניסיון תיקון הפורמט נכשל. לא בוצע שינוי.', 'The format repair also failed. Nothing was changed.'));
       else {
