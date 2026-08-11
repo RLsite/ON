@@ -545,7 +545,7 @@
       <div class="sideCard quickStatusCard">
         <h3 data-i18n="quickStats">מצב מהיר</h3>
         <div class="heroStatRow"><span data-i18n="statusLabel">סטטוס</span><b id="miniStatus" data-i18n="miniStatusDefault">אין פרויקט נבחר</b></div>
-        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">1.4.24 ↻</button></div>
+        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">1.4.25 ↻</button></div>
         <div class="heroStatRow"><span data-i18n="langLabel">שפה</span><b id="langValue">עברית</b></div>
       </div>
     <div class="sidebarResizer" id="sidebarResizer" role="separator" aria-orientation="vertical" aria-label="שינוי רוחב אזור הפרויקטים"></div>
@@ -677,7 +677,7 @@
         <b data-i18n="helpTitle">❓ עזרה ל־ON TracK</b>
         <button class="icon" id="helpClose">✕</button>
       </div>
-      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">1.4.24</b></div>
+      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">1.4.25</b></div>
       <p class="hint" style="line-height:1.7;margin-top:0" data-i18n="helpIntro">ON TracK מחבר בין מודל שבחרת לבין פרויקט ומקורות קוד. המודל מקבל בקשות ומבצע פעולות רק דרך החיבורים וההרשאות שהגדרת.</p>
       <div class="helpList">
         <div class="hint" data-i18n="helpStepOne">1. צור או בחר פרויקט בצד.</div>
@@ -2365,10 +2365,10 @@ $('#agentRunTop').onclick=()=>runExternalAgent($('#modelTestStatus'));
 // ---- preset model dropdown per provider, with a "custom" free-text option ----
 const MODEL_PRESETS = {
   gemini: [
-    ['gemini-2.0-flash','gemini-2.0-flash (מהיר, ברירת מחדל)','gemini-2.0-flash (fast, default)'],
-    ['gemini-2.0-flash-lite','gemini-2.0-flash-lite (הכי זול/מהיר)','gemini-2.0-flash-lite (cheapest/fastest)'],
-    ['gemini-1.5-flash','gemini-1.5-flash','gemini-1.5-flash'],
-    ['gemini-1.5-pro','gemini-1.5-pro (איכות גבוהה יותר)','gemini-1.5-pro (higher quality)']
+    ['gemini-3.6-flash','gemini-3.6-flash (מהיר, ברירת מחדל)','gemini-3.6-flash (fast, default)'],
+    ['gemini-3.5-flash-lite','gemini-3.5-flash-lite (הכי זול/מהיר)','gemini-3.5-flash-lite (cheapest/fastest)'],
+    ['gemini-2.5-flash','gemini-2.5-flash','gemini-2.5-flash'],
+    ['gemini-2.5-pro','gemini-2.5-pro (איכות גבוהה יותר)','gemini-2.5-pro (higher quality)']
   ],
   openai: [
     ['gpt-4o','gpt-4o (OpenAI)','gpt-4o (OpenAI)'],
@@ -3051,7 +3051,7 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     b.textContent='❓ עזרה';
     apiBtn.parentElement.insertBefore(b, apiBtn);
   }
-  const appVersion='1.4.24';
+  const appVersion='1.4.25';
   $('#appVersion').textContent=appVersion;
   // Seeded here too: without a local server /api/state never answers, and this would
   // otherwise keep showing whatever literal the markup was last edited with.

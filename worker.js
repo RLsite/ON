@@ -1304,7 +1304,19 @@ async function callModelOnce(m, prompt, maxTokens, imagePart, systemPrompt) {
     if (!r.ok) throw modelError(r, j);
     return modelTextContent(j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content);
   }
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${m.model}:generateContent?key=${encodeURIComponent(m.apiKey)}`;
+  // Google retired the whole gemini-1.5/2.0 family (the API now returns "no longer available"
+  // for them). Saved connections created before that keep the old model id in KV, so map the
+  // known-retired ids to their current successors at call time — the user's saved key and
+  // connection keep working with zero manual editing.
+  const RETIRED_GEMINI_MODELS = {
+    'gemini-2.0-flash': 'gemini-3.6-flash',
+    'gemini-2.0-flash-lite': 'gemini-3.5-flash-lite',
+    'gemini-1.5-flash': 'gemini-2.5-flash',
+    'gemini-1.5-flash-8b': 'gemini-3.5-flash-lite',
+    'gemini-1.5-pro': 'gemini-2.5-pro'
+  };
+  const geminiModel = RETIRED_GEMINI_MODELS[m.model] || m.model;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${encodeURIComponent(m.apiKey)}`;
   const parts = [{ text: prompt }];
   if (imagePart) parts.push({ inline_data: { mime_type: imagePart.mime, data: imagePart.data } });
   const payload = { contents: [{ parts }], generationConfig: { maxOutputTokens: maxTokens } };

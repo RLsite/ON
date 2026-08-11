@@ -1,6 +1,6 @@
 {
   "name": "on-track",
-  "version": "1.4.24",
+  "version": "1.4.25",
   "description": "Web workspace for model-driven project control.",
   "main": "server.js",
   "scripts": {
