@@ -1,6 +1,6 @@
 # ON TracK Project Info
 
-Version: `1.4.26`
+Version: `1.4.27`
 Status: `GitHub connection tests now verify effective Contents and Pull Request write permissions with side-effect-free probes before Agent execution, and preserved plans are shown as execution retries rather than new approvals.`
 
 ## Goal
