@@ -823,6 +823,16 @@ function agentReadActionKey(action, defaultBranch) {
   });
 }
 
+function agentReadPlanActions(plan, job) {
+  const readActions = plan?.kind === 'plan'
+    ? plan.actions.filter(action => action.tool === 'github.list_files' || action.tool === 'github.read_file')
+    : [];
+  const seen = new Set(job.seenReads || []);
+  const defaultBranch = job.repoContext?.defaultBranch || LIVE_DEPLOY_BRANCH;
+  const newReadActions = readActions.filter(action => !seen.has(agentReadActionKey(action, defaultBranch)));
+  return { readActions, newReadActions };
+}
+
 async function executeAgentReadActions(config, actions, defaultBranch) {
   const results = [];
   for (const action of actions) {
@@ -1918,8 +1928,15 @@ async function acceptAgentJobPlan(env, uid, job, plan, rawReply, githubReady) {
     addAgentJobStep(job, agentJobText(job, 'נדרשת התאמה לחוזה', 'Plan contract correction required'), planError, 'active');
     return;
   }
-  const readActions = plan.kind === 'plan' ? plan.actions.filter(action => action.tool === 'github.list_files' || action.tool === 'github.read_file') : [];
+  const { readActions, newReadActions } = agentReadPlanActions(plan, job);
   if (readActions.length) {
+    if (!newReadActions.length && (job.readResults || []).length) {
+      job.state = 'finalize_reads';
+      job.currentStep = agentJobText(job, 'הקריאה כבר קיימת; מכין תוכנית פעולה סופית', 'The requested read is already available; preparing the final action plan');
+      job.reply = agentJobText(job, 'המודל ביקש שוב מידע שכבר נקרא. ON שמר את התוצאות ומעביר אותו לשלב ביצוע ללא קריאה חוזרת.', 'The model requested information that was already read. ON kept the results and is moving it to the execution-plan stage without another read.');
+      addAgentJobStep(job, agentJobText(job, 'נמנעה קריאה כפולה', 'Duplicate read prevented'), agentJobText(job, 'המידע המבוקש כבר נמצא בהקשר. בשלב הבא המודל חייב להחזיר תשובה או תוכנית שינוי מלאה.', 'The requested information is already in context. The next stage must return an answer or a complete change plan.'), 'active');
+      return;
+    }
     job.state = 'read';
     job.currentStep = agentJobText(job, 'קורא את הקבצים שנבחרו', 'Reading the selected files');
     job.reply = plan.reply || job.currentStep;
@@ -2115,8 +2132,12 @@ async function handleAgentJobContinue(request, env, uid) {
           seen.add(key);
           return true;
         });
-        if (!newReadActions.length) throw new Error('The model repeated the same repository read.');
-        if (job.readRounds >= MAX_AGENT_READ_ROUNDS) {
+        if (!newReadActions.length) {
+          job.state = 'finalize_reads';
+          job.rawReply = job.rawReply || JSON.stringify(job.plan || {});
+          job.currentStep = agentJobText(job, 'הקריאה כבר קיימת; מכין תוכנית פעולה סופית', 'The requested read is already available; preparing the final action plan');
+          addAgentJobStep(job, agentJobText(job, 'נמנעה קריאה כפולה', 'Duplicate read prevented'), agentJobText(job, 'לא בוצעה קריאת GitHub נוספת. תוצאות הקריאה השמורות יועברו לשלב הסופי.', 'No additional GitHub read was executed. The saved read results will be passed to the final stage.'), 'active');
+        } else if (job.readRounds >= MAX_AGENT_READ_ROUNDS) {
           job.state = 'finalize_reads';
         } else {
           const detail = describeAgentReads(job, newReadActions);

@@ -56,9 +56,11 @@ almost certainly lives in `.newShell`, not `.oldApp`.
 For a request about the visible ON TracK brand logo, query `id="brandLogo"` or `.brandMark`.
 For the circular account/profile control that can show the signed-in user's initials such as
 `RL`, query `id="authBtn"` or `#authBtn`; those initials are runtime account data and do not appear
-as literal markup. Do not query `RL` (it also matches `URL`, `rlapp`, repository examples, and
-embedded image data), and never query a guessed string such as `menu .icon .rl` because queries
-are literal, not selector composition.
+as literal markup. In the live shell, `#authBtn` is inside `.newShell > .newMain > .newTop >
+.actions`; it is not in `.newSidebar`. A request to move that account control within the top menu
+should inspect or reorder the children of `.newTop .actions`. Do not query `RL` (it also matches
+`URL`, `rlapp`, repository examples, and embedded image data), and never query a guessed string
+such as `menu .icon .rl` because queries are literal, not selector composition.
 
 ## Required Behavior
 
