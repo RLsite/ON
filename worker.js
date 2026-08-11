@@ -387,7 +387,7 @@ Repository context (safe metadata only): ${repoText}
 
 Available tools:
 - github.list_files: read the repository file tree. Arguments: branch (optional).
-- github.read_file: read one text file. Arguments: path, branch (optional).
+- github.read_file: read one text file. Arguments: path, branch (optional), query (optional text to find), or startLine and endLine (optional focused line range, maximum 400 lines). For large files, first use query, then use a line range only when more surrounding context is needed. Never repeat an identical read. Request at most two read actions per round.
 - github.apply_patch: prepare a small unified diff for an existing text file. Arguments: path, patch, message. Prefer this for existing files.
 - github.write_file: prepare a complete replacement for one new or small text file. Arguments: path, content, message.
 - github.create_pull_request: after file changes, request a Pull Request. Arguments: title, body, base (optional).
@@ -403,7 +403,7 @@ Do not use unsupported tools, do not output shell commands as if they were execu
 
 Return JSON only, with this shape:
 For an answer: {"kind":"answer","reply":"...","actions":[]}
-For work: {"kind":"plan","reply":"Short explanation in the user's language","actions":[{"tool":"github.read_file","path":"..."}]}
+For work: {"kind":"plan","reply":"Short explanation in the user's language","actions":[{"tool":"github.read_file","path":"index.html","query":"newShell"}]}
 Use the user's language. Keep replies concise. A write_file action must contain the full intended file content and a short commit message.
 An apply_patch action must contain a valid unified diff for one file and a short commit message. Return exactly one JSON object and no Markdown fences.
 For any code change, include all of these actions in the same plan: a file write, github.update_version, github.create_pull_request, and github.deploy. The deployment branch is claude/github-site-integration-fbb693.
@@ -453,7 +453,7 @@ function inferAgentReadPlan(plan, repoContext) {
   return {
     kind: 'plan',
     reply: 'אבדוק את הקבצים שצוינו לפני שאציע שינוי.',
-    actions: paths.slice(0, 4).map(path => ({ tool: 'github.read_file', path }))
+    actions: paths.slice(0, 2).map(path => ({ tool: 'github.read_file', path }))
   };
 }
 
@@ -503,6 +503,7 @@ function validateAgentPlan(plan, githubConnected) {
   if (!plan || plan.kind === 'answer') return null;
   if (!githubConnected) return 'GitHub is not connected.';
   if (!Array.isArray(plan.actions) || !plan.actions.length) return 'The model returned an empty action plan.';
+  if (plan.actions.filter(action => action.tool === 'github.list_files' || action.tool === 'github.read_file').length > 2) return 'Request at most two repository reads per round.';
   const allowed = new Set(['github.list_files', 'github.read_file', 'github.write_file', 'github.apply_patch', 'github.update_version', 'github.create_pull_request', 'github.deploy']);
   let hasWrite = false;
   let hasSourceWrite = false;
@@ -518,6 +519,15 @@ function validateAgentPlan(plan, githubConnected) {
     if (action.tool === 'github.read_file') {
       if (!safeAgentPath(action.path)) return 'Invalid repository file path.';
       if (action.branch && !safeAgentBranch(action.branch)) return 'Invalid branch name.';
+      const hasQuery = action.query !== undefined && action.query !== null;
+      const hasStart = action.startLine !== undefined && action.startLine !== null;
+      const hasEnd = action.endLine !== undefined && action.endLine !== null;
+      if (hasQuery && (typeof action.query !== 'string' || !action.query.trim() || action.query.trim().length > 200)) return 'A read query must be between 1 and 200 characters.';
+      if (hasQuery && (hasStart || hasEnd)) return 'Use either a read query or a line range, not both.';
+      if (hasStart !== hasEnd) return 'A focused read requires both startLine and endLine.';
+      if (hasStart && (!Number.isInteger(action.startLine) || !Number.isInteger(action.endLine) || action.startLine < 1 || action.endLine < action.startLine || action.endLine - action.startLine + 1 > 400)) {
+        return 'A focused read range must contain 1 to 400 valid lines.';
+      }
     }
     if (action.tool === 'github.write_file' || action.tool === 'github.apply_patch') {
       if (!safeAgentPath(action.path)) return 'Invalid repository file path.';
@@ -638,6 +648,95 @@ function applyUnifiedPatch(original, patchText) {
   return output.join('\n');
 }
 
+const AGENT_READ_CONTENT_LIMIT = 14000;
+const MAX_AGENT_READ_ROUNDS = 2;
+
+function agentReadRanges(lines, requestedRanges) {
+  const ranges = [];
+  let remaining = AGENT_READ_CONTENT_LIMIT;
+  for (const requested of requestedRanges) {
+    if (remaining <= 0 || !lines.length) break;
+    const startLine = Math.max(1, Math.min(lines.length, requested.startLine));
+    const endLine = Math.max(startLine, Math.min(lines.length, requested.endLine));
+    let excerpt = lines.slice(startLine - 1, endLine).join('\n');
+    const contentTruncated = excerpt.length > remaining;
+    if (contentTruncated) excerpt = excerpt.slice(0, remaining);
+    ranges.push({ startLine, endLine, content: excerpt, contentTruncated });
+    remaining -= excerpt.length;
+  }
+  return ranges;
+}
+
+function agentFileReadResult(action, branch, sha, content) {
+  const normalized = String(content || '').replace(/\r\n/g, '\n');
+  const lines = normalized.split('\n');
+  const base = {
+    tool: action.tool,
+    path: action.path,
+    branch,
+    sha,
+    totalLines: lines.length,
+    totalCharacters: normalized.length
+  };
+  const query = typeof action.query === 'string' ? action.query.trim() : '';
+  if (query) {
+    const needle = query.toLocaleLowerCase();
+    const allMatches = [];
+    for (let index = 0; index < lines.length; index += 1) {
+      if (lines[index].toLocaleLowerCase().includes(needle)) allMatches.push(index + 1);
+    }
+    const requestedRanges = [];
+    for (const line of allMatches.slice(0, 8)) {
+      const next = { startLine: Math.max(1, line - 24), endLine: Math.min(lines.length, line + 24) };
+      const previous = requestedRanges[requestedRanges.length - 1];
+      if (previous && next.startLine <= previous.endLine + 1) previous.endLine = Math.max(previous.endLine, next.endLine);
+      else requestedRanges.push(next);
+    }
+    return {
+      ...base,
+      mode: 'query',
+      query,
+      matchCount: allMatches.length,
+      matchesTruncated: allMatches.length > 8,
+      ranges: agentReadRanges(lines, requestedRanges),
+      instruction: allMatches.length ? 'Use the returned line ranges. Request one focused line range only if more adjacent context is necessary.' : 'No match was found. Try a different specific query; do not repeat this read.'
+    };
+  }
+  if (Number.isInteger(action.startLine) && Number.isInteger(action.endLine)) {
+    return {
+      ...base,
+      mode: 'range',
+      requestedStartLine: action.startLine,
+      requestedEndLine: action.endLine,
+      ranges: agentReadRanges(lines, [{ startLine: action.startLine, endLine: action.endLine }]),
+      instruction: 'The range content is exact repository text; line numbers are metadata and are not part of the file.'
+    };
+  }
+  if (normalized.length <= AGENT_READ_CONTENT_LIMIT) return { ...base, mode: 'full', content: normalized, truncated: false };
+  return {
+    ...base,
+    mode: 'overview',
+    ranges: agentReadRanges(lines, [
+      { startLine: 1, endLine: Math.min(lines.length, 140) },
+      { startLine: Math.max(1, lines.length - 39), endLine: lines.length }
+    ]),
+    truncated: true,
+    requiresFocusedRead: true,
+    instruction: 'This file is too large for a full read. Request a NEW github.read_file action for this path with a specific query, or with startLine and endLine (maximum 400 lines).'
+  };
+}
+
+function agentReadActionKey(action, defaultBranch) {
+  return JSON.stringify({
+    tool: action.tool,
+    path: action.path || null,
+    branch: safeAgentBranch(action.branch) || defaultBranch,
+    query: typeof action.query === 'string' ? action.query.trim().toLocaleLowerCase() : null,
+    startLine: Number.isInteger(action.startLine) ? action.startLine : null,
+    endLine: Number.isInteger(action.endLine) ? action.endLine : null
+  });
+}
+
 async function executeAgentReadActions(config, actions, defaultBranch) {
   const results = [];
   for (const action of actions) {
@@ -650,18 +749,24 @@ async function executeAgentReadActions(config, actions, defaultBranch) {
       const file = await githubApi(config, `/contents/${githubPath(action.path)}?ref=${encodeURIComponent(branch)}`);
       if (file?.type !== 'file' || typeof file.content !== 'string') throw new Error(`GitHub path is not a text file: ${action.path}`);
       const content = decodeBase64Utf8(file.content);
-      results.push({ tool: action.tool, path: action.path, branch, sha: file.sha || null, content: content.slice(0, 50000), truncated: content.length > 50000 });
+      results.push(agentFileReadResult(action, branch, file.sha || null, content));
     }
   }
   return results;
 }
 
-function agentToolResultsPrompt(results, requestContext) {
-  return `ON already executed the read-only GitHub tools below. Use only these results; do not request the same files again. Keep the original request in mind and return the final JSON plan now. If the request needs a code change, return the smallest apply_patch/write_file plan plus update_version, create_pull_request, and deploy — in this exact response, as actions in the JSON, not described in words. If no change is needed, return a useful answer. Never return future-tense narration such as "I will read". Never say a change is done, made, applied, or complete in "reply" unless this same response's "actions" array actually contains the write/patch action that makes it — describing the change instead of including it as an action is exactly the false-completion behavior that must never happen, with no exception for small or obvious changes.\nOriginal user request:\n${String(requestContext || '').slice(0, 8000)}\nRead results:\n${JSON.stringify(results).slice(0, 70000)}`;
+function agentToolResultsPrompt(results, requestContext, canReadMore) {
+  const nextStep = canReadMore
+    ? 'If the supplied excerpts are insufficient, you may request one NEW focused github.read_file query or line range. Never repeat an identical read. Otherwise return the final answer or complete write plan now.'
+    : 'The read-round limit has been reached. Do not request another read; return the final answer or complete write plan now.';
+  return `ON already executed the read-only GitHub tools below. ${nextStep} Keep the original request in mind. If the request needs a code change, return the smallest apply_patch/write_file plan plus update_version, create_pull_request, and deploy — in this exact response, as actions in the JSON, not described in words. If no change is needed, return a useful answer. Never return future-tense narration such as "I will read". Never say a change is done, made, applied, or complete in "reply" unless this same response's "actions" array actually contains the write/patch action that makes it — describing the change instead of including it as an action is exactly the false-completion behavior that must never happen, with no exception for small or obvious changes.\nOriginal user request:\n${String(requestContext || '').slice(0, 8000)}\nRead results:\n${JSON.stringify(results).slice(0, 70000)}`;
 }
 
-function agentReadResultsRepairPrompt(rawText, results, requestContext) {
-  return `Your previous response did not follow the ON TracK Agent contract. The files have already been read, so do not request another read and do not narrate intentions. Return exactly one JSON object now: either an answer with a useful response, or a plan for the requested change. For a code change, include a source-file action, github.update_version, github.create_pull_request, and github.deploy. Use only the read results below.\nOriginal user request:\n${String(requestContext || '').slice(0, 8000)}\nPrevious response:\n${String(rawText || '').slice(0, 8000)}\nRead results:\n${JSON.stringify(results).slice(0, 70000)}`;
+function agentReadResultsRepairPrompt(rawText, results, requestContext, canReadMore) {
+  const readRule = canReadMore
+    ? 'If context is still missing, you may request one NEW focused read with query or startLine/endLine, but never repeat an identical read.'
+    : 'The read-round limit has been reached, so do not request another read.';
+  return `Your previous response did not follow the ON TracK Agent contract. Do not narrate intentions. ${readRule} Return exactly one JSON object now: either an answer with a useful response, a new focused read plan when allowed, or a plan for the requested change. For a code change, include a source-file action, github.update_version, github.create_pull_request, and github.deploy. Use the read results below.\nOriginal user request:\n${String(requestContext || '').slice(0, 8000)}\nPrevious response:\n${String(rawText || '').slice(0, 8000)}\nRead results:\n${JSON.stringify(results).slice(0, 70000)}`;
 }
 
 const LIVE_DEPLOY_BRANCH = 'claude/github-site-integration-fbb693';
@@ -1400,12 +1505,14 @@ async function handleChat(request, env, uid) {
     }
     const githubReady = !!(consentMatchesModel && hasGithubFields && repoContext);
     const systemPrompt = agentSystemPrompt(githubReady, repoContext, consentMatchesModel);
+    let formatRepairUsed = false;
     let rawReply = await callModel(m, prompt, 2600, imagePart, systemPrompt, retryBudget);
     let plan = inferAgentReadPlan(normalizeAgentPlan(rawReply), repoContext);
     if (!plan) {
       // Give the repair at least as much room as the original attempt — a code-change plan's
       // repaired JSON (full patch + reply + up to 4 bundled actions) is not smaller than the
       // first try, and a tighter budget here risks silently truncating the corrected JSON.
+      formatRepairUsed = true;
       const repairedReply = await callModel(m, agentRepairPrompt(rawReply, prompt), 2600, null, systemPrompt, retryBudget);
       plan = inferAgentReadPlan(normalizeAgentPlan(repairedReply), repoContext);
       if (plan) rawReply = repairedReply;
@@ -1415,41 +1522,57 @@ async function handleChat(request, env, uid) {
       return chatJson(env, uid, { prompt, error: reply, imageAttached: !!imagePart }, { error: reply }, 502);
     }
     let readResults = [];
-    if (plan && !validateAgentPlan(plan, githubReady)) {
+    const seenReads = new Set();
+    let readRounds = 0;
+    while (plan && !validateAgentPlan(plan, githubReady)) {
       const readActions = plan.actions.filter(action => action.tool === 'github.list_files' || action.tool === 'github.read_file');
-      if (readActions.length && repoContext) {
-        readResults = await executeAgentReadActions(github, readActions, repoContext.defaultBranch);
-        let followReply = await callModel(m, agentToolResultsPrompt(readResults, prompt), 5000, null, systemPrompt, retryBudget);
-        let followPlan = inferAgentReadPlan(normalizeAgentPlan(followReply), repoContext);
-        if (!followPlan) {
-          const repairedFollowReply = await callModel(m, agentReadResultsRepairPrompt(followReply, readResults, prompt), 2000, null, systemPrompt, retryBudget);
-          followPlan = inferAgentReadPlan(normalizeAgentPlan(repairedFollowReply), repoContext);
-          if (followPlan) followReply = repairedFollowReply;
-        }
-        if (isReadOnlyAgentPlan(followPlan)) {
-          const repeatedReadReply = await callModel(m, agentReadResultsRepairPrompt(followReply, readResults, prompt), 2000, null, systemPrompt, retryBudget);
-          const repeatedPlan = inferAgentReadPlan(normalizeAgentPlan(repeatedReadReply), repoContext);
-          if (repeatedPlan && !isReadOnlyAgentPlan(repeatedPlan)) {
-            followPlan = repeatedPlan;
-            followReply = repeatedPlan ? repeatedReadReply : followReply;
-          } else if (String(repeatedReadReply || '').trim()) {
-            followPlan = { kind: 'answer', reply: String(repeatedReadReply).trim(), actions: [] };
-            followReply = repeatedReadReply;
-          }
-        }
-        if (followPlan) {
-          rawReply = followReply;
-          plan = followPlan;
-        } else if (String(followReply || '').trim()) {
-          // Never fall back to the stale "I will read..." plan after the model
-          // has received the file contents. Return its plain answer instead.
-          rawReply = String(followReply).trim();
-          plan = { kind: 'answer', reply: rawReply, actions: [] };
-        } else {
-          rawReply = 'The model did not return a final answer after reading the requested files. Please refresh the request.';
-          plan = { kind: 'answer', reply: rawReply, actions: [] };
-        }
+      if (!readActions.length || !repoContext) break;
+      const newReadActions = readActions.filter(action => {
+        const key = agentReadActionKey(action, repoContext.defaultBranch);
+        if (seenReads.has(key)) return false;
+        seenReads.add(key);
+        return true;
+      });
+      if (!newReadActions.length) {
+        rawReply = 'The model repeated the same repository read instead of completing the request. Nothing was changed. Try refreshing the request with a more specific instruction.';
+        plan = { kind: 'answer', reply: rawReply, actions: [] };
+        break;
       }
+      if (readRounds >= MAX_AGENT_READ_ROUNDS) {
+        rawReply = 'The model reached the safe repository read limit without producing a final action plan. Nothing was changed. Try a more focused request.';
+        plan = { kind: 'answer', reply: rawReply, actions: [] };
+        break;
+      }
+      readRounds += 1;
+      const roundResults = await executeAgentReadActions(github, newReadActions, repoContext.defaultBranch);
+      readResults = readResults.concat(roundResults);
+      const canReadMore = readRounds < MAX_AGENT_READ_ROUNDS;
+      let followReply = await callModel(m, agentToolResultsPrompt(readResults, prompt, canReadMore), 5000, null, systemPrompt, retryBudget);
+      let followPlan = inferAgentReadPlan(normalizeAgentPlan(followReply), repoContext);
+      if (!followPlan && !formatRepairUsed) {
+        formatRepairUsed = true;
+        const repairedFollowReply = await callModel(m, agentReadResultsRepairPrompt(followReply, readResults, prompt, canReadMore), 2600, null, systemPrompt, retryBudget);
+        followPlan = inferAgentReadPlan(normalizeAgentPlan(repairedFollowReply), repoContext);
+        if (followPlan) followReply = repairedFollowReply;
+      }
+      if (!followPlan) {
+        rawReply = 'The model did not return a valid final Agent response after reading the repository. Nothing was changed. Please refresh the request.';
+        plan = { kind: 'answer', reply: rawReply, actions: [] };
+        break;
+      }
+      if (isReadOnlyAgentPlan(followPlan) && !canReadMore) {
+        const finalReply = await callModel(m, agentReadResultsRepairPrompt(followReply, readResults, prompt, false), 2600, null, systemPrompt, retryBudget);
+        const finalPlan = inferAgentReadPlan(normalizeAgentPlan(finalReply), repoContext);
+        if (!finalPlan || isReadOnlyAgentPlan(finalPlan)) {
+          rawReply = 'The model finished its safe read allowance without proposing an executable action. Nothing was changed. Try a more focused request.';
+          plan = { kind: 'answer', reply: rawReply, actions: [] };
+          break;
+        }
+        followReply = finalReply;
+        followPlan = finalPlan;
+      }
+      rawReply = followReply;
+      plan = followPlan;
     }
     let planError = plan ? validateAgentPlan(plan, githubReady) : null;
     // A structurally valid plan that breaks a contract rule (e.g. a write missing the
