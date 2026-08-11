@@ -472,7 +472,7 @@ Available tools:
 - github.apply_patch: prepare a small unified diff for an existing text file. Arguments: path, patch, message. Prefer this for existing files.
 - github.write_file: prepare a complete replacement for one new or small text file. Arguments: path, content, message.
 - github.create_pull_request: after file changes, request a Pull Request. Arguments: title, body, base (optional).
-- github.update_version: update the canonical project version files. Arguments: version, message (optional).
+- github.update_version: finish every change by bumping the project version and recording what was done. Arguments: version (one patch above the current project version — the server verifies this and corrects any non-increase), summary (REQUIRED: one short sentence describing what was changed; it is published as the project's Status line), message (optional).
 - github.deploy: merge the approved Pull Request into the configured deployment branch. This only merges the branch on GitHub — it does not by itself update the live site; a person must still run the project's deploy command afterward. Arguments: branch, version.
 
 All file writes always go to a new branch created for this change; you cannot target any other branch, including the live branch, directly. Write actions are never executed immediately. They are shown to the user and require approval.
@@ -488,7 +488,7 @@ For work: {"kind":"plan","reply":"Short explanation in the user's language","che
 Use the user's language. Keep replies concise. A write_file action must contain the full intended file content and a short commit message.
 For every work request, create a concrete checklist of 2 to 7 short steps. Keep the same checklist meaning across later read-result responses so ON can show progress and another runner can continue from the stored state.
 An apply_patch action must contain a valid unified diff for one file and a short commit message. Return exactly one JSON object and no Markdown fences.
-For any code change, include all of these actions in the same plan: a file write, github.update_version, github.create_pull_request, and github.deploy. The deployment branch is claude/github-site-integration-fbb693.
+For any code change, include all of these actions in the same plan: a file write, github.update_version (with its required one-sentence summary of what was changed), github.create_pull_request, and github.deploy. The deployment branch is claude/github-site-integration-fbb693.
 ${githubConnected && dataSharingAuthorized ? '' : 'Repository access is not authorized for this request. Explain that clearly and do not create GitHub actions.'}`;
 }
 
@@ -641,6 +641,8 @@ function validateAgentPlan(plan, githubConnected) {
       hasWrite = true;
       hasVersion = true;
       if (!/^\d+\.\d+\.\d+$/.test(String(action.version || '').trim())) return 'Invalid project version.';
+      if (!String(action.summary || '').trim()) return 'github.update_version requires a summary: one short sentence describing what was changed, for the project log.';
+      if (String(action.summary).length > 300) return 'The github.update_version summary is too long — one short sentence, at most 300 characters.';
     }
     if (action.tool === 'github.deploy') {
       hasWrite = true;
@@ -697,6 +699,7 @@ function publicAgentPlan(plan) {
         title: action.title || null,
         body: action.body ? String(action.body).slice(0, 1200) : null,
         version: action.version || null,
+        summary: action.summary ? String(action.summary).slice(0, 300) : null,
         contentLength: raw ? raw.length : null,
         contentPreview: raw ? raw.slice(0, AGENT_PLAN_PREVIEW_LIMIT) : null,
         contentTruncated: raw ? raw.length > AGENT_PLAN_PREVIEW_LIMIT : false
@@ -954,9 +957,35 @@ async function readGithubTextFile(config, path, branch) {
   return decodeBase64Utf8(file.content);
 }
 
-async function updateProjectVersion(config, branch, version, message) {
+function parseSemver(value) {
+  const m = /^(\d+)\.(\d+)\.(\d+)$/.exec(String(value || '').trim());
+  return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
+}
+
+function semverGreater(a, b) {
+  const pa = parseSemver(a);
+  const pb = parseSemver(b);
+  if (!pa || !pb) return false;
+  for (let i = 0; i < 3; i++) {
+    if (pa[i] !== pb[i]) return pa[i] > pb[i];
+  }
+  return false;
+}
+
+// The model chooses the version number in its plan, and a real production run chose one BELOW
+// the current version (1.0.1 after 1.4.27), silently rewinding the whole project's version
+// lineage on merge. The server is the only place that knows the branch's real current version,
+// so it decides: the model's number is honored only if it's a genuine increase; anything else
+// becomes current-patch+1.
+async function updateProjectVersion(config, branch, requestedVersion, message, summary) {
   const files = [];
   const packageJson = JSON.parse(await readGithubTextFile(config, 'package.json', branch));
+  const current = String(packageJson.version || '').trim();
+  const currentParts = parseSemver(current);
+  let version = String(requestedVersion || '').trim();
+  if (!parseSemver(version) || (currentParts && !semverGreater(version, current))) {
+    version = currentParts ? `${currentParts[0]}.${currentParts[1]}.${currentParts[2] + 1}` : version;
+  }
   packageJson.version = version;
   files.push(await writeGithubTextFile(config, 'package.json', branch, JSON.stringify(packageJson, null, 2) + '\n', message || `Bump version to ${version}`));
 
@@ -975,8 +1004,15 @@ async function updateProjectVersion(config, branch, version, message) {
   let info = await readGithubTextFile(config, 'PROJECT_INFO.md', branch);
   if (/^Version:\s*`[^`]*`/m.test(info)) info = info.replace(/^Version:\s*`[^`]*`/m, `Version: \`${version}\``);
   else info = `Version: \`${version}\`\n\n${info}`;
+  // "Write briefly what was done": the model's one-line change summary becomes the project's
+  // Status line, so PROJECT_INFO.md always says what the latest change actually was.
+  const cleanSummary = String(summary || '').replace(/[`\r\n]+/g, ' ').trim().slice(0, 300);
+  if (cleanSummary) {
+    if (/^Status:\s*`[^`]*`/m.test(info)) info = info.replace(/^Status:\s*`[^`]*`/m, `Status: \`${cleanSummary}\``);
+    else info = info.replace(/^(Version:\s*`[^`]*`)/m, `$1\nStatus: \`${cleanSummary}\``);
+  }
   files.push(await writeGithubTextFile(config, 'PROJECT_INFO.md', branch, info, message || `Bump version to ${version}`));
-  return files;
+  return { files, version };
 }
 
 // githubApi() throws GitHub's own error text (e.g. "Resource not accessible by personal access
@@ -1049,7 +1085,15 @@ async function executeAgentWritePlan(config, plan, planId, env) {
     files.push({ path, action: current?.sha ? actionName : 'created', commit: updated?.commit?.sha || null });
   }
   const versionAction = plan.actions.find(item => item.tool === 'github.update_version');
-  if (versionAction) files.push(...await withStage('updating the version files', () => updateProjectVersion(config, branch, String(versionAction.version).trim(), versionAction.message)));
+  let effectiveVersion = null;
+  if (versionAction) {
+    // Plans saved before the summary field existed won't have one — fall back to the PR title
+    // so the Status line still says something real rather than staying stale.
+    const summary = String(versionAction.summary || pullAction?.title || '').trim();
+    const versionResult = await withStage('updating the version files', () => updateProjectVersion(config, branch, String(versionAction.version).trim(), versionAction.message, summary));
+    files.push(...versionResult.files);
+    effectiveVersion = versionResult.version;
+  }
   let pullRequest = null;
   if (pullAction) {
     const pr = await withStage('creating the Pull Request', () => githubApi(config, '/pulls', {
@@ -1067,13 +1111,16 @@ async function executeAgentWritePlan(config, plan, planId, env) {
   if (deployAction) {
     if (!pullRequest?.number) throw new Error('Deployment requires a created Pull Request.');
     if (deployBranch !== baseBranch) throw new Error('Deployment branch and Pull Request base do not match.');
+    // The merge title and the reported deployment carry the version the server actually wrote
+    // to the files, not the model's requested number (which may have been corrected upward).
+    const mergedVersion = effectiveVersion || deployAction.version;
     const merge = await withStage('merging the Pull Request', () => githubApi(config, `/pulls/${pullRequest.number}/merge`, {
       method: 'PUT',
-      body: JSON.stringify({ merge_method: 'merge', commit_title: `Deploy ON TracK ${deployAction.version}` })
+      body: JSON.stringify({ merge_method: 'merge', commit_title: `Deploy ON TracK ${mergedVersion}` })
     }));
     if (!merge?.merged) throw new Error(merge?.message || 'Pull Request was not merged; deployment did not start.');
     deployment = {
-      branch: deployBranch, version: deployAction.version, merged: true, commit: merge.sha || null,
+      branch: deployBranch, version: mergedVersion, merged: true, commit: merge.sha || null,
       note: 'This merged the change into the branch on GitHub only. The live site is not updated automatically — a person must still run the project deploy command.'
     };
   }

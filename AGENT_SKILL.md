@@ -12,7 +12,7 @@ The Worker stores a separate approval for each Google account and the exact sele
 - `github.read_file` is read-only. It accepts `path` plus either a focused `query`, or `startLine` and `endLine` (maximum 400 lines). `query` is one literal case-insensitive substring, not semantic search and not several selector guesses separated by spaces. Use exact text such as `id="brandLogo"`, `.brandMark`, or a quoted attribute. Large files return an overview instead of a misleading partial file. Each result has a strict 6,000-character budget; very long embedded-data/minified lines are visibly compacted and omission markers must never be copied into a patch. Request at most two repository reads in one round so all returned excerpts fit in the next model call, and use at most four distinct read rounds.
 - `github.write_file` creates a proposed complete-file replacement.
 - `github.apply_patch` creates a proposed focused patch for an existing file.
-- `github.update_version` updates the project version in the canonical project files.
+- `github.update_version` finishes every change: it bumps the project version and records what was done. Its `version` must be exactly one patch above the current project version (the server verifies this and corrects any value that is not an increase — a real run once set 1.0.1 after 1.4.27 and rewound the whole project lineage). Its `summary` is REQUIRED: one short sentence describing what was changed, which the server publishes as the `Status:` line of `PROJECT_INFO.md` so the project log always says what the latest change did.
 - `github.create_pull_request` is proposed together with file changes.
 - `github.deploy` merges the approved Pull Request into the configured deployment branch. This is a GitHub-only, git-level merge — it does not call Cloudflare or start a deploy. The live site only picks up the change once a person separately runs the project's deploy command.
 - Write plans are stored with their resumable Job for up to 24 hours and require explicit user approval.
@@ -112,7 +112,7 @@ The model must not say that a change was deployed based on a patch alone. The re
 
 1. Read the relevant files.
 2. Propose `github.apply_patch` or `github.write_file`.
-3. Include `github.update_version` for `index.html`, `PROJECT_INFO.md`, `package.json`, and `package-lock.json`.
+3. Include `github.update_version` for `index.html`, `PROJECT_INFO.md`, `package.json`, and `package-lock.json` — with `version` one patch above the current project version and the required one-sentence `summary` of what was changed.
 4. Include `github.create_pull_request`.
 5. Include `github.deploy` targeting `claude/github-site-integration-fbb693`.
 6. Wait for the user approval and report the execution result.
