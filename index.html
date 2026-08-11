@@ -316,7 +316,7 @@
   .lpStep{font-size:12.5px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 9px}
   .lpStep .a{font-weight:700}
   .lpStep .d{color:var(--muted);display:block;margin-top:1px}
-  .newShell{--sidebar-width:280px;min-height:100vh;display:grid;grid-template-columns:var(--sidebar-width) minmax(0,1fr);background:var(--bg)}
+  .newShell{--sidebar-width:210px;min-height:100vh;display:grid;grid-template-columns:var(--sidebar-width) minmax(0,1fr);background:var(--bg)}
   .newSidebar{position:relative;min-width:0;background:linear-gradient(180deg,#fffdf9, #fff4ea);border-inline-end:1px solid var(--line);padding:18px 14px;display:flex;flex-direction:column;gap:18px}
   .sidebarResizer{position:absolute;z-index:12;inset-inline-end:-5px;top:0;bottom:0;width:10px;cursor:col-resize;touch-action:none;display:grid;place-items:center}
   .sidebarResizer::after{content:"";width:2px;height:44px;border-radius:2px;background:var(--line);transition:.15s}
@@ -545,7 +545,7 @@
       <div class="sideCard quickStatusCard">
         <h3 data-i18n="quickStats">מצב מהיר</h3>
         <div class="heroStatRow"><span data-i18n="statusLabel">סטטוס</span><b id="miniStatus" data-i18n="miniStatusDefault">אין פרויקט נבחר</b></div>
-        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">1.4.27 ↻</button></div>
+        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">1.0.1 ↻</button></div>
         <div class="heroStatRow"><span data-i18n="langLabel">שפה</span><b id="langValue">עברית</b></div>
       </div>
     <div class="sidebarResizer" id="sidebarResizer" role="separator" aria-orientation="vertical" aria-label="שינוי רוחב אזור הפרויקטים"></div>
@@ -677,7 +677,7 @@
         <b data-i18n="helpTitle">❓ עזרה ל־ON TracK</b>
         <button class="icon" id="helpClose">✕</button>
       </div>
-      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">1.4.27</b></div>
+      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">1.0.1</b></div>
       <p class="hint" style="line-height:1.7;margin-top:0" data-i18n="helpIntro">ON TracK מחבר בין מודל שבחרת לבין פרויקט ומקורות קוד. המודל מקבל בקשות ומבצע פעולות רק דרך החיבורים וההרשאות שהגדרת.</p>
       <div class="helpList">
         <div class="hint" data-i18n="helpStepOne">1. צור או בחר פרויקט בצד.</div>
@@ -2806,7 +2806,7 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     const shell = $('.newShell');
     const handle = $('#sidebarResizer');
     if(!shell || !handle) return;
-    const minWidth = 220;
+    const minWidth = 180;
     const maxWidth = 460;
     const clamp = width => Math.max(minWidth, Math.min(maxWidth, width));
     const savedWidth = Number(localStorage.getItem('ontrack-sidebar-width'));
@@ -3060,7 +3060,7 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     b.textContent='❓ עזרה';
     apiBtn.parentElement.insertBefore(b, apiBtn);
   }
-  const appVersion='1.4.27';
+  const appVersion='1.0.1';
   $('#appVersion').textContent=appVersion;
   // Seeded here too: without a local server /api/state never answers, and this would
   // otherwise keep showing whatever literal the markup was last edited with.
