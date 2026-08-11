@@ -1368,53 +1368,6 @@ async function handleChatHistory(request, env, uid, path) {
   return json({ error: 'not found' }, 404);
 }
 
-async function handleLegacyChat(request, env, uid) {
-  if (request.method !== 'POST') return json({ error: 'not found' }, 404);
-  const cfg = await loadModelsConfig(env, uid);
-  const m = cfg.models.find(x => x.id === cfg.selectedId);
-  if (!m) return json({ error: 'לא נבחר מודל.' }, 400);
-  const b = await request.json().catch(() => ({}));
-  const prompt = (b.prompt || '').trim();
-  const imagePart = parseImagePart(b.image);
-  if (!prompt) return json({ error: 'ההודעה ריקה.' }, 400);
-  if (m.builtin) {
-    return json({ reply: 'מודל מובנה (Claude) לא עונה ישירות מכאן — הוא פועל דרך סשן Claude Code שמושך את התור. כדי לשוחח איתו, יש להשתמש בסשן Claude Code שלך.' });
-  }
-  if (!m.apiKey) return json({ error: 'לא הוגדר מפתח API למודל הנבחר. פתח "חיבור למודל" והוסף מפתח.' }, 400);
-  const keyError = modelKeyError(m.apiKey);
-  if (keyError) return json({ error: keyError }, 400);
-  try {
-    const reply = await callModel(m, prompt, 1024, imagePart);
-    return json({ reply: reply || '(תשובה ריקה מהמודל)' });
-  } catch (e) {
-    return json({ error: e.message }, 502);
-  }
-}
-
-async function handlePlainChat(request, env, uid) {
-  if (request.method !== 'POST') return json({ error: 'not found' }, 404);
-  const cfg = await loadModelsConfig(env, uid);
-  const m = cfg.models.find(x => x.id === cfg.selectedId);
-  if (!m) return json({ error: 'No model is selected.' }, 400);
-  const b = await request.json().catch(() => ({}));
-  const prompt = (b.prompt || '').trim();
-  const imagePart = parseImagePart(b.image);
-  if (!prompt) return chatJson(env, uid, { prompt: '', error: 'The message is empty.', imageAttached: !!imagePart }, { error: 'The message is empty.' }, 400);
-  if (m.builtin) {
-    const reply = 'The built-in Claude model runs through a Claude Code session, not through this provider API.';
-    return chatJson(env, uid, { prompt, reply, imageAttached: !!imagePart }, { reply });
-  }
-  if (!m.apiKey) return chatJson(env, uid, { prompt, error: 'No API key is configured for the selected model.', imageAttached: !!imagePart }, { error: 'No API key is configured for the selected model.' }, 400);
-  const keyError = modelKeyError(m.apiKey);
-  if (keyError) return chatJson(env, uid, { prompt, error: keyError, imageAttached: !!imagePart }, { error: keyError }, 400);
-  try {
-    const reply = await callModel(m, prompt, 1024, imagePart);
-    return chatJson(env, uid, { prompt, reply: reply || '(empty model response)', imageAttached: !!imagePart }, { reply: reply || '(empty model response)' });
-  } catch (e) {
-    return chatJson(env, uid, { prompt, error: e.message, imageAttached: !!imagePart }, { error: e.message }, 502);
-  }
-}
-
 async function handleChat(request, env, uid) {
   if (request.method !== 'POST') return json({ error: 'not found' }, 404);
   const cfg = await loadModelsConfig(env, uid);
