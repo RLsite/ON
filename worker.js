@@ -1243,14 +1243,21 @@ async function callModel(m, prompt, maxTokens, imagePart, systemPrompt, retryBud
   }
 }
 
+// 85s, not lower: a 550B-parameter model on NVIDIA's shared endpoint routinely needs more than
+// 60s to produce a full 2600-token plan (no streaming — zero bytes arrive until it's done), and
+// each /api/chat/continue request performs exactly one provider call, so the only hard ceiling
+// is Cloudflare's ~100s empty-response window (observed as a real 524 in this app's history).
+// 85s uses most of that window while leaving margin for the KV and GitHub calls around it.
+const MODEL_PROVIDER_TIMEOUT_MS = 85000;
+
 async function fetchModelProvider(url, options) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 60000);
+  const timeout = setTimeout(() => controller.abort(), MODEL_PROVIDER_TIMEOUT_MS);
   try {
     return await fetch(url, { ...options, signal: controller.signal });
   } catch (error) {
     if (controller.signal.aborted) {
-      const timeoutError = new Error('The model provider did not respond within 60 seconds. The saved Agent job can continue in a new step.');
+      const timeoutError = new Error(`The model provider did not respond within ${Math.round(MODEL_PROVIDER_TIMEOUT_MS / 1000)} seconds. The saved Agent job can continue in a new step.`);
       timeoutError.timeout = true;
       throw timeoutError;
     }
@@ -1718,7 +1725,11 @@ async function handleChatHistory(request, env, uid, path) {
 }
 
 const AGENT_JOB_TTL = 86400;
-const AGENT_JOB_MAX_TRANSIENT_FAILURES = 2;
+// 4, not 2: transient failures here are timeouts/capacity errors from a genuinely slow shared
+// provider, and each retry runs in its own later HTTP request with growing backoff (2.5s→10s),
+// so allowing more attempts costs nothing structurally. At 2, two slow responses in a row —
+// routine for this provider under load — permanently killed the whole job.
+const AGENT_JOB_MAX_TRANSIENT_FAILURES = 4;
 
 function agentJobKey(uid, jobId) {
   return `agent_job:${uid}:${jobId}`;
@@ -2210,7 +2221,7 @@ async function handleAgentJobContinue(request, env, uid) {
       job.transientFailures = Number(job.transientFailures || 0) + 1;
       job.retryAfter = Math.min(15000, 2500 * job.transientFailures);
       const detail = error.timeout
-        ? agentJobText(job, 'ספק המודל לא ענה בתוך 60 שניות. מצב העבודה נשמר והניסיון הבא ירוץ בבקשה חדשה.', 'The model provider did not answer within 60 seconds. State was saved and the next attempt will use a new request.')
+        ? agentJobText(job, 'ספק המודל לא ענה בזמן. מצב העבודה נשמר והניסיון הבא ירוץ בבקשה חדשה.', 'The model provider did not answer in time. State was saved and the next attempt will use a new request.')
         : agentJobText(job, 'המודל עמוס כרגע. מצב העבודה נשמר והמערכת תנסה שוב בשלב נפרד.', 'The model is busy. State was saved and the system will retry in a separate step.');
       addAgentJobStep(job, agentJobText(job, `המתנה וניסיון נוסף ${job.transientFailures}/${AGENT_JOB_MAX_TRANSIENT_FAILURES}`, `Waiting and retrying ${job.transientFailures}/${AGENT_JOB_MAX_TRANSIENT_FAILURES}`), detail, job.transientFailures >= AGENT_JOB_MAX_TRANSIENT_FAILURES ? 'failed' : 'active');
       if (job.transientFailures >= AGENT_JOB_MAX_TRANSIENT_FAILURES) failAgentJob(job, detail);
