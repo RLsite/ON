@@ -66,6 +66,8 @@ almost certainly lives in `.newShell`, not `.oldApp`.
 
 ## Anti-Stall Contract
 
+Before planning a Hebrew request, ON runs a separate translation stage. Store the faithful English translation in the Job, show it in the step log, and use that English request for all planning, repository reads, repairs, and finalization. Preserve filenames, URLs, code identifiers, and quoted text exactly. The original user language remains Hebrew, so every user-facing `reply` and checklist item must still be written in Hebrew. An English request completes this stage without another provider call.
+
 The first model response must be one of these:
 
 ```json
@@ -82,12 +84,13 @@ The model must not output progress narration as the final response. ON shows pro
 
 ## Step Handoff Contract
 
-1. `/api/chat` stores the request and returns immediately; it does not wait for model work.
-2. `/api/chat/continue` runs one bounded stage with at most one model-provider call.
+1. `/api/chat` stores the original request and returns immediately; it does not wait for model work.
+2. The first stage prepares a persisted English working request. `/api/chat/continue` runs one bounded stage with at most one model-provider call.
 3. Before continuing, use the stored original request, checklist, completed step log, read results, read fingerprints, and current state. Never restart a completed stage.
 4. After every stage, store a plain-language log entry that says what was attempted, what completed, and what the next runner must do.
 5. Provider capacity or timeout errors do not erase the Job. Store the interruption and retry from the same state in a later HTTP request. A provider call is capped at 60 seconds and a Job gets at most two consecutive transient attempts before failing clearly.
 6. A page refresh or another runner continues by Job id; it must not create a second Job for the same request.
+7. A Job with state `canceled`, or with a persisted cancellation marker, is terminal. Do not call the provider, execute a pending plan, resume a stage, or overwrite it with a late result. Cancellation must also invalidate any unexecuted approval plan.
 
 ## End-To-End Contract
 

@@ -12,6 +12,7 @@
 //   models_config:<uid>        per-user model list + selection + "recently connected"
 //   workspace_config:<uid>     per-user projects + libraries
 //   agent_job:<uid>:<jobId>     resumable Agent checklist, step log, reads, and current state
+//   agent_job_cancel:<uid>:<jobId> persisted stop marker that blocks stale continuations
 //   agent_plan:<uid>:<planId>   short-lived approval-gated GitHub write plan
 // Before login existed, github_config/models_config were single global keys shared by every
 // visitor — anyone who connected a token made it usable by anyone else who opened the site.
@@ -929,6 +930,13 @@ async function handleAgentApproval(request, env, uid) {
   if (!raw) return json({ error: 'This agent plan has expired. Send the request again.' }, 410);
   let stored;
   try { stored = JSON.parse(raw); } catch { return json({ error: 'Invalid agent plan.' }, 400); }
+  if (stored.jobId) {
+    const job = await loadAgentJob(env, uid, stored.jobId);
+    if (job?.state === 'canceled' || await env.GH_CONFIG.get(agentJobCancelKey(uid, stored.jobId))) {
+      await env.GH_CONFIG.delete(key);
+      return json({ error: 'This Agent job was stopped and cannot be approved.' }, 409);
+    }
+  }
   const consent = await loadAgentConsent(env, uid);
   if (!consent.enabled) return json({ error: 'Agent repository access is disabled. Enable it again and send the request again.' }, 403);
   const config = await loadGithubConfig(env, uid);
@@ -1534,7 +1542,11 @@ async function handleChatHistory(request, env, uid, path) {
   if (request.method === 'GET' && path === '/api/chat/history') return json({ history: await loadChatHistory(env, uid) });
   if (request.method === 'POST' && path === '/api/chat/clear') {
     const history = await loadChatHistory(env, uid);
-    await Promise.all(history.filter(item => item.jobId).map(item => env.GH_CONFIG.delete(`agent_job:${uid}:${item.jobId}`)));
+    await Promise.all(history.flatMap(item => [
+      item.jobId ? env.GH_CONFIG.delete(agentJobKey(uid, item.jobId)) : null,
+      item.jobId ? env.GH_CONFIG.delete(agentJobCancelKey(uid, item.jobId)) : null,
+      item.planId ? env.GH_CONFIG.delete(`agent_plan:${uid}:${item.planId}`) : null
+    ].filter(Boolean)));
     await env.GH_CONFIG.delete('chat_history:' + uid);
     return json({ ok: true });
   }
@@ -1546,7 +1558,11 @@ async function handleChatHistory(request, env, uid, path) {
     const removed = history.find(item => item.id === id);
     const next = history.filter(item => item.id !== id);
     await env.GH_CONFIG.put('chat_history:' + uid, JSON.stringify(next));
-    if (removed?.jobId) await env.GH_CONFIG.delete(`agent_job:${uid}:${removed.jobId}`);
+    if (removed?.jobId) {
+      await env.GH_CONFIG.delete(agentJobKey(uid, removed.jobId));
+      await env.GH_CONFIG.delete(agentJobCancelKey(uid, removed.jobId));
+    }
+    if (removed?.planId) await env.GH_CONFIG.delete(`agent_plan:${uid}:${removed.planId}`);
     return json({ ok: true, deleted: next.length !== history.length });
   }
   return json({ error: 'not found' }, 404);
@@ -1557,6 +1573,10 @@ const AGENT_JOB_MAX_TRANSIENT_FAILURES = 2;
 
 function agentJobKey(uid, jobId) {
   return `agent_job:${uid}:${jobId}`;
+}
+
+function agentJobCancelKey(uid, jobId) {
+  return `agent_job_cancel:${uid}:${jobId}`;
 }
 
 function safeAgentJobId(value) {
@@ -1571,15 +1591,23 @@ function agentJobText(job, he, en) {
 function defaultAgentChecklist(prompt) {
   const he = /[\u0590-\u05ff]/.test(String(prompt || ''));
   const texts = he
-    ? ['להבין את הבקשה ולבנות תוכנית', 'לקרוא את קבצי הפרויקט הרלוונטיים', 'להכין שינוי מדויק ובטוח', 'להמתין לאישור ולבצע את פעולות GitHub']
-    : ['Understand the request and build a plan', 'Read the relevant project files', 'Prepare an exact and safe change', 'Wait for approval and execute the GitHub actions'];
-  return texts.map((text, index) => ({ id: `step-${index + 1}`, text, status: index === 0 ? 'active' : 'pending' }));
+    ? ['לתרגם את הבקשה לאנגלית', 'להבין את הבקשה ולבנות תוכנית', 'לקרוא את קבצי הפרויקט הרלוונטיים', 'להכין שינוי מדויק ובטוח', 'להמתין לאישור ולבצע את פעולות GitHub']
+    : ['Confirm the request in English', 'Understand the request and build a plan', 'Read the relevant project files', 'Prepare an exact and safe change', 'Wait for approval and execute the GitHub actions'];
+  return texts.map((text, index) => ({ id: index === 0 ? 'translate-request' : `step-${index}`, text, status: index === 0 ? 'active' : 'pending' }));
 }
 
 function adoptAgentChecklist(job, checklist) {
   if (job.checklistAdopted || !Array.isArray(checklist) || !checklist.length) return;
   if (job.language === 'he' && !checklist.some(item => /[\u0590-\u05ff]/.test(String(item?.text || '')))) return;
-  job.checklist = checklist.slice(0, 7).map((item, index) => ({ ...item, status: index === 0 ? 'active' : 'pending' }));
+  const translationStep = (job.checklist || []).find(item => item.id === 'translate-request') || {
+    id: 'translate-request',
+    text: agentJobText(job, 'לתרגם את הבקשה לאנגלית', 'Confirm the request in English'),
+    status: 'done'
+  };
+  job.checklist = [
+    { ...translationStep, status: 'done' },
+    ...checklist.slice(0, 6).map((item, index) => ({ ...item, status: index === 0 ? 'active' : 'pending' }))
+  ];
   job.checklistAdopted = true;
 }
 
@@ -1623,6 +1651,7 @@ function agentJobPublicStatus(job) {
   if (job.state === 'waiting_approval') return 'waiting';
   if (job.state === 'complete') return 'complete';
   if (job.state === 'failed') return 'failed';
+  if (job.state === 'canceled') return 'canceled';
   if (job.state === 'queued') return 'queued';
   return 'running';
 }
@@ -1643,7 +1672,7 @@ function publicAgentJob(job) {
     approvalRequired: status === 'waiting',
     plan: job.planPublic || null,
     planId: job.planId || null,
-    done: status === 'complete'
+    done: status === 'complete' || status === 'canceled'
   };
 }
 
@@ -1679,6 +1708,40 @@ function failAgentJob(job, message) {
   job.currentStep = null;
   advanceAgentChecklist(job, 'failed');
   addAgentJobStep(job, agentJobText(job, 'העבודה נעצרה', 'Work stopped'), job.error, 'failed');
+}
+
+function cancelAgentJob(job) {
+  job.state = 'canceled';
+  job.error = null;
+  job.currentStep = null;
+  job.reply = agentJobText(job, 'העבודה נעצרה על ידך. לא יבוצעו שלבים נוספים.', 'You stopped this job. No further steps will run.');
+  (job.checklist || []).forEach(item => {
+    if (item.status === 'active') item.status = 'canceled';
+  });
+  addAgentJobStep(job, agentJobText(job, 'המודל נעצר', 'Model stopped'), agentJobText(job, 'העצירה נשמרה בשרת.', 'The stop request was saved on the server.'), 'canceled');
+}
+
+function agentJobWorkingPrompt(job) {
+  const request = String(job.translatedPrompt || job.prompt || '').slice(0, 7600);
+  if (job.language !== 'he' || !job.translatedPrompt) return request;
+  return `${request}\n\nThe original user language is Hebrew. Keep the technical work based on this English request, but write the reply and checklist shown to the user in Hebrew.`;
+}
+
+function agentTranslationPrompt(prompt) {
+  return `Translate the following user request into clear, faithful English for a software engineering agent. Preserve filenames, URLs, code identifiers, quoted text, and technical meaning exactly. Do not add instructions or commentary. Return only the English translation.\n\nUser request:\n${String(prompt || '').slice(0, 8000)}`;
+}
+
+function normalizeAgentTranslation(value) {
+  let text = String(value || '').trim().replace(/^```(?:text)?\s*/i, '').replace(/\s*```$/, '').trim();
+  if (text.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(text);
+      text = String(parsed.translation || parsed.english || parsed.text || '').trim();
+    } catch {}
+  }
+  text = text.replace(/^English translation\s*:\s*/i, '').trim();
+  if (!text) throw new Error('The model returned an empty English translation.');
+  return text.slice(0, 8000);
 }
 
 function describeAgentReads(job, actions) {
@@ -1717,7 +1780,7 @@ async function acceptAgentJobPlan(env, uid, job, plan, rawReply, githubReady) {
   const writeActions = plan.kind === 'plan' ? plan.actions.filter(action => agentWriteTool(action.tool)) : [];
   if (writeActions.length) {
     const planId = crypto.randomUUID();
-    await env.GH_CONFIG.put(`agent_plan:${uid}:${planId}`, JSON.stringify({ prompt: job.prompt, modelId: job.modelId, plan, jobId: job.id }), { expirationTtl: AGENT_JOB_TTL });
+    await env.GH_CONFIG.put(`agent_plan:${uid}:${planId}`, JSON.stringify({ prompt: job.prompt, translatedPrompt: job.translatedPrompt || null, modelId: job.modelId, plan, jobId: job.id }), { expirationTtl: AGENT_JOB_TTL });
     job.planId = planId;
     job.planPublic = publicAgentPlan(plan);
     job.state = 'waiting_approval';
@@ -1751,13 +1814,15 @@ async function handleChat(request, env, uid) {
   const keyError = modelKeyError(m.apiKey);
   if (keyError) return chatJson(env, uid, { prompt, error: keyError, imageAttached: !!imagePart }, { error: keyError }, 400);
   const language = /[\u0590-\u05ff]/.test(prompt) ? 'he' : 'en';
+  const needsEnglishTranslation = language === 'he';
   const job = {
     id: crypto.randomUUID(),
     created: new Date().toISOString(),
     updated: new Date().toISOString(),
-    state: 'queued',
+    state: needsEnglishTranslation ? 'translate' : 'queued',
     language,
     prompt: prompt.slice(0, 8000),
+    translatedPrompt: needsEnglishTranslation ? null : prompt.slice(0, 8000),
     imagePart,
     imageAttached: !!imagePart,
     modelId: m.id,
@@ -1772,11 +1837,19 @@ async function handleChat(request, env, uid) {
     validationRepairUsed: false,
     transientFailures: 0,
     retryAfter: 350,
-    reply: agentJobText({ language }, 'הבקשה נשמרה. הסוכן מכין Checklist ומתחיל בשלב הראשון.', 'The request was saved. The Agent is creating a checklist and starting the first step.'),
-    currentStep: agentJobText({ language }, 'בניית Checklist ותוכנית עבודה', 'Building the checklist and work plan')
+    reply: needsEnglishTranslation
+      ? 'הבקשה נשמרה. השלב הראשון הוא תרגום מדויק לאנגלית.'
+      : 'The request was saved. The Agent is creating a checklist and starting the first step.',
+    currentStep: needsEnglishTranslation ? 'מתרגם את הבקשה לאנגלית' : 'Building the checklist and work plan'
   };
   addAgentJobStep(job, agentJobText(job, 'הבקשה נשמרה', 'Request saved'), agentJobText(job, 'מצב העבודה נשמר בשרת וניתן להמשיך ממנו גם לאחר רענון.', 'The job state is stored on the server and can resume after a refresh.'), 'done');
-  addAgentJobStep(job, agentJobText(job, 'בניית Checklist', 'Building checklist'), job.currentStep, 'active');
+  if (needsEnglishTranslation) {
+    addAgentJobStep(job, 'תרגום הבקשה לאנגלית', 'המודל מכין נוסח אנגלי נאמן לבקשה המקורית.', 'active');
+  } else {
+    advanceAgentChecklist(job);
+    addAgentJobStep(job, 'English request ready', 'The request is already in English; no translation call is needed.', 'done');
+    addAgentJobStep(job, 'Building checklist', job.currentStep, 'active');
+  }
   const saved = await appendChatHistory(env, uid, {
     prompt,
     reply: job.reply,
@@ -1798,7 +1871,12 @@ async function handleAgentJobContinue(request, env, uid) {
   if (!jobId) return json({ error: 'Invalid Agent job id.' }, 400);
   const job = await loadAgentJob(env, uid, jobId);
   if (!job) return json({ error: 'This Agent job expired or was deleted.' }, 410);
-  if (['waiting_approval', 'complete', 'failed'].includes(job.state)) return json(publicAgentJob(job));
+  if (['waiting_approval', 'complete', 'failed', 'canceled'].includes(job.state)) return json(publicAgentJob(job));
+  if (await env.GH_CONFIG.get(agentJobCancelKey(uid, jobId))) {
+    cancelAgentJob(job);
+    await saveAgentJob(env, uid, job);
+    return json(publicAgentJob(job));
+  }
 
   const cfg = await loadModelsConfig(env, uid);
   const m = cfg.models.find(item => item.id === job.modelId);
@@ -1829,9 +1907,26 @@ async function handleAgentJobContinue(request, env, uid) {
     const systemPrompt = agentSystemPrompt(githubReady, job.repoContext || null, consentMatchesModel);
     const noInlineRetry = { used: true };
 
-    if (job.state === 'queued') {
+    if (job.state === 'translate') {
+      job.currentStep = 'מתרגם את הבקשה לאנגלית';
+      const rawTranslation = await callModel(
+        m,
+        agentTranslationPrompt(job.prompt),
+        1200,
+        null,
+        'You are a precise Hebrew-to-English translator for software engineering requests. Return only the translated request.',
+        noInlineRetry
+      );
+      job.translatedPrompt = normalizeAgentTranslation(rawTranslation);
+      job.state = 'queued';
+      job.reply = 'התרגום לאנגלית הושלם. הסוכן ממשיך לבניית תוכנית העבודה.';
+      job.currentStep = 'בניית Checklist ותוכנית עבודה מהבקשה המתורגמת';
+      advanceAgentChecklist(job);
+      addAgentJobStep(job, 'התרגום לאנגלית הושלם', job.translatedPrompt, 'done');
+      addAgentJobStep(job, 'בניית Checklist', job.currentStep, 'active');
+    } else if (job.state === 'queued') {
       job.currentStep = agentJobText(job, 'המודל בונה Checklist ותוכנית', 'The model is building the checklist and plan');
-      const rawReply = await callModel(m, job.prompt, 2600, job.imagePart || null, systemPrompt, noInlineRetry);
+      const rawReply = await callModel(m, agentJobWorkingPrompt(job), 2600, job.imagePart || null, systemPrompt, noInlineRetry);
       job.imagePart = null;
       const plan = inferAgentReadPlan(normalizeAgentPlan(rawReply), job.repoContext);
       if (!plan) {
@@ -1870,7 +1965,7 @@ async function handleAgentJobContinue(request, env, uid) {
       }
       if (job.state === 'analyze_reads') {
         const canReadMore = job.readRounds < MAX_AGENT_READ_ROUNDS;
-        const rawReply = await callModel(m, agentToolResultsPrompt(job.readResults, job.prompt, canReadMore), 3600, null, systemPrompt, noInlineRetry);
+        const rawReply = await callModel(m, agentToolResultsPrompt(job.readResults, agentJobWorkingPrompt(job), canReadMore), 3600, null, systemPrompt, noInlineRetry);
         const plan = inferAgentReadPlan(normalizeAgentPlan(rawReply), job.repoContext);
         if (!plan) {
           if (job.formatRepairUsed) failAgentJob(job, agentJobText(job, 'המודל לא החזיר תוכנית Agent תקינה לאחר קריאת הקבצים.', 'The model did not return a valid Agent plan after reading the files.'));
@@ -1894,8 +1989,8 @@ async function handleAgentJobContinue(request, env, uid) {
     } else if (job.state === 'repair_format') {
       const canReadMore = job.readRounds < MAX_AGENT_READ_ROUNDS;
       const repairPrompt = job.readResults?.length
-        ? agentReadResultsRepairPrompt(job.rawReply, job.readResults, job.prompt, canReadMore)
-        : agentRepairPrompt(job.rawReply, job.prompt);
+        ? agentReadResultsRepairPrompt(job.rawReply, job.readResults, agentJobWorkingPrompt(job), canReadMore)
+        : agentRepairPrompt(job.rawReply, agentJobWorkingPrompt(job));
       const rawReply = await callModel(m, repairPrompt, 2600, null, systemPrompt, noInlineRetry);
       const plan = inferAgentReadPlan(normalizeAgentPlan(rawReply), job.repoContext);
       if (!plan) failAgentJob(job, agentJobText(job, 'גם ניסיון תיקון הפורמט נכשל. לא בוצע שינוי.', 'The format repair also failed. Nothing was changed.'));
@@ -1905,7 +2000,7 @@ async function handleAgentJobContinue(request, env, uid) {
       }
     } else if (job.state === 'repair_validation') {
       job.validationRepairUsed = true;
-      const rawReply = await callModel(m, agentValidationRepairPrompt(job.rawReply, job.planError, job.prompt), 2600, null, systemPrompt, noInlineRetry);
+      const rawReply = await callModel(m, agentValidationRepairPrompt(job.rawReply, job.planError, agentJobWorkingPrompt(job)), 2600, null, systemPrompt, noInlineRetry);
       const plan = inferAgentReadPlan(normalizeAgentPlan(rawReply), job.repoContext);
       if (!plan) failAgentJob(job, agentJobText(job, 'תוכנית הפעולה המתוקנת לא הייתה תקינה. לא בוצע שינוי.', 'The corrected action plan was invalid. Nothing was changed.'));
       else {
@@ -1913,7 +2008,7 @@ async function handleAgentJobContinue(request, env, uid) {
         await acceptAgentJobPlan(env, uid, job, plan, rawReply, githubReady);
       }
     } else if (job.state === 'finalize_reads') {
-      const rawReply = await callModel(m, agentReadResultsRepairPrompt(job.rawReply, job.readResults, job.prompt, false), 2600, null, systemPrompt, noInlineRetry);
+      const rawReply = await callModel(m, agentReadResultsRepairPrompt(job.rawReply, job.readResults, agentJobWorkingPrompt(job), false), 2600, null, systemPrompt, noInlineRetry);
       const plan = inferAgentReadPlan(normalizeAgentPlan(rawReply), job.repoContext);
       if (!plan || isReadOnlyAgentPlan(plan)) failAgentJob(job, agentJobText(job, 'המודל סיים את מכסת הקריאה בלי להציע פעולה לביצוע. לא בוצע שינוי.', 'The model exhausted the read allowance without proposing an executable action. Nothing was changed.'));
       else await acceptAgentJobPlan(env, uid, job, plan, rawReply, githubReady);
@@ -1940,6 +2035,28 @@ async function handleAgentJobContinue(request, env, uid) {
       failAgentJob(job, error.message || 'The Agent step failed.');
     }
   }
+  if (await env.GH_CONFIG.get(agentJobCancelKey(uid, jobId))) {
+    const canceled = await loadAgentJob(env, uid, jobId);
+    if (canceled?.state === 'canceled') return json(publicAgentJob(canceled));
+    cancelAgentJob(job);
+  }
+  await saveAgentJob(env, uid, job);
+  return json(publicAgentJob(job));
+}
+
+async function handleAgentJobCancel(request, env, uid) {
+  if (request.method !== 'POST') return json({ error: 'not found' }, 404);
+  const body = await request.json().catch(() => ({}));
+  const jobId = safeAgentJobId(body.jobId);
+  if (!jobId) return json({ error: 'Invalid Agent job id.' }, 400);
+  const job = await loadAgentJob(env, uid, jobId);
+  if (!job) return json({ error: 'This Agent job expired or was deleted.' }, 410);
+  if (['complete', 'failed', 'canceled'].includes(job.state)) return json(publicAgentJob(job));
+  await env.GH_CONFIG.put(agentJobCancelKey(uid, jobId), new Date().toISOString(), { expirationTtl: AGENT_JOB_TTL });
+  if (job.planId) await env.GH_CONFIG.delete(`agent_plan:${uid}:${job.planId}`);
+  job.planId = null;
+  job.planPublic = null;
+  cancelAgentJob(job);
   await saveAgentJob(env, uid, job);
   return json(publicAgentJob(job));
 }
@@ -1961,6 +2078,7 @@ export default {
       if (path.startsWith('/api/models')) return handleModelsApi(request, env, path, user.uid);
       if (path === '/api/chat') return handleChat(request, env, user.uid);
       if (path === '/api/chat/continue') return handleAgentJobContinue(request, env, user.uid);
+      if (path === '/api/chat/cancel') return handleAgentJobCancel(request, env, user.uid);
       if (path === '/api/chat/history' || path === '/api/chat/clear' || path === '/api/chat/delete') return handleChatHistory(request, env, user.uid, path);
       if (path === '/api/agent/status' || path === '/api/agent/consent') return handleAgentApi(request, env, path, user.uid);
       if (path === '/api/agent/approve') return handleAgentApproval(request, env, user.uid);
