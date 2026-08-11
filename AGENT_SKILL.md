@@ -92,6 +92,10 @@ The model must not output progress narration as the final response. ON shows pro
 6. A page refresh or another runner continues by Job id; it must not create a second Job for the same request.
 7. A Job with state `canceled`, or with a persisted cancellation marker, is terminal. Do not call the provider, execute a pending plan, resume a stage, or overwrite it with a late result. Cancellation must also invalidate any unexecuted approval plan.
 
+## Model Consent Contract
+
+Repository and Skill access belongs to the exact external destination the user approved: the selected connection id, provider, provider model id, API base URL, and repository/file scopes must all match. Selecting another model, reconnecting a removed model, or editing a connection to point to a different destination requires a new explicit approval. When GitHub is configured and consent does not match, do not call the provider and do not create chat history; return `AGENT_CONSENT_REQUIRED`. A persisted Job whose model no longer matches the active consent must stop clearly instead of continuing without repository context.
+
 ## End-To-End Contract
 
 The model must not say that a change was deployed based on a patch alone. The required sequence is:

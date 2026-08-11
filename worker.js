@@ -976,8 +976,23 @@ async function loadAgentConsent(env, uid) {
   if (!raw) return { enabled: false, updated: null, modelId: null, scopes: [] };
   try {
     const value = JSON.parse(raw);
-    return { enabled: !!value.enabled, updated: value.updated || null, approvedAt: value.approvedAt || null, modelId: value.modelId || null, provider: value.provider || null, model: value.model || null, label: value.label || null, scopes: Array.isArray(value.scopes) ? value.scopes : [] };
+    return { enabled: !!value.enabled, updated: value.updated || null, approvedAt: value.approvedAt || null, modelId: value.modelId || null, provider: value.provider || null, model: value.model || null, baseUrl: value.baseUrl || null, label: value.label || null, scopes: Array.isArray(value.scopes) ? value.scopes : [] };
   } catch { return { enabled: false, updated: null, modelId: null, scopes: [] }; }
+}
+
+function normalizedModelEndpoint(value) {
+  return String(value || '').trim().replace(/\/+$/, '');
+}
+
+function agentConsentMatchesModel(consent, selectedModel) {
+  if (!consent?.enabled || !selectedModel || selectedModel.builtin) return false;
+  const scopes = new Set(Array.isArray(consent.scopes) ? consent.scopes : []);
+  return consent.modelId === selectedModel.id
+    && String(consent.provider || '') === String(selectedModel.provider || '')
+    && String(consent.model || '') === String(selectedModel.model || '')
+    && normalizedModelEndpoint(consent.baseUrl) === normalizedModelEndpoint(selectedModel.baseUrl)
+    && scopes.has('repo_metadata')
+    && scopes.has('file_contents');
 }
 
 async function handleAgentApi(request, env, path, uid) {
@@ -995,7 +1010,7 @@ async function handleAgentApi(request, env, path, uid) {
       consentLabel: consent.label,
       scopes: consent.scopes,
       selectedModel: selectedModel ? { id: selectedModel.id, label: selectedModel.label, builtin: !!selectedModel.builtin, provider: selectedModel.provider || null, model: selectedModel.model || null } : null,
-      matchesSelectedModel: !!(consent.enabled && selectedModel && consent.modelId === selectedModel.id),
+      matchesSelectedModel: agentConsentMatchesModel(consent, selectedModel),
       githubConfigured: !!(github.enabled && github.owner && github.repo && github.token),
       repository: github.owner && github.repo ? `${github.owner}/${github.repo}` : null,
       skillFolders: workspace.libraries.filter(item => item.type === 'skill-folder').map(item => ({ id: item.id, name: item.name, location: item.location }))
@@ -1015,9 +1030,9 @@ async function handleAgentApi(request, env, path, uid) {
     const value = enabled ? {
       enabled: true, updated: now, approvedAt: now,
       modelId: selectedModel.id, label: selectedModel.label,
-      provider: selectedModel.provider || null, model: selectedModel.model || null,
+      provider: selectedModel.provider || null, model: selectedModel.model || null, baseUrl: selectedModel.baseUrl || null,
       scopes
-    } : { enabled: false, updated: now, approvedAt: null, modelId: null, label: null, provider: null, model: null, scopes: [] };
+    } : { enabled: false, updated: now, approvedAt: null, modelId: null, label: null, provider: null, model: null, baseUrl: null, scopes: [] };
     await env.GH_CONFIG.put('agent_consent:' + uid, JSON.stringify(value));
     return json({ ok: true, ...value });
   }
@@ -1806,6 +1821,7 @@ async function handleChat(request, env, uid) {
   const prompt = (body.prompt || '').trim();
   const imagePart = parseImagePart(body.image);
   if (!prompt) return chatJson(env, uid, { prompt: '', error: 'The message is empty.', imageAttached: !!imagePart }, { error: 'The message is empty.' }, 400);
+  const language = /[\u0590-\u05ff]/.test(prompt) ? 'he' : 'en';
   if (m.builtin) {
     const reply = 'The built-in Claude model runs through a Claude Code session, not through this provider API.';
     return chatJson(env, uid, { prompt, reply, imageAttached: !!imagePart }, { reply });
@@ -1813,7 +1829,18 @@ async function handleChat(request, env, uid) {
   if (!m.apiKey) return chatJson(env, uid, { prompt, error: 'No API key is configured for the selected model.', imageAttached: !!imagePart }, { error: 'No API key is configured for the selected model.' }, 400);
   const keyError = modelKeyError(m.apiKey);
   if (keyError) return chatJson(env, uid, { prompt, error: keyError, imageAttached: !!imagePart }, { error: keyError }, 400);
-  const language = /[\u0590-\u05ff]/.test(prompt) ? 'he' : 'en';
+  const [consent, github] = await Promise.all([loadAgentConsent(env, uid), loadGithubConfig(env, uid)]);
+  const githubConfigured = !!(github.enabled && github.owner && github.repo && github.token);
+  if (githubConfigured && !agentConsentMatchesModel(consent, m)) {
+    return json({
+      error: language === 'he'
+        ? `המודל ${m.label} עדיין לא מורשה לקבל את תוכן הפרויקט. אשר את חיבור ה-Agent למודל החדש ונסה שוב.`
+        : `${m.label} is not yet authorized to receive project content. Approve Agent access for the new model and try again.`,
+      code: 'AGENT_CONSENT_REQUIRED',
+      agentConsentRequired: true,
+      selectedModel: { id: m.id, label: m.label, provider: m.provider || null, model: m.model || null }
+    }, 403);
+  }
   const needsEnglishTranslation = language === 'he';
   const job = {
     id: crypto.randomUUID(),
@@ -1895,7 +1922,12 @@ async function handleAgentJobContinue(request, env, uid) {
   const consent = await loadAgentConsent(env, uid);
   const github = await loadGithubConfig(env, uid);
   const hasGithubFields = !!(github.enabled && github.owner && github.repo && github.token);
-  const consentMatchesModel = !!(consent.enabled && consent.modelId === m.id && consent.scopes.includes('repo_metadata'));
+  const consentMatchesModel = agentConsentMatchesModel(consent, m);
+  if (hasGithubFields && !consentMatchesModel) {
+    failAgentJob(job, agentJobText(job, 'הרשאת ה-Agent כבר אינה תואמת למודל של משימה זו. אשר את המודל ושלח בקשה חדשה.', 'Agent access no longer matches this job\'s model. Authorize the model and send a new request.'));
+    await saveAgentJob(env, uid, job);
+    return json(publicAgentJob(job), 403);
+  }
   const stageBefore = job.state;
   try {
     if (job.state === 'queued' && !job.repoContext && consentMatchesModel && hasGithubFields) {
