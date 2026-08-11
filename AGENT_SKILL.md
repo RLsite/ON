@@ -15,11 +15,12 @@ The Worker stores a separate approval for each Google account and the exact sele
 - `github.update_version` updates the project version in the canonical project files.
 - `github.create_pull_request` is proposed together with file changes.
 - `github.deploy` merges the approved Pull Request into the configured deployment branch. This is a GitHub-only, git-level merge — it does not call Cloudflare or start a deploy. The live site only picks up the change once a person separately runs the project's deploy command.
-- Write plans are stored for a short period and require explicit user approval.
+- Write plans are stored with their resumable Job for up to 24 hours and require explicit user approval.
 - Approved changes are written to a new `ontrack/agent-*` branch, never directly to the default branch — a proposed branch on the write action itself has no effect; the server always chooses it.
 - The agent can never write to `.github/*` (workflow files), regardless of approval, since those can grant code-execution capability far beyond editing application source.
 - The current ON live deployment branch is `claude/github-site-integration-fbb693`; use it as the default context branch instead of a stale repository default branch.
 - Changing the selected model invalidates the previous Agent approval until the user confirms the new destination.
+- Every work request creates a server-stored Job with a model-generated checklist and an append-only step log. Each continuation performs at most one model-provider call, then stores the exact handoff state before another runner starts.
 
 ## Data Boundary
 
@@ -56,7 +57,7 @@ almost certainly lives in `.newShell`, not `.oldApp`.
 1. Explain the connected repository and available capabilities accurately.
 2. Request file reads before proposing edits when file content is needed.
 3. For an existing file, propose a small `github.apply_patch` unified diff instead of returning the entire file. Use `github.write_file` only for a new or genuinely small file.
-4. Return exactly one JSON object. Do not narrate intentions with messages such as "I will read..." or "Reading..."; request the read tool in `actions`. For a large file, use a specific `query` first and request a focused line range only when adjacent context is still missing. After ON returns read results, answer the user's request, request one new focused read while the safe allowance remains, or return the smallest next action plan; never repeat the same read request.
+4. Return exactly one JSON object with `kind`, `reply`, `checklist`, and `actions`. For a work request, create 2-7 concrete checklist entries in the user's language and keep their meaning stable in every later response. Do not narrate intentions with messages such as "I will read..." or "Reading..."; request the read tool in `actions`. For a large file, use a specific `query` first and request a focused line range only when adjacent context is still missing. After ON returns read results, answer the user's request, request one new focused read while the safe allowance remains, or return the smallest next action plan; never repeat the same read request.
 5. Never say a change is done, made, applied, or complete in `reply` unless the write/patch action that makes it is actually present in that same response's `actions` array. This has happened for real: after reading a file, the model described a change in plain text and said it was finished, with no action, no approval card, and nothing ever written to GitHub. Explaining what the change would be is not the same as proposing it — if a change is warranted, propose it as an action; do not describe it as already done.
 6. Show the exact files, intended actions, and a content/diff preview before any write.
 7. Require approval before creating a branch, commit, or Pull Request.
@@ -68,16 +69,25 @@ almost certainly lives in `.newShell`, not `.oldApp`.
 The first model response must be one of these:
 
 ```json
-{"kind":"answer","reply":"...","actions":[]}
+{"kind":"answer","reply":"...","checklist":[],"actions":[]}
 ```
 
 or:
 
 ```json
-{"kind":"plan","reply":"...","actions":[{"tool":"github.read_file","path":"index.html","query":"newShell"}]}
+{"kind":"plan","reply":"...","checklist":[{"id":"inspect","text":"Inspect the active implementation"},{"id":"prepare","text":"Prepare the change"},{"id":"approve","text":"Wait for approval and execute"}],"actions":[{"tool":"github.read_file","path":"index.html","query":"newShell"}]}
 ```
 
 The model must not output progress narration as the final response. ON shows progress in the UI while the request is running. ON permits at most two distinct repository-read rounds so a large file can be narrowed safely without creating an unbounded model loop. Each later read must use a new path, query, or line range. When the allowance ends, return a useful answer or a complete write plan. If the model cannot follow the JSON contract, ON asks once for a corrected JSON response and then stops safely without executing anything.
+
+## Step Handoff Contract
+
+1. `/api/chat` stores the request and returns immediately; it does not wait for model work.
+2. `/api/chat/continue` runs one bounded stage with at most one model-provider call.
+3. Before continuing, use the stored original request, checklist, completed step log, read results, read fingerprints, and current state. Never restart a completed stage.
+4. After every stage, store a plain-language log entry that says what was attempted, what completed, and what the next runner must do.
+5. Provider capacity or timeout errors do not erase the Job. Store the interruption and retry from the same state in a later HTTP request.
+6. A page refresh or another runner continues by Job id; it must not create a second Job for the same request.
 
 ## End-To-End Contract
 

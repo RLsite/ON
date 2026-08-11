@@ -11,6 +11,8 @@
 //   github_config:<uid>        per-user GitHub owner/repo/token
 //   models_config:<uid>        per-user model list + selection + "recently connected"
 //   workspace_config:<uid>     per-user projects + libraries
+//   agent_job:<uid>:<jobId>     resumable Agent checklist, step log, reads, and current state
+//   agent_plan:<uid>:<planId>   short-lived approval-gated GitHub write plan
 // Before login existed, github_config/models_config were single global keys shared by every
 // visitor — anyone who connected a token made it usable by anyone else who opened the site.
 // Scoping every key by uid is the actual fix, not just a nicety.
@@ -402,9 +404,10 @@ Do not narrate intentions as if they were actions. Never answer with phrases suc
 Do not use unsupported tools, do not output shell commands as if they were executed, and do not make up file contents.
 
 Return JSON only, with this shape:
-For an answer: {"kind":"answer","reply":"...","actions":[]}
-For work: {"kind":"plan","reply":"Short explanation in the user's language","actions":[{"tool":"github.read_file","path":"index.html","query":"newShell"}]}
+For an answer: {"kind":"answer","reply":"...","checklist":[],"actions":[]}
+For work: {"kind":"plan","reply":"Short explanation in the user's language","checklist":[{"id":"inspect","text":"Inspect the active implementation"},{"id":"prepare","text":"Prepare the smallest safe change"},{"id":"approve","text":"Wait for approval and execute"}],"actions":[{"tool":"github.read_file","path":"index.html","query":"newShell"}]}
 Use the user's language. Keep replies concise. A write_file action must contain the full intended file content and a short commit message.
+For every work request, create a concrete checklist of 2 to 7 short steps. Keep the same checklist meaning across later read-result responses so ON can show progress and another runner can continue from the stored state.
 An apply_patch action must contain a valid unified diff for one file and a short commit message. Return exactly one JSON object and no Markdown fences.
 For any code change, include all of these actions in the same plan: a file write, github.update_version, github.create_pull_request, and github.deploy. The deployment branch is claude/github-site-integration-fbb693.
 ${githubConnected && dataSharingAuthorized ? '' : 'Repository access is not authorized for this request. Explain that clearly and do not create GitHub actions.'}`;
@@ -489,7 +492,11 @@ function normalizeAgentPlan(rawText) {
     try { parsed = JSON.parse(candidate); } catch { continue; }
     if (!parsed || !['answer', 'plan'].includes(parsed.kind)) continue;
     const actions = Array.isArray(parsed.actions) ? parsed.actions.slice(0, 8).map(action => ({ ...action, tool: String(action.tool || '') })) : [];
-    return { kind: parsed.kind, reply: String(parsed.reply || '').slice(0, 6000), actions };
+    const checklist = Array.isArray(parsed.checklist) ? parsed.checklist.slice(0, 7).map((item, index) => ({
+      id: String(item?.id || `step-${index + 1}`).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40) || `step-${index + 1}`,
+      text: String(item?.text || item?.title || '').trim().slice(0, 240)
+    })).filter(item => item.text) : [];
+    return { kind: parsed.kind, reply: String(parsed.reply || '').slice(0, 6000), checklist, actions };
   }
   return null;
 }
@@ -900,17 +907,38 @@ async function handleAgentApproval(request, env, uid) {
   const key = `agent_plan:${uid}:${planId}`;
   const raw = await env.GH_CONFIG.get(key);
   if (!raw) return json({ error: 'This agent plan has expired. Send the request again.' }, 410);
-  await env.GH_CONFIG.delete(key);
   let stored;
   try { stored = JSON.parse(raw); } catch { return json({ error: 'Invalid agent plan.' }, 400); }
   const consent = await loadAgentConsent(env, uid);
   if (!consent.enabled) return json({ error: 'Agent repository access is disabled. Enable it again and send the request again.' }, 403);
   const config = await loadGithubConfig(env, uid);
   if (!config.enabled || !config.owner || !config.repo || !config.token) return json({ error: 'GitHub is not connected for this account.' }, 400);
+  await env.GH_CONFIG.delete(key);
   try {
     const result = await executeAgentWritePlan(config, stored.plan, planId, env);
-    return json({ ok: true, result });
+    let jobView = null;
+    if (stored.jobId) {
+      const job = await loadAgentJob(env, uid, stored.jobId);
+      if (job) {
+        job.state = 'complete';
+        job.currentStep = null;
+        job.error = null;
+        job.reply = agentJobText(job, 'הפעולות המאושרות בוצעו ב-GitHub.', 'The approved actions were executed on GitHub.');
+        advanceAgentChecklist(job, 'complete');
+        addAgentJobStep(job, agentJobText(job, 'האישור בוצע', 'Approval executed'), JSON.stringify(result), 'done');
+        await saveAgentJob(env, uid, job);
+        jobView = publicAgentJob(job);
+      }
+    }
+    return json({ ok: true, result, job: jobView });
   } catch (e) {
+    if (stored.jobId) {
+      const job = await loadAgentJob(env, uid, stored.jobId);
+      if (job) {
+        failAgentJob(job, e.message || 'GitHub write failed.');
+        await saveAgentJob(env, uid, job);
+      }
+    }
     return json({ error: e.message || 'GitHub write failed.' }, e.status === 401 || e.status === 403 ? 502 : 502);
   }
 }
@@ -1048,13 +1076,9 @@ function modelError(response, data) {
 // One conservative retry on a transient capacity error (429/503/"rate limit"/"overloaded") —
 // a single busy provider response used to end the whole agent turn immediately, forcing the
 // user to notice and manually hit "refresh request" for what's often a one-second blip.
-// This function is called several times in sequence within one /api/chat request (initial
-// attempt, repairs, read follow-ups) — up to 6 in the worst case — so retrying independently
-// at every call site could stack multiple 1200ms delays plus duplicated full generations onto
-// one already-slow, non-streamed request. Callers that make several calls in one request (see
-// handleChat) should share one `retryBudget = { used: false }` object across all of them, so
-// at most ONE retry happens for the whole request, not one per call. A caller that never
-// passes a budget (e.g. the single-shot connection-test ping) still gets its own retry.
+// Agent jobs deliberately pass an already-used retry budget: every HTTP continuation performs
+// at most one provider call, and a busy provider is retried by a later persisted job step rather
+// than inside the same request. Single-shot callers such as the connection test keep one retry.
 async function callModel(m, prompt, maxTokens, imagePart, systemPrompt, retryBudget) {
   try {
     return await callModelOnce(m, prompt, maxTokens, imagePart, systemPrompt);
@@ -1069,6 +1093,23 @@ async function callModel(m, prompt, maxTokens, imagePart, systemPrompt, retryBud
   }
 }
 
+async function fetchModelProvider(url, options) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 75000);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      const timeoutError = new Error('The model provider did not respond within 75 seconds. The saved Agent job can continue in a new step.');
+      timeoutError.timeout = true;
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function callModelOnce(m, prompt, maxTokens, imagePart, systemPrompt) {
   const keyError = modelKeyError(m.apiKey);
   if (keyError) throw new Error(keyError);
@@ -1079,7 +1120,7 @@ async function callModelOnce(m, prompt, maxTokens, imagePart, systemPrompt) {
     const messages = [];
     if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
     messages.push({ role: 'user', content });
-    const r = await fetch(`${m.baseUrl}/chat/completions`, {
+    const r = await fetchModelProvider(`${m.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${m.apiKey}` },
       body: JSON.stringify({ model: m.model, messages, max_tokens: maxTokens })
@@ -1093,7 +1134,7 @@ async function callModelOnce(m, prompt, maxTokens, imagePart, systemPrompt) {
   if (imagePart) parts.push({ inline_data: { mime_type: imagePart.mime, data: imagePart.data } });
   const payload = { contents: [{ parts }], generationConfig: { maxOutputTokens: maxTokens } };
   if (systemPrompt) payload.systemInstruction = { parts: [{ text: systemPrompt }] };
-  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+  const r = await fetchModelProvider(url, { method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload) });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw modelError(r, j);
@@ -1418,15 +1459,19 @@ const CHAT_HISTORY_LIMIT = 40;
 
 function compactChatEntry(entry) {
   return {
-    id: crypto.randomUUID(),
-    created: new Date().toISOString(),
+    id: entry.id || crypto.randomUUID(),
+    created: entry.created || new Date().toISOString(),
     prompt: String(entry.prompt || '').slice(0, 8000),
     reply: String(entry.reply || '').slice(0, 12000),
     error: entry.error ? String(entry.error).slice(0, 2000) : null,
     imageAttached: !!entry.imageAttached,
     plan: entry.plan || null,
     planId: entry.planId || null,
-    execution: entry.execution || null
+    execution: entry.execution || null,
+    jobId: entry.jobId || null,
+    jobStatus: entry.jobStatus || null,
+    checklist: Array.isArray(entry.checklist) ? entry.checklist.slice(0, 7).map(item => ({ id: item.id, text: item.text, status: item.status })) : [],
+    steps: Array.isArray(entry.steps) ? entry.steps.slice(-24).map(item => ({ id: item.id, at: item.at, title: item.title, detail: item.detail, status: item.status })) : []
   };
 }
 
@@ -1447,6 +1492,16 @@ async function appendChatHistory(env, uid, entry) {
   return saved;
 }
 
+async function updateChatHistoryEntry(env, uid, id, patch) {
+  if (!id) return null;
+  const history = await loadChatHistory(env, uid);
+  const index = history.findIndex(item => item.id === id);
+  if (index < 0) return null;
+  history[index] = compactChatEntry({ ...history[index], ...patch, id: history[index].id, created: history[index].created });
+  await env.GH_CONFIG.put('chat_history:' + uid, JSON.stringify(history.slice(-CHAT_HISTORY_LIMIT)));
+  return history[index];
+}
+
 async function chatJson(env, uid, entry, payload, status = 200) {
   try {
     const saved = await appendChatHistory(env, uid, entry);
@@ -1458,6 +1513,8 @@ async function chatJson(env, uid, entry, payload, status = 200) {
 async function handleChatHistory(request, env, uid, path) {
   if (request.method === 'GET' && path === '/api/chat/history') return json({ history: await loadChatHistory(env, uid) });
   if (request.method === 'POST' && path === '/api/chat/clear') {
+    const history = await loadChatHistory(env, uid);
+    await Promise.all(history.filter(item => item.jobId).map(item => env.GH_CONFIG.delete(`agent_job:${uid}:${item.jobId}`)));
     await env.GH_CONFIG.delete('chat_history:' + uid);
     return json({ ok: true });
   }
@@ -1466,11 +1523,194 @@ async function handleChatHistory(request, env, uid, path) {
     const id = typeof body.id === 'string' ? body.id.trim() : '';
     if (!id) return json({ error: 'Missing conversation id.' }, 400);
     const history = await loadChatHistory(env, uid);
+    const removed = history.find(item => item.id === id);
     const next = history.filter(item => item.id !== id);
     await env.GH_CONFIG.put('chat_history:' + uid, JSON.stringify(next));
+    if (removed?.jobId) await env.GH_CONFIG.delete(`agent_job:${uid}:${removed.jobId}`);
     return json({ ok: true, deleted: next.length !== history.length });
   }
   return json({ error: 'not found' }, 404);
+}
+
+const AGENT_JOB_TTL = 86400;
+const AGENT_JOB_MAX_TRANSIENT_FAILURES = 3;
+
+function agentJobKey(uid, jobId) {
+  return `agent_job:${uid}:${jobId}`;
+}
+
+function safeAgentJobId(value) {
+  const id = typeof value === 'string' ? value.trim() : '';
+  return /^[a-zA-Z0-9-]{12,80}$/.test(id) ? id : null;
+}
+
+function agentJobText(job, he, en) {
+  return job.language === 'he' ? he : en;
+}
+
+function defaultAgentChecklist(prompt) {
+  const he = /[\u0590-\u05ff]/.test(String(prompt || ''));
+  const texts = he
+    ? ['להבין את הבקשה ולבנות תוכנית', 'לקרוא את קבצי הפרויקט הרלוונטיים', 'להכין שינוי מדויק ובטוח', 'להמתין לאישור ולבצע את פעולות GitHub']
+    : ['Understand the request and build a plan', 'Read the relevant project files', 'Prepare an exact and safe change', 'Wait for approval and execute the GitHub actions'];
+  return texts.map((text, index) => ({ id: `step-${index + 1}`, text, status: index === 0 ? 'active' : 'pending' }));
+}
+
+function adoptAgentChecklist(job, checklist) {
+  if (job.checklistAdopted || !Array.isArray(checklist) || !checklist.length) return;
+  job.checklist = checklist.slice(0, 7).map((item, index) => ({ ...item, status: index === 0 ? 'active' : 'pending' }));
+  job.checklistAdopted = true;
+}
+
+function advanceAgentChecklist(job, outcome = 'next') {
+  if (!Array.isArray(job.checklist) || !job.checklist.length) return;
+  if (outcome === 'complete') {
+    job.checklist.forEach(item => { item.status = 'done'; });
+    return;
+  }
+  const activeIndex = job.checklist.findIndex(item => item.status === 'active');
+  if (outcome === 'failed') {
+    const index = activeIndex >= 0 ? activeIndex : job.checklist.findIndex(item => item.status === 'pending');
+    if (index >= 0) job.checklist[index].status = 'failed';
+    return;
+  }
+  if (activeIndex >= 0) job.checklist[activeIndex].status = 'done';
+  const nextIndex = job.checklist.findIndex(item => item.status === 'pending');
+  if (nextIndex >= 0) job.checklist[nextIndex].status = 'active';
+}
+
+function waitForAgentApproval(job) {
+  if (!Array.isArray(job.checklist) || !job.checklist.length) return;
+  const last = job.checklist.length - 1;
+  job.checklist.forEach((item, index) => { item.status = index < last ? 'done' : 'active'; });
+}
+
+function addAgentJobStep(job, title, detail, status = 'done') {
+  if (!Array.isArray(job.steps)) job.steps = [];
+  job.steps.forEach(item => { if (item.status === 'active') item.status = 'done'; });
+  job.steps.push({
+    id: crypto.randomUUID(),
+    at: new Date().toISOString(),
+    title: String(title || '').slice(0, 240),
+    detail: String(detail || '').slice(0, 1000),
+    status
+  });
+  job.steps = job.steps.slice(-24);
+}
+
+function agentJobPublicStatus(job) {
+  if (job.state === 'waiting_approval') return 'waiting';
+  if (job.state === 'complete') return 'complete';
+  if (job.state === 'failed') return 'failed';
+  if (job.state === 'queued') return 'queued';
+  return 'running';
+}
+
+function publicAgentJob(job) {
+  const status = agentJobPublicStatus(job);
+  return {
+    jobId: job.id,
+    historyId: job.historyId || null,
+    jobStatus: status,
+    reply: job.reply || '',
+    error: status === 'failed' ? (job.error || null) : null,
+    checklist: job.checklist || [],
+    steps: job.steps || [],
+    currentStep: job.currentStep || null,
+    continueRequired: status === 'queued' || status === 'running',
+    retryAfter: job.retryAfter || 350,
+    approvalRequired: status === 'waiting',
+    plan: job.planPublic || null,
+    planId: job.planId || null,
+    done: status === 'complete'
+  };
+}
+
+async function saveAgentJob(env, uid, job) {
+  job.updated = new Date().toISOString();
+  await env.GH_CONFIG.put(agentJobKey(uid, job.id), JSON.stringify(job), { expirationTtl: AGENT_JOB_TTL });
+  if (job.historyId) {
+    const view = publicAgentJob(job);
+    await updateChatHistoryEntry(env, uid, job.historyId, {
+      reply: view.reply,
+      error: view.error,
+      plan: view.plan,
+      planId: view.planId,
+      jobId: view.jobId,
+      jobStatus: view.jobStatus,
+      checklist: view.checklist,
+      steps: view.steps
+    });
+  }
+  return job;
+}
+
+async function loadAgentJob(env, uid, jobId) {
+  const raw = await env.GH_CONFIG.get(agentJobKey(uid, jobId));
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch { return null; }
+}
+
+function failAgentJob(job, message) {
+  job.state = 'failed';
+  job.error = String(message || 'The Agent job failed.').slice(0, 2000);
+  job.reply = job.error;
+  job.currentStep = null;
+  advanceAgentChecklist(job, 'failed');
+  addAgentJobStep(job, agentJobText(job, 'העבודה נעצרה', 'Work stopped'), job.error, 'failed');
+}
+
+function describeAgentReads(job, actions) {
+  return actions.map(action => {
+    if (action.tool === 'github.list_files') return agentJobText(job, 'רשימת קבצי הפרויקט', 'repository file list');
+    if (action.query) return `${action.path} · ${agentJobText(job, 'חיפוש', 'query')}: ${action.query}`;
+    if (action.startLine) return `${action.path} · ${action.startLine}-${action.endLine}`;
+    return action.path;
+  }).join(', ');
+}
+
+async function acceptAgentJobPlan(env, uid, job, plan, rawReply, githubReady) {
+  adoptAgentChecklist(job, plan.checklist);
+  job.rawReply = rawReply;
+  job.plan = plan;
+  const planError = validateAgentPlan(plan, githubReady);
+  if (planError) {
+    if (job.validationRepairUsed) {
+      failAgentJob(job, `${plan.reply ? plan.reply + '\n\n' : ''}⚠️ ${planError}`);
+      return;
+    }
+    job.planError = planError;
+    job.state = 'repair_validation';
+    job.currentStep = agentJobText(job, 'מתקן את תוכנית הפעולה', 'Correcting the action plan');
+    addAgentJobStep(job, agentJobText(job, 'נדרשת התאמה לחוזה', 'Plan contract correction required'), planError, 'active');
+    return;
+  }
+  const readActions = plan.kind === 'plan' ? plan.actions.filter(action => action.tool === 'github.list_files' || action.tool === 'github.read_file') : [];
+  if (readActions.length) {
+    job.state = 'read';
+    job.currentStep = agentJobText(job, 'קורא את הקבצים שנבחרו', 'Reading the selected files');
+    job.reply = plan.reply || job.currentStep;
+    addAgentJobStep(job, agentJobText(job, 'השלב הבא: קריאת פרויקט', 'Next: repository read'), describeAgentReads(job, readActions), 'active');
+    return;
+  }
+  const writeActions = plan.kind === 'plan' ? plan.actions.filter(action => agentWriteTool(action.tool)) : [];
+  if (writeActions.length) {
+    const planId = crypto.randomUUID();
+    await env.GH_CONFIG.put(`agent_plan:${uid}:${planId}`, JSON.stringify({ prompt: job.prompt, modelId: job.modelId, plan, jobId: job.id }), { expirationTtl: AGENT_JOB_TTL });
+    job.planId = planId;
+    job.planPublic = publicAgentPlan(plan);
+    job.state = 'waiting_approval';
+    job.currentStep = agentJobText(job, 'ממתין לאישור שלך', 'Waiting for your approval');
+    job.reply = plan.reply || agentJobText(job, 'תוכנית הפעולה מוכנה לאישור.', 'The action plan is ready for approval.');
+    waitForAgentApproval(job);
+    addAgentJobStep(job, agentJobText(job, 'תוכנית השינוי מוכנה', 'Change plan ready'), agentJobText(job, 'נדרש אישור לפני כתיבה ל-GitHub', 'Approval is required before writing to GitHub'), 'active');
+    return;
+  }
+  job.state = 'complete';
+  job.currentStep = null;
+  job.reply = plan.reply || rawReply || agentJobText(job, 'העבודה הסתיימה.', 'Work completed.');
+  advanceAgentChecklist(job, 'complete');
+  addAgentJobStep(job, agentJobText(job, 'העבודה הסתיימה', 'Work completed'), job.reply, 'done');
 }
 
 async function handleChat(request, env, uid) {
@@ -1489,140 +1729,199 @@ async function handleChat(request, env, uid) {
   if (!m.apiKey) return chatJson(env, uid, { prompt, error: 'No API key is configured for the selected model.', imageAttached: !!imagePart }, { error: 'No API key is configured for the selected model.' }, 400);
   const keyError = modelKeyError(m.apiKey);
   if (keyError) return chatJson(env, uid, { prompt, error: keyError, imageAttached: !!imagePart }, { error: keyError }, 400);
-  // Shared across every callModel() call in the try block below so a capacity error retries at
-  // most ONCE for this whole request, not once per call — this request can chain up to 6 model
-  // calls. Declared outside the try block so the catch below can tell whether that one retry
-  // was already spent, to give an accurate error message instead of implying no retry happened.
-  const retryBudget = { used: false };
-  try {
-    const consent = await loadAgentConsent(env, uid);
-    const github = await loadGithubConfig(env, uid);
-    const hasGithubFields = !!(github.enabled && github.owner && github.repo && github.token);
-    const consentMatchesModel = !!(consent.enabled && consent.modelId === m.id && consent.scopes.includes('repo_metadata'));
-    let repoContext = null;
-    if (consentMatchesModel && hasGithubFields) {
-      try { repoContext = await loadAgentRepoContext(github, LIVE_DEPLOY_BRANCH); } catch {}
-    }
-    const githubReady = !!(consentMatchesModel && hasGithubFields && repoContext);
-    const systemPrompt = agentSystemPrompt(githubReady, repoContext, consentMatchesModel);
-    let formatRepairUsed = false;
-    let rawReply = await callModel(m, prompt, 2600, imagePart, systemPrompt, retryBudget);
-    let plan = inferAgentReadPlan(normalizeAgentPlan(rawReply), repoContext);
-    if (!plan) {
-      // Give the repair at least as much room as the original attempt — a code-change plan's
-      // repaired JSON (full patch + reply + up to 4 bundled actions) is not smaller than the
-      // first try, and a tighter budget here risks silently truncating the corrected JSON.
-      formatRepairUsed = true;
-      const repairedReply = await callModel(m, agentRepairPrompt(rawReply, prompt), 2600, null, systemPrompt, retryBudget);
-      plan = inferAgentReadPlan(normalizeAgentPlan(repairedReply), repoContext);
-      if (plan) rawReply = repairedReply;
-    }
-    if (!plan) {
-      const reply = 'The model returned an invalid Agent response. Nothing was executed. Please send the request again.';
-      return chatJson(env, uid, { prompt, error: reply, imageAttached: !!imagePart }, { error: reply }, 502);
-    }
-    let readResults = [];
-    const seenReads = new Set();
-    let readRounds = 0;
-    while (plan && !validateAgentPlan(plan, githubReady)) {
-      const readActions = plan.actions.filter(action => action.tool === 'github.list_files' || action.tool === 'github.read_file');
-      if (!readActions.length || !repoContext) break;
-      const newReadActions = readActions.filter(action => {
-        const key = agentReadActionKey(action, repoContext.defaultBranch);
-        if (seenReads.has(key)) return false;
-        seenReads.add(key);
-        return true;
-      });
-      if (!newReadActions.length) {
-        rawReply = 'The model repeated the same repository read instead of completing the request. Nothing was changed. Try refreshing the request with a more specific instruction.';
-        plan = { kind: 'answer', reply: rawReply, actions: [] };
-        break;
-      }
-      if (readRounds >= MAX_AGENT_READ_ROUNDS) {
-        rawReply = 'The model reached the safe repository read limit without producing a final action plan. Nothing was changed. Try a more focused request.';
-        plan = { kind: 'answer', reply: rawReply, actions: [] };
-        break;
-      }
-      readRounds += 1;
-      const roundResults = await executeAgentReadActions(github, newReadActions, repoContext.defaultBranch);
-      readResults = readResults.concat(roundResults);
-      const canReadMore = readRounds < MAX_AGENT_READ_ROUNDS;
-      let followReply = await callModel(m, agentToolResultsPrompt(readResults, prompt, canReadMore), 5000, null, systemPrompt, retryBudget);
-      let followPlan = inferAgentReadPlan(normalizeAgentPlan(followReply), repoContext);
-      if (!followPlan && !formatRepairUsed) {
-        formatRepairUsed = true;
-        const repairedFollowReply = await callModel(m, agentReadResultsRepairPrompt(followReply, readResults, prompt, canReadMore), 2600, null, systemPrompt, retryBudget);
-        followPlan = inferAgentReadPlan(normalizeAgentPlan(repairedFollowReply), repoContext);
-        if (followPlan) followReply = repairedFollowReply;
-      }
-      if (!followPlan) {
-        rawReply = 'The model did not return a valid final Agent response after reading the repository. Nothing was changed. Please refresh the request.';
-        plan = { kind: 'answer', reply: rawReply, actions: [] };
-        break;
-      }
-      if (isReadOnlyAgentPlan(followPlan) && !canReadMore) {
-        const finalReply = await callModel(m, agentReadResultsRepairPrompt(followReply, readResults, prompt, false), 2600, null, systemPrompt, retryBudget);
-        const finalPlan = inferAgentReadPlan(normalizeAgentPlan(finalReply), repoContext);
-        if (!finalPlan || isReadOnlyAgentPlan(finalPlan)) {
-          rawReply = 'The model finished its safe read allowance without proposing an executable action. Nothing was changed. Try a more focused request.';
-          plan = { kind: 'answer', reply: rawReply, actions: [] };
-          break;
-        }
-        followReply = finalReply;
-        followPlan = finalPlan;
-      }
-      rawReply = followReply;
-      plan = followPlan;
-    }
-    let planError = plan ? validateAgentPlan(plan, githubReady) : null;
-    // A structurally valid plan that breaks a contract rule (e.g. a write missing the
-    // required update_version/create_pull_request/deploy bundle) used to die silently here —
-    // the user saw only the model's own reply text with no sign anything was rejected. Give
-    // the model one chance to fix the specific rule before giving up.
-    if (planError && plan && plan.kind === 'plan') {
-      // Same reasoning as the JSON-shape repair above: a code-change repair still has to carry
-      // a full patch/content plus all four bundled actions, so it needs at least as much room
-      // as the original attempt, not less.
-      const repairedReply = await callModel(m, agentValidationRepairPrompt(rawReply, planError, prompt), 2600, null, systemPrompt, retryBudget);
-      const repairedPlan = inferAgentReadPlan(normalizeAgentPlan(repairedReply), repoContext);
-      if (repairedPlan) {
-        const repairedError = validateAgentPlan(repairedPlan, githubReady);
-        plan = repairedPlan;
-        rawReply = repairedReply;
-        planError = repairedError;
-      } else {
-        // The repair reply wasn't parseable JSON at all (most likely truncated by the model's
-        // own output limit) — say so plainly instead of silently re-showing the original error
-        // as if no repair had been attempted.
-        planError = 'The model\'s corrected plan could not be read (it may have been cut off). ' + planError;
-      }
-    }
-    if (planError) {
-      const reply = (plan?.reply ? plan.reply + '\n\n' : '') + '⚠️ ' + planError;
-      return chatJson(env, uid, { prompt, reply, imageAttached: !!imagePart }, { reply, planError, agentAccessRequired: true });
-    }
-    if (plan && plan.kind === 'plan') {
-      const publicPlan = publicAgentPlan(plan);
-      const writeActions = plan.actions.filter(action => agentWriteTool(action.tool));
-      if (writeActions.length) {
-        const planId = crypto.randomUUID();
-        await env.GH_CONFIG.put(`agent_plan:${uid}:${planId}`, JSON.stringify({ prompt, modelId: m.id, plan }), { expirationTtl: 900 });
-        const reply = plan.reply || 'I prepared an action plan for your approval.';
-        return chatJson(env, uid, { prompt, reply, plan: publicPlan, planId, imageAttached: !!imagePart }, { reply, plan: publicPlan, planId, approvalRequired: true });
-      }
-      const reply = plan.reply || (readResults.length ? 'I read the requested repository information.' : rawReply);
-      return chatJson(env, uid, { prompt, reply, plan: publicPlan, imageAttached: !!imagePart }, { reply, results: readResults, plan: publicPlan });
-    }
-    const reply = plan?.reply || rawReply || '(empty model response)';
-    return chatJson(env, uid, { prompt, reply, imageAttached: !!imagePart }, { reply });
-  } catch (e) {
-    const message = e.capacity
-      ? (retryBudget.used
-          ? 'The selected model is still busy after an automatic retry. Please wait a bit longer before trying again — retrying immediately is unlikely to help.'
-          : 'The selected model is temporarily busy or has reached its request capacity. Please wait a few seconds and refresh this request.')
-      : (e.message || 'The model request failed.');
-    return chatJson(env, uid, { prompt, error: message, imageAttached: !!imagePart }, { error: message, retryable: !!e.capacity }, 502);
+  const language = /[\u0590-\u05ff]/.test(prompt) ? 'he' : 'en';
+  const job = {
+    id: crypto.randomUUID(),
+    created: new Date().toISOString(),
+    updated: new Date().toISOString(),
+    state: 'queued',
+    language,
+    prompt: prompt.slice(0, 8000),
+    imagePart,
+    imageAttached: !!imagePart,
+    modelId: m.id,
+    modelLabel: m.label,
+    checklist: defaultAgentChecklist(prompt),
+    checklistAdopted: false,
+    steps: [],
+    readResults: [],
+    seenReads: [],
+    readRounds: 0,
+    formatRepairUsed: false,
+    validationRepairUsed: false,
+    transientFailures: 0,
+    retryAfter: 350,
+    reply: agentJobText({ language }, 'הבקשה נשמרה. הסוכן מכין Checklist ומתחיל בשלב הראשון.', 'The request was saved. The Agent is creating a checklist and starting the first step.'),
+    currentStep: agentJobText({ language }, 'בניית Checklist ותוכנית עבודה', 'Building the checklist and work plan')
+  };
+  addAgentJobStep(job, agentJobText(job, 'הבקשה נשמרה', 'Request saved'), agentJobText(job, 'מצב העבודה נשמר בשרת וניתן להמשיך ממנו גם לאחר רענון.', 'The job state is stored on the server and can resume after a refresh.'), 'done');
+  addAgentJobStep(job, agentJobText(job, 'בניית Checklist', 'Building checklist'), job.currentStep, 'active');
+  const saved = await appendChatHistory(env, uid, {
+    prompt,
+    reply: job.reply,
+    imageAttached: !!imagePart,
+    jobId: job.id,
+    jobStatus: 'queued',
+    checklist: job.checklist,
+    steps: job.steps
+  });
+  job.historyId = saved.id;
+  await saveAgentJob(env, uid, job);
+  return json(publicAgentJob(job), 202);
+}
+
+async function handleAgentJobContinue(request, env, uid) {
+  if (request.method !== 'POST') return json({ error: 'not found' }, 404);
+  const body = await request.json().catch(() => ({}));
+  const jobId = safeAgentJobId(body.jobId);
+  if (!jobId) return json({ error: 'Invalid Agent job id.' }, 400);
+  const job = await loadAgentJob(env, uid, jobId);
+  if (!job) return json({ error: 'This Agent job expired or was deleted.' }, 410);
+  if (['waiting_approval', 'complete', 'failed'].includes(job.state)) return json(publicAgentJob(job));
+
+  const cfg = await loadModelsConfig(env, uid);
+  const m = cfg.models.find(item => item.id === job.modelId);
+  if (!m || m.builtin || !m.apiKey) {
+    failAgentJob(job, agentJobText(job, 'המודל ששויך לעבודה כבר אינו זמין.', 'The model assigned to this job is no longer available.'));
+    await saveAgentJob(env, uid, job);
+    return json(publicAgentJob(job), 409);
   }
+  const keyError = modelKeyError(m.apiKey);
+  if (keyError) {
+    failAgentJob(job, keyError);
+    await saveAgentJob(env, uid, job);
+    return json(publicAgentJob(job), 400);
+  }
+
+  const consent = await loadAgentConsent(env, uid);
+  const github = await loadGithubConfig(env, uid);
+  const hasGithubFields = !!(github.enabled && github.owner && github.repo && github.token);
+  const consentMatchesModel = !!(consent.enabled && consent.modelId === m.id && consent.scopes.includes('repo_metadata'));
+  const stageBefore = job.state;
+  try {
+    if (job.state === 'queued' && !job.repoContext && consentMatchesModel && hasGithubFields) {
+      job.currentStep = agentJobText(job, 'טוען את מבנה הפרויקט וה-Skill', 'Loading the project structure and Skill');
+      job.repoContext = await loadAgentRepoContext(github, LIVE_DEPLOY_BRANCH);
+      addAgentJobStep(job, agentJobText(job, 'הקשר הפרויקט נטען', 'Project context loaded'), `${job.repoContext.fullName} · ${job.repoContext.paths.length} files`, 'done');
+    }
+    const githubReady = !!(consentMatchesModel && hasGithubFields && job.repoContext);
+    const systemPrompt = agentSystemPrompt(githubReady, job.repoContext || null, consentMatchesModel);
+    const noInlineRetry = { used: true };
+
+    if (job.state === 'queued') {
+      job.currentStep = agentJobText(job, 'המודל בונה Checklist ותוכנית', 'The model is building the checklist and plan');
+      const rawReply = await callModel(m, job.prompt, 2600, job.imagePart || null, systemPrompt, noInlineRetry);
+      job.imagePart = null;
+      const plan = inferAgentReadPlan(normalizeAgentPlan(rawReply), job.repoContext);
+      if (!plan) {
+        job.rawReply = rawReply;
+        job.formatRepairUsed = true;
+        job.state = 'repair_format';
+        job.currentStep = agentJobText(job, 'מתקן את מבנה תשובת המודל', 'Correcting the model response format');
+        addAgentJobStep(job, agentJobText(job, 'תשובת המודל התקבלה', 'Model response received'), agentJobText(job, 'התשובה אינה JSON תקין; התיקון יבוצע בשלב הבא.', 'The response is not valid JSON; it will be corrected in the next step.'), 'active');
+      } else {
+        addAgentJobStep(job, agentJobText(job, 'ה-Checklist נוצר', 'Checklist created'), plan.reply, 'done');
+        await acceptAgentJobPlan(env, uid, job, plan, rawReply, githubReady);
+      }
+    } else if (job.state === 'read' || job.state === 'analyze_reads') {
+      if (job.state === 'read') {
+        const readActions = job.plan.actions.filter(action => action.tool === 'github.list_files' || action.tool === 'github.read_file');
+        const seen = new Set(job.seenReads || []);
+        const newReadActions = readActions.filter(action => {
+          const key = agentReadActionKey(action, job.repoContext?.defaultBranch || LIVE_DEPLOY_BRANCH);
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        if (!newReadActions.length) throw new Error('The model repeated the same repository read.');
+        if (job.readRounds >= MAX_AGENT_READ_ROUNDS) {
+          job.state = 'finalize_reads';
+        } else {
+          const detail = describeAgentReads(job, newReadActions);
+          const roundResults = await executeAgentReadActions(github, newReadActions, job.repoContext.defaultBranch);
+          job.seenReads = [...seen];
+          job.readRounds += 1;
+          job.readResults = (job.readResults || []).concat(roundResults);
+          job.state = 'analyze_reads';
+          job.currentStep = agentJobText(job, 'המודל מנתח את תוצאות הקריאה', 'The model is analyzing the read results');
+          advanceAgentChecklist(job);
+          addAgentJobStep(job, agentJobText(job, `קריאת פרויקט ${job.readRounds}/${MAX_AGENT_READ_ROUNDS}`, `Repository read ${job.readRounds}/${MAX_AGENT_READ_ROUNDS}`), detail, 'done');
+        }
+      }
+      if (job.state === 'analyze_reads') {
+        const canReadMore = job.readRounds < MAX_AGENT_READ_ROUNDS;
+        const rawReply = await callModel(m, agentToolResultsPrompt(job.readResults, job.prompt, canReadMore), 5000, null, systemPrompt, noInlineRetry);
+        const plan = inferAgentReadPlan(normalizeAgentPlan(rawReply), job.repoContext);
+        if (!plan) {
+          if (job.formatRepairUsed) failAgentJob(job, agentJobText(job, 'המודל לא החזיר תוכנית Agent תקינה לאחר קריאת הקבצים.', 'The model did not return a valid Agent plan after reading the files.'));
+          else {
+            job.rawReply = rawReply;
+            job.formatRepairUsed = true;
+            job.state = 'repair_format';
+            job.currentStep = agentJobText(job, 'מתקן את מבנה התוכנית', 'Correcting the plan format');
+            addAgentJobStep(job, agentJobText(job, 'נדרש תיקון פורמט', 'Format correction required'), agentJobText(job, 'התיקון ירוץ בבקשת HTTP נפרדת.', 'The repair will run in a separate HTTP request.'), 'active');
+          }
+        } else if (isReadOnlyAgentPlan(plan) && !canReadMore) {
+          job.rawReply = rawReply;
+          job.plan = plan;
+          job.state = 'finalize_reads';
+          job.currentStep = agentJobText(job, 'מסכם את הקריאות לתוכנית סופית', 'Converting the reads into a final plan');
+          addAgentJobStep(job, agentJobText(job, 'מכסת הקריאה הסתיימה', 'Read allowance completed'), agentJobText(job, 'בשלב הבא המודל חייב להחזיר תשובה או פעולה לביצוע.', 'In the next step the model must return an answer or executable action.'), 'active');
+        } else {
+          await acceptAgentJobPlan(env, uid, job, plan, rawReply, githubReady);
+        }
+      }
+    } else if (job.state === 'repair_format') {
+      const canReadMore = job.readRounds < MAX_AGENT_READ_ROUNDS;
+      const repairPrompt = job.readResults?.length
+        ? agentReadResultsRepairPrompt(job.rawReply, job.readResults, job.prompt, canReadMore)
+        : agentRepairPrompt(job.rawReply, job.prompt);
+      const rawReply = await callModel(m, repairPrompt, 2600, null, systemPrompt, noInlineRetry);
+      const plan = inferAgentReadPlan(normalizeAgentPlan(rawReply), job.repoContext);
+      if (!plan) failAgentJob(job, agentJobText(job, 'גם ניסיון תיקון הפורמט נכשל. לא בוצע שינוי.', 'The format repair also failed. Nothing was changed.'));
+      else {
+        addAgentJobStep(job, agentJobText(job, 'מבנה התוכנית תוקן', 'Plan format corrected'), plan.reply, 'done');
+        await acceptAgentJobPlan(env, uid, job, plan, rawReply, githubReady);
+      }
+    } else if (job.state === 'repair_validation') {
+      job.validationRepairUsed = true;
+      const rawReply = await callModel(m, agentValidationRepairPrompt(job.rawReply, job.planError, job.prompt), 2600, null, systemPrompt, noInlineRetry);
+      const plan = inferAgentReadPlan(normalizeAgentPlan(rawReply), job.repoContext);
+      if (!plan) failAgentJob(job, agentJobText(job, 'תוכנית הפעולה המתוקנת לא הייתה תקינה. לא בוצע שינוי.', 'The corrected action plan was invalid. Nothing was changed.'));
+      else {
+        addAgentJobStep(job, agentJobText(job, 'חוזה הפעולה תוקן', 'Action contract corrected'), plan.reply, 'done');
+        await acceptAgentJobPlan(env, uid, job, plan, rawReply, githubReady);
+      }
+    } else if (job.state === 'finalize_reads') {
+      const rawReply = await callModel(m, agentReadResultsRepairPrompt(job.rawReply, job.readResults, job.prompt, false), 2600, null, systemPrompt, noInlineRetry);
+      const plan = inferAgentReadPlan(normalizeAgentPlan(rawReply), job.repoContext);
+      if (!plan || isReadOnlyAgentPlan(plan)) failAgentJob(job, agentJobText(job, 'המודל סיים את מכסת הקריאה בלי להציע פעולה לביצוע. לא בוצע שינוי.', 'The model exhausted the read allowance without proposing an executable action. Nothing was changed.'));
+      else await acceptAgentJobPlan(env, uid, job, plan, rawReply, githubReady);
+    } else {
+      failAgentJob(job, `Unknown Agent job state: ${job.state}`);
+    }
+    job.transientFailures = 0;
+    job.retryAfter = 350;
+  } catch (error) {
+    if (error.capacity || error.timeout) {
+      job.state = stageBefore === 'read' && job.state === 'analyze_reads' ? 'analyze_reads' : job.state;
+      job.transientFailures = Number(job.transientFailures || 0) + 1;
+      job.retryAfter = Math.min(15000, 2500 * job.transientFailures);
+      const detail = error.timeout
+        ? agentJobText(job, 'ספק המודל לא ענה בתוך 75 שניות. מצב העבודה נשמר והניסיון הבא ירוץ בבקשה חדשה.', 'The model provider did not answer within 75 seconds. State was saved and the next attempt will use a new request.')
+        : agentJobText(job, 'המודל עמוס כרגע. מצב העבודה נשמר והמערכת תנסה שוב בשלב נפרד.', 'The model is busy. State was saved and the system will retry in a separate step.');
+      addAgentJobStep(job, agentJobText(job, `המתנה וניסיון נוסף ${job.transientFailures}/${AGENT_JOB_MAX_TRANSIENT_FAILURES}`, `Waiting and retrying ${job.transientFailures}/${AGENT_JOB_MAX_TRANSIENT_FAILURES}`), detail, job.transientFailures >= AGENT_JOB_MAX_TRANSIENT_FAILURES ? 'failed' : 'active');
+      if (job.transientFailures >= AGENT_JOB_MAX_TRANSIENT_FAILURES) failAgentJob(job, detail);
+      else {
+        job.reply = detail;
+        job.currentStep = agentJobText(job, 'ממתין לפני ניסיון נוסף', 'Waiting before another attempt');
+      }
+    } else {
+      failAgentJob(job, error.message || 'The Agent step failed.');
+    }
+  }
+  await saveAgentJob(env, uid, job);
+  return json(publicAgentJob(job));
 }
 
 // ---------------------------------------------------------------------------
@@ -1634,13 +1933,14 @@ export default {
 
     if (path.startsWith('/api/auth/')) return handleAuth(request, env, url, path);
 
-    const needsAuth = path.startsWith('/api/github/') || path.startsWith('/api/models') || path === '/api/chat' || path === '/api/chat/history' || path === '/api/chat/clear' || path === '/api/chat/delete' || path.startsWith('/api/agent/') || path.startsWith('/api/workspace');
+    const needsAuth = path.startsWith('/api/github/') || path.startsWith('/api/models') || path.startsWith('/api/chat') || path.startsWith('/api/agent/') || path.startsWith('/api/workspace');
     if (needsAuth) {
       const user = await getSession(env, request);
       if (!user) return json({ error: 'לא מחובר. יש להתחבר עם Google כדי להשתמש בתכונה הזו.', loginRequired: true }, 401);
       if (path.startsWith('/api/github/')) return handleGithubApi(request, env, path, user.uid);
       if (path.startsWith('/api/models')) return handleModelsApi(request, env, path, user.uid);
       if (path === '/api/chat') return handleChat(request, env, user.uid);
+      if (path === '/api/chat/continue') return handleAgentJobContinue(request, env, user.uid);
       if (path === '/api/chat/history' || path === '/api/chat/clear' || path === '/api/chat/delete') return handleChatHistory(request, env, user.uid, path);
       if (path === '/api/agent/status' || path === '/api/agent/consent') return handleAgentApi(request, env, path, user.uid);
       if (path === '/api/agent/approve') return handleAgentApproval(request, env, user.uid);
