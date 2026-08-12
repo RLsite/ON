@@ -1,7 +1,7 @@
 # ON TracK Project Info
 
-Version: `1.4.28`
-Status: `Every Agent change now ends with a server-verified version bump (the model's number is corrected if it is not an increase — a real run rewound the project to 1.0.1) and a required one-sentence summary of what was done, published to this Status line.`
+Version: `1.4.29`
+Status: `הסרת כפתור בחירת המודל מתפריט הניווט העליון.`
 
 ## Goal
 Build a web-first workspace where a chosen model can understand a project, connect to repositories, and perform approved actions in a controlled flow.
