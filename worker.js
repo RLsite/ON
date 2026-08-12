@@ -1058,10 +1058,33 @@ async function executeAgentWritePlan(config, plan, planId, env) {
   const baseBranch = safeAgentBranch(pullAction?.base) || deployBranch || repo.default_branch || 'main';
   const baseRef = await withStage('reading the base branch', () => githubApi(config, `/git/ref/heads/${encodeURIComponent(baseBranch)}`));
   const branch = `ontrack/agent-${String(planId).replace(/[^a-zA-Z0-9-]/g, '').slice(0, 18)}`;
-  await withStage('creating the change branch', () => githubApi(config, '/git/refs', {
-    method: 'POST',
-    body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: baseRef.object.sha })
-  }));
+  // The branch name is deterministic from planId, and a preserved plan can be approved more than
+  // once (the plan survives a failed execution for 24h). So a first attempt that created the
+  // branch — and possibly wrote the version files — then failed at a later step (PR/merge) leaves
+  // the branch behind, and without this every retry died here with "Reference already exists".
+  // This branch is a throwaway owned by exactly this plan (unguessable per-user planId), so on
+  // that collision we force-reset it to the current base commit, giving the retry a clean slate
+  // instead of stacking onto the leftover commits.
+  await withStage('creating the change branch', async () => {
+    try {
+      await githubApi(config, '/git/refs', {
+        method: 'POST',
+        body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: baseRef.object.sha })
+      });
+    } catch (e) {
+      if (e.status === 422 && /reference already exists/i.test(e.message || '')) {
+        // Keep slashes literal in the ref path (segment-wise encoding), matching the write-probe
+        // code's proven pattern — GitHub's ref endpoints are finicky about a %2F-encoded slash.
+        const refPath = branch.split('/').map(encodeURIComponent).join('/');
+        await githubApi(config, `/git/refs/heads/${refPath}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ sha: baseRef.object.sha, force: true })
+        });
+      } else {
+        throw e;
+      }
+    }
+  });
   const files = [];
   // Every write always targets the freshly created `branch`, never a model-supplied one — an
   // action.branch override here would let an approved write land directly on any branch,
@@ -1096,15 +1119,30 @@ async function executeAgentWritePlan(config, plan, planId, env) {
   }
   let pullRequest = null;
   if (pullAction) {
-    const pr = await withStage('creating the Pull Request', () => githubApi(config, '/pulls', {
-      method: 'POST',
-      body: JSON.stringify({
-        title: String(pullAction.title).trim(),
-        body: String(pullAction.body || '').trim(),
-        head: branch,
-        base: safeAgentBranch(pullAction.base) || baseBranch
-      })
-    }));
+    const prBase = safeAgentBranch(pullAction.base) || baseBranch;
+    // Same idempotency reasoning as branch creation: if a previous attempt opened a PR for this
+    // head branch and then failed at merge, opening it again returns "A pull request already
+    // exists". Reuse the existing open PR (now pointing at the branch we just reset+rewrote)
+    // rather than failing the retry.
+    const pr = await withStage('creating the Pull Request', async () => {
+      try {
+        return await githubApi(config, '/pulls', {
+          method: 'POST',
+          body: JSON.stringify({
+            title: String(pullAction.title).trim(),
+            body: String(pullAction.body || '').trim(),
+            head: branch,
+            base: prBase
+          })
+        });
+      } catch (e) {
+        if (e.status === 422 && /pull request already exists/i.test(e.message || '')) {
+          const existing = await githubApi(config, `/pulls?head=${encodeURIComponent(config.owner + ':' + branch)}&base=${encodeURIComponent(prBase)}&state=open`);
+          if (Array.isArray(existing) && existing.length) return existing[0];
+        }
+        throw e;
+      }
+    });
     pullRequest = { number: pr.number, url: pr.html_url, title: pr.title };
   }
   let deployment = null;
