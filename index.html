@@ -545,7 +545,7 @@
       <div class="sideCard quickStatusCard">
         <h3 data-i18n="quickStats">מצב מהיר</h3>
         <div class="heroStatRow"><span data-i18n="statusLabel">סטטוס</span><b id="miniStatus" data-i18n="miniStatusDefault">אין פרויקט נבחר</b></div>
-        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">1.4.30 ↻</button></div>
+        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">1.4.31 ↻</button></div>
         <div class="heroStatRow"><span data-i18n="langLabel">שפה</span><b id="langValue">עברית</b></div>
       </div>
     <div class="sidebarResizer" id="sidebarResizer" role="separator" aria-orientation="vertical" aria-label="שינוי רוחב אזור הפרויקטים"></div>
@@ -678,7 +678,7 @@
         <b data-i18n="helpTitle">❓ עזרה ל־ON TracK</b>
         <button class="icon" id="helpClose">✕</button>
       </div>
-      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">1.4.30</b></div>
+      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">1.4.31</b></div>
       <p class="hint" style="line-height:1.7;margin-top:0" data-i18n="helpIntro">ON TracK מחבר בין מודל שבחרת לבין פרויקט ומקורות קוד. המודל מקבל בקשות ומבצע פעולות רק דרך החיבורים וההרשאות שהגדרת.</p>
       <div class="helpList">
         <div class="hint" data-i18n="helpStepOne">1. צור או בחר פרויקט בצד.</div>
@@ -778,13 +778,28 @@
         <label data-i18n="patLabel">טוקן גישה אישי</label>
         <input type="password" id="ghToken" placeholder="ghp_…">
         <div class="hint" data-i18n-html="patPermissionsHint">לביצוע שינויים: Fine-grained token עם <code>Contents: Read and write</code> ו־<code>Pull requests: Read and write</code>, או Classic token עם <code>repo</code>.</div>
+        <details class="ghPermHelp" style="margin-top:8px">
+          <summary style="cursor:pointer;font-weight:700;font-size:13px;color:var(--accent)" data-i18n="ghPermSummary">אילו הרשאות צריך לתת לטוקן? (הסבר)</summary>
+          <div class="hint" data-i18n-html="ghPermDetails" style="margin-top:8px;line-height:1.8;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px">
+            בטוקן <b>Fine-grained</b> (מומלץ), תחת <b>Repository permissions</b> של הריפו הזה, קבע שלוש הרשאות:<br>
+            • <code dir=ltr>Contents</code> → <b>Read and write</b> — לקרוא ולשנות קבצים, וליצור את ה-branch של השינוי.<br>
+            • <code dir=ltr>Pull requests</code> → <b>Read and write</b> — לפתוח ולמזג את ה-Pull Request.<br>
+            • <code dir=ltr>Metadata</code> → <b>Read-only</b> — נדרש אוטומטית ע"י GitHub לכל טוקן, לזיהוי הריפו.<br>
+            בטוקן <b>Classic</b> מספיק לסמן את ההיקף <code dir=ltr>repo</code> (כולל את כל השלושה).
+          </div>
+        </details>
         <div class="hint" id="ghTokenStatus" style="margin-top:4px"></div>
         <div id="ghTokenSaved" style="display:none;margin-top:6px;font-size:13px;color:#3a9c75;font-weight:700" data-i18n="tokenSaved">✓ טוקן שמור — לא צריך להזין שוב</div>
         <div class="editrow" style="margin-top:14px">
           <button class="add" id="ghSave" data-i18n="save">שמור</button>
           <button class="act" id="ghTest" data-i18n="testConnection">🔌 בדוק חיבור</button>
+          <button class="act" id="ghSaveConn" data-i18n="ghSaveConnection">💾 שמור חיבור זה</button>
           <button class="act" id="ghLoadIssues" data-i18n="refreshIssues">רענן issues פתוחים</button>
           <span class="hint" id="ghSaveStatus"></span>
+        </div>
+        <div id="ghSavedWrap" style="display:none;margin-top:12px">
+          <label data-i18n="ghSavedLabel">חיבורים שמורים</label>
+          <div id="ghSavedList"></div>
         </div>
         <div id="ghStatusBox" class="hint" style="margin-top:10px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);display:none"></div>
         <hr class="sep">
@@ -1015,6 +1030,7 @@
       githubModalTitle:'🔗 חיבור GitHub', tabLocalFolder:'📁 תיקיית קוד מקומית', tabLocalBrowser:'🖥️ דפדפן מקומי',
       ghIntro:'חיבור לריפו GitHub — לצפייה ב-issues פתוחים הקשורים לבדיקות, וליצירת issue ישירות מבדיקה שנכשלה (FAIL).',
       ghEnabledLabel:'חיבור GitHub פעיל', ownerLabel:'בעלים (משתמש/ארגון ב-GitHub — לא אימייל)', repoNameLabel:'שם הריפו (רק השם, לא הכתובת המלאה)', patLabel:'טוקן גישה אישי', patPermissionsHint:'לביצוע שינויים: Fine-grained token עם <code>Contents: Read and write</code> ו־<code>Pull requests: Read and write</code>, או Classic token עם <code>repo</code>.',
+      ghPermSummary:'אילו הרשאות צריך לתת לטוקן? (הסבר)', ghPermDetails:'בטוקן <b>Fine-grained</b> (מומלץ), תחת <b>Repository permissions</b> של הריפו הזה, קבע שלוש הרשאות:<br>• <code dir=ltr>Contents</code> → <b>Read and write</b> — לקרוא ולשנות קבצים, וליצור את ה-branch של השינוי.<br>• <code dir=ltr>Pull requests</code> → <b>Read and write</b> — לפתוח ולמזג את ה-Pull Request.<br>• <code dir=ltr>Metadata</code> → <b>Read-only</b> — נדרש אוטומטית ע"י GitHub לכל טוקן, לזיהוי הריפו.<br>בטוקן <b>Classic</b> מספיק לסמן את ההיקף <code dir=ltr>repo</code> (כולל את כל השלושה).', ghSaveConnection:'💾 שמור חיבור זה', ghSavedLabel:'חיבורים שמורים', ghReconnect:'🔌 חבר', ghDeleteSaved:'🗑️',
       phOwner:'RLsite', phRepoName:'ON', ownerRepoHint:'מהכתובת <code dir=ltr>github.com/RLsite/ON</code> — בעלים: <code>RLsite</code> · שם הריפו: <code>ON</code>',
       tokenSaved:'✓ טוקן שמור — לא צריך להזין שוב', save:'שמור', refreshIssues:'רענן issues פתוחים', openIssuesLabel:'Issues פתוחים',
       localFolderLabel:'📁 תיקיית קוד מקומית (הקשר למודל)', pickFolder:'📂 בחר תיקייה…',
@@ -1104,6 +1120,7 @@
       githubModalTitle:'🔗 Connect GitHub', tabLocalFolder:'📁 Local code folder', tabLocalBrowser:'🖥️ Local browser',
       ghIntro:'Connect a GitHub repo — to view open issues related to checks, and to create an issue directly from a failed (FAIL) check.',
       ghEnabledLabel:'GitHub connection enabled', ownerLabel:'Owner (GitHub user/org — not an email)', repoNameLabel:'Repo name (just the name, not the full URL)', patLabel:'Personal Access Token', patPermissionsHint:'To make changes, use a fine-grained token with <code>Contents: Read and write</code> and <code>Pull requests: Read and write</code>, or a classic token with <code>repo</code>.',
+      ghPermSummary:'Which permissions does the token need? (explanation)', ghPermDetails:'For a <b>fine-grained</b> token (recommended), under <b>Repository permissions</b> for this repo, set three permissions:<br>• <code dir=ltr>Contents</code> → <b>Read and write</b> — read and change files, and create the change branch.<br>• <code dir=ltr>Pull requests</code> → <b>Read and write</b> — open and merge the Pull Request.<br>• <code dir=ltr>Metadata</code> → <b>Read-only</b> — required automatically by GitHub for every token, to identify the repo.<br>For a <b>classic</b> token, the <code dir=ltr>repo</code> scope alone covers all three.', ghSaveConnection:'💾 Save this connection', ghSavedLabel:'Saved connections', ghReconnect:'🔌 Connect', ghDeleteSaved:'🗑️',
       phOwner:'RLsite', phRepoName:'ON', ownerRepoHint:'From the URL <code dir=ltr>github.com/RLsite/ON</code> — owner: <code>RLsite</code> · repo name: <code>ON</code>',
       tokenSaved:'✓ Token saved — no need to enter it again', save:'Save', refreshIssues:'Refresh open issues', openIssuesLabel:'Open Issues',
       localFolderLabel:'📁 Local code folder (context for the model)', pickFolder:'📂 Choose folder…',
@@ -2523,6 +2540,44 @@ loadModels();
     return j;
   }
 
+  // Saved connections: keep several owner/repo/token sets and switch between them in one click,
+  // instead of retyping. The token itself never comes back to the browser — only whether one is
+  // stored — so "connect" restores it server-side from the saved KV entry.
+  function renderGhSaved(list){
+    const wrap=$('#ghSavedWrap'), box=$('#ghSavedList'); if(!wrap||!box) return;
+    if(!Array.isArray(list) || !list.length){ wrap.style.display='none'; box.innerHTML=''; return; }
+    const t=I18N[uiLang]||I18N.he;
+    wrap.style.display='';
+    box.innerHTML=list.map(c=>`<div class="modelRow"><div class="modelInfo"><div class="modelName" style="direction:ltr;text-align:left">${esc(c.owner)}/${esc(c.repo)}${c.hasToken?' · 🔑':''}</div></div><div class="modelActions"><button class="act" data-gh-connect="${esc(c.id)}">${esc(t.ghReconnect)}</button><button class="icon" title="${esc(t.ghDeleteSaved)}" data-gh-delsaved="${esc(c.id)}">🗑️</button></div></div>`).join('');
+  }
+  async function loadGhSaved(){
+    try{ const { data:j }=await fetchJsonSafe('/api/github/saved'); renderGhSaved(j && j.saved); }
+    catch{ renderGhSaved([]); }
+  }
+  $('#ghSaveConn').onclick=async()=>{
+    $('#ghSaveStatus').textContent = (uiLang==='en'?'Saving connection…':'שומר חיבור…');
+    // Persist whatever's typed first, so an owner/repo/token entered but not yet saved is captured.
+    await saveGh();
+    const { data:j }=await fetchJsonSafe('/api/github/save',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    if(j && j.error){ $('#ghSaveStatus').textContent='✗ '+j.error; return; }
+    $('#ghSaveStatus').textContent = (uiLang==='en'?'Connection saved ✓':'החיבור נשמר ✓');
+    renderGhSaved(j && j.saved);
+  };
+  $('#ghSavedList').addEventListener('click', async e=>{
+    const conn=e.target.closest('[data-gh-connect]'), del=e.target.closest('[data-gh-delsaved]');
+    if(conn){
+      conn.disabled=true;
+      const { data:j }=await fetchJsonSafe('/api/github/connect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:conn.dataset.ghConnect})});
+      if(j && j.error){ conn.disabled=false; $('#ghSaveStatus').textContent='✗ '+j.error; return; }
+      $('#ghEnabled').checked=true; $('#ghOwner').value=j.owner||''; $('#ghRepo').value=j.repo||''; $('#ghToken').value='';
+      showTokenStatus(true); updateConnDots(); testGh(false); loadIssues();
+      $('#ghSaveStatus').textContent = (uiLang==='en'?'Connected ✓':'חובר ✓');
+    } else if(del){
+      const { data:j }=await fetchJsonSafe('/api/github/delete-saved',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:del.dataset.ghDelsaved})});
+      renderGhSaved(j && j.saved);
+    }
+  });
+
   async function loadLocalRepo(){
     try{
       const c=await (await fetch('/api/localrepo/config')).json();
@@ -2555,6 +2610,7 @@ loadModels();
     $('#ghSaveStatus').textContent='';
     $('#ghStatusBox').style.display='none';
     if(c && c.enabled && c.owner && c.repo){ loadIssues(); testGh(false); } else { $('#ghIssuesList').textContent='—'; }
+    loadGhSaved();
     loadLocalRepo();
     if(window.loadPreviewCfg) window.loadPreviewCfg();
     if(window.loadLsCfg) window.loadLsCfg();
@@ -3062,7 +3118,7 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     b.textContent='❓ עזרה';
     apiBtn.parentElement.insertBefore(b, apiBtn);
   }
-  const appVersion='1.4.30';
+  const appVersion='1.4.31';
   $('#appVersion').textContent=appVersion;
   // Seeded here too: without a local server /api/state never answers, and this would
   // otherwise keep showing whatever literal the markup was last edited with.

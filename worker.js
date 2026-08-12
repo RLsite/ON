@@ -166,6 +166,12 @@ async function handleAuth(request, env, url, path) {
 
 const DEFAULT_GITHUB_CONFIG = { enabled: false, owner: null, repo: null, token: null };
 
+// Max saved GitHub connections a user can keep for one-click reconnect (owner/repo/token each).
+const GITHUB_SAVED_LIMIT = 10;
+
+// The stored KV object is { enabled, owner, repo, token, saved: [...] }. loadGithubConfig returns
+// ONLY the flat active connection — every consumer (status, agent execution, chat) reads exactly
+// those four fields and must keep seeing exactly them; the saved list is managed separately.
 async function loadGithubConfig(env, uid) {
   const raw = await env.GH_CONFIG.get('github_config:' + uid);
   if (!raw) return { ...DEFAULT_GITHUB_CONFIG };
@@ -175,8 +181,26 @@ async function loadGithubConfig(env, uid) {
   } catch { return { ...DEFAULT_GITHUB_CONFIG }; }
 }
 
-async function saveGithubConfig(env, uid, config) {
-  await env.GH_CONFIG.put('github_config:' + uid, JSON.stringify(config));
+async function loadGithubSaved(env, uid) {
+  const raw = await env.GH_CONFIG.get('github_config:' + uid);
+  if (!raw) return [];
+  try { const c = JSON.parse(raw); return Array.isArray(c.saved) ? c.saved : []; } catch { return []; }
+}
+
+// Writes the active connection while ALWAYS preserving the saved list — callers pass the flat
+// active config (no `saved` field), so without this a normal save would wipe every saved entry.
+// Pass an explicit `saved` array only when the intent is to change the list itself.
+async function saveGithubConfig(env, uid, config, saved) {
+  const store = {
+    enabled: !!config.enabled, owner: config.owner || null, repo: config.repo || null, token: config.token || null,
+    saved: Array.isArray(saved) ? saved : await loadGithubSaved(env, uid)
+  };
+  await env.GH_CONFIG.put('github_config:' + uid, JSON.stringify(store));
+}
+
+// Never expose the raw token to the browser — only whether one is stored.
+function publicSavedConnection(c) {
+  return { id: c.id, label: c.label || `${c.owner}/${c.repo}`, owner: c.owner, repo: c.repo, hasToken: !!c.token };
 }
 
 function ghHeaders(config) {
@@ -312,6 +336,49 @@ async function handleGithubApi(request, env, path, uid) {
     if (b.token === null) config.token = null;
     await saveGithubConfig(env, uid, config);
     return json({ ok: true, enabled: config.enabled, hasToken: !!config.token });
+  }
+
+  // Saved connections — keep several owner/repo/token sets and switch between them in one click,
+  // instead of retyping owner/repo/token every time (same idea as the model "recently connected").
+  if (path === '/api/github/saved' && method === 'GET') {
+    const saved = await loadGithubSaved(env, uid);
+    return json({ saved: saved.map(publicSavedConnection) });
+  }
+
+  // Save the CURRENT active connection into the list. Deduped by owner/repo (case-insensitive);
+  // saving an owner/repo that's already there refreshes its stored token instead of duplicating.
+  if (path === '/api/github/save' && method === 'POST') {
+    const config = await loadGithubConfig(env, uid);
+    if (!config.owner || !config.repo || !config.token) {
+      return json({ error: 'Connect and enter owner, repo, and a token before saving.' }, 400);
+    }
+    const b = await request.json().catch(() => ({}));
+    const label = (typeof b.label === 'string' && b.label.trim()) ? b.label.trim().slice(0, 80) : `${config.owner}/${config.repo}`;
+    const saved = await loadGithubSaved(env, uid);
+    const sameRepo = (c) => c.owner.toLowerCase() === config.owner.toLowerCase() && c.repo.toLowerCase() === config.repo.toLowerCase();
+    const entry = { id: 'gh-' + Date.now(), label, owner: config.owner, repo: config.repo, token: config.token };
+    const next = [entry, ...saved.filter(c => !sameRepo(c))].slice(0, GITHUB_SAVED_LIMIT);
+    await saveGithubConfig(env, uid, config, next);
+    return json({ ok: true, saved: next.map(publicSavedConnection) });
+  }
+
+  // Load a saved connection into the active slot (owner/repo/token, enabled) — no retyping.
+  if (path === '/api/github/connect' && method === 'POST') {
+    const b = await request.json().catch(() => ({}));
+    const saved = await loadGithubSaved(env, uid);
+    const entry = saved.find(c => c.id === b.id);
+    if (!entry) return json({ error: 'No such saved connection.' }, 404);
+    await saveGithubConfig(env, uid, { enabled: true, owner: entry.owner, repo: entry.repo, token: entry.token }, saved);
+    return json({ ok: true, owner: entry.owner, repo: entry.repo });
+  }
+
+  if (path === '/api/github/delete-saved' && method === 'POST') {
+    const b = await request.json().catch(() => ({}));
+    const config = await loadGithubConfig(env, uid);
+    const saved = await loadGithubSaved(env, uid);
+    const next = saved.filter(c => c.id !== b.id);
+    await saveGithubConfig(env, uid, config, next);
+    return json({ ok: true, saved: next.map(publicSavedConnection) });
   }
 
   // GET is the cheap read/connectivity poll used by header indicators. POST is the explicit
