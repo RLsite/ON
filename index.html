@@ -545,7 +545,7 @@
       <div class="sideCard quickStatusCard">
         <h3 data-i18n="quickStats">מצב מהיר</h3>
         <div class="heroStatRow"><span data-i18n="statusLabel">סטטוס</span><b id="miniStatus" data-i18n="miniStatusDefault">אין פרויקט נבחר</b></div>
-        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">1.4.29 ↻</button></div>
+        <div class="heroStatRow"><span data-i18n="versionLabel">גרסה</span><button type="button" class="verBtn" id="verBtn" data-i18n-title="verBtnTitle" title="לחץ לבדיקת גרסה מול השרת">1.4.30 ↻</button></div>
         <div class="heroStatRow"><span data-i18n="langLabel">שפה</span><b id="langValue">עברית</b></div>
       </div>
     <div class="sidebarResizer" id="sidebarResizer" role="separator" aria-orientation="vertical" aria-label="שינוי רוחב אזור הפרויקטים"></div>
@@ -558,6 +558,7 @@
         <button class="miniBtn iconBtn" id="newThemeBtn" data-i18n-title="titleTheme" title="עבור למצב כהה" aria-label="עבור למצב כהה">🌙</button>
         <button class="miniBtn iconBtn" id="newHelpBtn" data-i18n-title="titleHelp" title="עזרה">❓</button>
         <button class="miniBtn iconBtn" id="newGithubBtn" data-i18n-title="titleGithub" title="חיבור ל GitHub">🔗<span class="ledDot" id="newGithubLed"></span></button>
+        <button class="miniBtn iconBtn" id="newModelBtn" data-i18n-title="titleModel" title="חיבור למודל">🤖<span class="ledDot" id="newModelLed"></span></button>
         <button class="miniBtn iconBtn" id="authBtn" title="התחבר עם Google">👤</button>
       </div>
     </div>
@@ -677,7 +678,7 @@
         <b data-i18n="helpTitle">❓ עזרה ל־ON TracK</b>
         <button class="icon" id="helpClose">✕</button>
       </div>
-      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">1.4.29</b></div>
+      <div class="hint" style="margin-bottom:12px"><span data-i18n="helpVersionLabel">גרסה:</span> <b id="appVersion">1.4.30</b></div>
       <p class="hint" style="line-height:1.7;margin-top:0" data-i18n="helpIntro">ON TracK מחבר בין מודל שבחרת לבין פרויקט ומקורות קוד. המודל מקבל בקשות ומבצע פעולות רק דרך החיבורים וההרשאות שהגדרת.</p>
       <div class="helpList">
         <div class="hint" data-i18n="helpStepOne">1. צור או בחר פרויקט בצד.</div>
@@ -3061,7 +3062,7 @@ if(next) await fetch(B+"/api/update",{method:"POST",
     b.textContent='❓ עזרה';
     apiBtn.parentElement.insertBefore(b, apiBtn);
   }
-  const appVersion='1.4.29';
+  const appVersion='1.4.30';
   $('#appVersion').textContent=appVersion;
   // Seeded here too: without a local server /api/state never answers, and this would
   // otherwise keep showing whatever literal the markup was last edited with.
